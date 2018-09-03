@@ -200,7 +200,7 @@ class JsonClient(connection.Connection):
         self._requested_traffic = set()
         self._wanted_traffic = set()
 
-        # start!
+        # start
         self._read_task = asyncio.async(self.handle_connection())
 
     def close(self):
