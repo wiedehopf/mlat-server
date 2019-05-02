@@ -1,20 +1,21 @@
-<!DOCTYPE html>
 <html>
-  <head>
-    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
-    <meta charset="utf-8">
-    <title>Multilateration Coverage</title>
-    <link rel="stylesheet" type="text/css" href="style.css" />
-    <script src="https://maps.googleapis.com/maps/api/js?v=3.19"></script>
-    <script src="data.js"></script>
-    <script src="overlay.js"></script>
-  </head>
-  <body>
-    <div id="map-container">
-      <div id="map-canvas"></div>
-    </div>
-    <div id="sidebar-container">
-      <p>Start: <span id="date_start"></span></p>
+<head>
+  <title>Freedar MLAT Receiver Coverage</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.4/leaflet-src.js"></script>
+  <link rel="stylesheet" type="text/css" href="style.css" />
+  
+  <script src="data.js"></script>
+  <script src="overlay.js"></script>
+    
+</head>
+<body onload="initialize()">
+<div id="map-container">
+   <div id="map-canvas"></div>
+   </div>
+   <div id="sidebar-container">    
+	<p> Important: To protect the privacy of our users, the receiver locations displayed on this map are approximate only and are not the actual positions.	
+	<p>Start: <span id="date_start"></span></p>
       <p>End: <span id="date_end"></span></p>
       <p>Total positions: <span id="num_pos"></span></p>
       <table width="100%">
@@ -26,6 +27,6 @@
           </tr>
         </tbody>
       </table>
-    </div>
-  </body>
+   </div>
+</body>
 </html>
