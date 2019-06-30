@@ -26,6 +26,7 @@ import asyncio
 import json
 import logging
 import time
+import os
 from contextlib import closing
 
 from mlat import geodesy, profile, constants
@@ -215,14 +216,35 @@ class Coordinator(object):
                 'connection': r.connection_info
             }
 
-        with closing(open(self.work_dir + '/sync.json', 'w')) as f:
+        # The sync matrix json can be large.  This means it might take a little time to write out.
+        # This therefore means someone could start reading it before it has completed writing...
+        # So, write out to a temp file first, and then call os.rename(), which is ATOMIC, to overwrite the real file.
+        # (Do this for each file, because why not?)
+        syncfile = self.work_dir + '/sync.json'
+        locationsfile = self.work_dir + '/locations.json'
+        aircraftfile = self.work_dir + '/aircraft.json'
+
+        # This random bit can be used for each file
+        tmprand = str(int(time.time()))
+
+        # sync.json
+        tmpfile = syncfile + '.tmp.' + tmprand
+        with closing(open(tmpfile, 'w')) as f:
             json.dump(sync, fp=f, indent=True)
+        # We should probably check for errors here, but let's fire-and-forget, instead...
+        os.rename(tmpfile, syncfile)
 
-        with closing(open(self.work_dir + '/locations.json', 'w')) as f:
+        # locations.json
+        tmpfile = locationsfile + '.tmp.' + tmprand
+        with closing(open(tmpfile, 'w')) as f:
             json.dump(locations, fp=f, indent=True)
+        os.rename(tmpfile, locationsfile)
 
-        with closing(open(self.work_dir + '/aircraft.json', 'w')) as f:
+        # aircraft.json
+        tmpfile = aircraftfile + '.tmp.' + tmprand
+        with closing(open(tmpfile, 'w')) as f:
             json.dump(aircraft_state, fp=f, indent=True)
+        os.rename(tmpfile, aircraftfile)
 
     @asyncio.coroutine
     def write_state(self):
