@@ -3,6 +3,7 @@
 # Changes by 'TanerH':
 1) in `coordinator.py`, write data to a temp file before overwriting the old file (prevents race conditions)
 2) in `jsonclient.py`, sanity check the username that is sent, disconnecting if invalid (non-alnum)
+3) Clean up exception propagation (dummy loop exception handler added), and clean up the "cleanup" when clients exit.
 
 ## Original README below --
 
