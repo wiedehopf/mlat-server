@@ -315,7 +315,7 @@ class JsonClient(connection.Connection):
                 good_user_regex = '^[A-Za-z0-9_.-]+$'
                 user_ok = re.match(good_user_regex, user)
                 # Newlines wreak havoc on log files, strip them
-                safe_user = re.sub("\n|\r", "\\n", user)
+                safe_user = re.sub("\n|\r", "\n", user)
                 if user_ok is None:
                     raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=safe_user))
 
