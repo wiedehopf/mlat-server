@@ -31,6 +31,7 @@ import socket
 import inspect
 import sys
 import math
+import re
 
 from mlat import constants, geodesy
 from mlat.server import net, util, connection, config
