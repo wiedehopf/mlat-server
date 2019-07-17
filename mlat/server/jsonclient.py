@@ -310,6 +310,12 @@ class JsonClient(connection.Connection):
 
                 user = str(hs['user'])
 
+		# Make sure the user string is sane...
+		good_user_regex = '^[A-Za-z0-9_.-]+$'
+		user_ok = re.match(good_user_regex, user)
+		if user_ok is None:
+                    raise ValueError("Bad characters in username.  Please only use alphanumerics, or '_', '-', or '.'")
+
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
                 for c, readmeth, writemeth in self._compression_methods:
