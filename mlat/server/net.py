@@ -86,8 +86,10 @@ class MonitoringListener(object):
     @asyncio.coroutine
     def monitor_client(self, client):
         yield from client.wait_closed()
-        self.clients.remove(client)
-        self.monitoring.remove(asyncio.Task.current_task())
+        if client in self.clients:
+            self.clients.remove(client)
+        if asyncio.Task.current_task() in self.monitoring:
+            self.monitoring.remove(asyncio.Task.current_task())
 
     def close(self):
         if not self.started:

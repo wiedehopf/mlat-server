@@ -31,6 +31,7 @@ import socket
 import inspect
 import sys
 import math
+import re
 
 from mlat import constants, geodesy
 from mlat.server import net, util, connection, config
@@ -309,6 +310,14 @@ class JsonClient(connection.Connection):
                     raise ValueError('Unsupported version in handshake')
 
                 user = str(hs['user'])
+
+                # Make sure the user string is sane...
+                good_user_regex = '^[A-Za-z0-9_.-]+$'
+                user_ok = re.match(good_user_regex, user)
+                # Newlines wreak havoc on log files, strip them
+                safe_user = re.sub("\n|\r", r'\\n', user)
+                if user_ok is None:
+                    raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=safe_user))
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None

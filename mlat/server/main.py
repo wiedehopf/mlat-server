@@ -228,6 +228,11 @@ class MlatServer(object):
     def run(self):
         args = self.make_arg_parser().parse_args()
 
+        def loop_handle_exception(loop, context):
+            msg = context.get("exception", context["message"])
+            # Don't really log anything, this is mostly for cleanup for python > 3.4
+            #logging.error(f"Caught exception: {msg}")
+
         self.coordinator = coordinator.Coordinator(work_dir=args.work_dir,
                                                    pseudorange_filename=args.dump_pseudorange,
                                                    partition=args.partition,
@@ -236,6 +241,7 @@ class MlatServer(object):
         subtasks = self.make_subtasks(args)
 
         # Start everything
+        self.loop.set_exception_handler(loop_handle_exception)
         startup = asyncio.gather(*[x.start() for x in subtasks])
         self.loop.run_until_complete(startup)
         startup.result()  # provoke exceptions if something failed
