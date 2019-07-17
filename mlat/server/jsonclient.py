@@ -315,7 +315,7 @@ class JsonClient(connection.Connection):
                 good_user_regex = '^[A-Za-z0-9_.-]+$'
                 user_ok = re.match(good_user_regex, user)
                 if user_ok is None:
-                    raise ValueError("Bad characters in username.  Please only use alphanumerics, or '_', '-', or '.'")
+                    raise ValueError("Bad chars in username '{user}'.  Please only use alphanumerics, '_', '-', or '.'".format(user=user))
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
