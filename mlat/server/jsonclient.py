@@ -320,11 +320,7 @@ class JsonClient(connection.Connection):
                 # Newlines wreak havoc on log files, strip them
                 safe_user = re.sub("\n|\r", r'\\n', user)
                 if user_ok is None:
-<<<<<<< HEAD
                     raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=safe_user))
-=======
-                    raise ValueError("Bad chars in username '{user}'.  Please only use alphanumerics, '_', '-', or '.'".format(user=user))
->>>>>>> parent of 1c71d30... Testing some cleanup
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
