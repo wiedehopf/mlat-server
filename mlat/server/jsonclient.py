@@ -233,10 +233,7 @@ class JsonClient(connection.Connection):
 
     @asyncio.coroutine
     def wait_closed(self):
-        try:
-            yield from util.safe_wait([self._read_task, self._heartbeat_task])
-        except Exception:
-            pass
+        yield from util.safe_wait([self._read_task, self._heartbeat_task])
 
     @asyncio.coroutine
     def handle_heartbeats(self):
