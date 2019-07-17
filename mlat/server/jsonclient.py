@@ -276,13 +276,7 @@ class JsonClient(connection.Connection):
 
         try:
             hs = yield from asyncio.wait_for(self.r.readline(), timeout=30.0)
-            try:
-                ph = self.process_handshake(hs)
-            except Exception:
-                self.logger.exception('Exception in process_handshake')
-                return
-
-            if not ph:
+            if not self.process_handshake(hs):
                 return
 
             # start heartbeat handling now that the handshake is done
@@ -321,7 +315,7 @@ class JsonClient(connection.Connection):
                 good_user_regex = '^[A-Za-z0-9_.-]+$'
                 user_ok = re.match(good_user_regex, user)
                 if user_ok is None:
-                    raise ValueError("Bad username '{user}'.  Please only use alphanumerics, '_', '-', or '.'".format(user=user))
+                    raise ValueError("Bad chars in username '{user}'.  Please only use alphanumerics, '_', '-', or '.'".format(user=user))
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
