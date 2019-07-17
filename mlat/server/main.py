@@ -243,12 +243,7 @@ class MlatServer(object):
         self.loop.add_signal_handler(signal.SIGINT, self.stop, "Halting on SIGINT")
         self.loop.add_signal_handler(signal.SIGTERM, self.stop, "Halting on SIGTERM")
 
-        try:
-            self.loop.run_forever()  # Well, until stop() is called anyway!
-        except Exception:
-            startup.exception()
-        else:
-            startup.exception()
+        self.loop.run_forever()  # Well, until stop() is called anyway!
 
         logging.info("Server shutting down.")
 
