@@ -419,7 +419,7 @@ def _cluster_timestamps(component, min_receivers):
                     # as the cluster grows, only accept receivers located further apart
                     # also limit the absolute size of the cluster
                     if (
-                        min_d/config.CLUSTER_SPREAD > len(cluster) - config.CLUSTER.NOSPREAD
+                        min_d/config.CLUSTER_SPREAD > len(cluster) - config.CLUSTER_NOSPREAD
                         and len(cluster) <= config.MAX_CLUSTER
                     ):
                         cluster.append((receiver, timestamp, variance))
