@@ -93,6 +93,11 @@ class MlatTracker(object):
                 self._resolve,
                 group)
 
+        # limit group size, discard the rest of message copies
+        # first pruning step before clock normalization
+        if len(group.copies) >= config.MAX_GROUP:
+            return
+
         group.copies.append((receiver, timestamp, utc))
         group.first_seen = min(group.first_seen, utc)
 
@@ -382,6 +387,8 @@ def _cluster_timestamps(component, min_receivers):
 
                 # strict test for range, now.
                 is_distinct = can_cluster = True
+                # distance to closest receiver already in cluster
+                min_d = 1000e3
                 for other_receiver, other_timestamp, other_variance in cluster:
                     if other_receiver is receiver:
                         #glogger.info("   discard: duplicate receiver")
@@ -404,15 +411,26 @@ def _cluster_timestamps(component, min_receivers):
                         #glogger.info("   not distinct vs receiver {r}".format(r=other_receiver.user))
                         is_distinct = False
 
+                    if d < min_d:
+                        min_d = d
+
                 if can_cluster:
                     #glogger.info("   accept")
-                    cluster.append((receiver, timestamp, variance))
-                    first_seen = min(first_seen, utc)
+                    # as the cluster grows, only accept receivers located further apart
+                    # also limit the absolute size of the cluster
+                    if (
+                        min_d/config.CLUSTER_SPREAD > len(cluster) - config.CLUSTER.NOSPREAD
+                        and len(cluster) <= config.MAX_CLUSTER
+                    ):
+                        cluster.append((receiver, timestamp, variance))
+                        first_seen = min(first_seen, utc)
+                        if is_distinct:
+                            distinct_receivers += 1
+
                     del group[i]
-                    if is_distinct:
-                        distinct_receivers += 1
 
             if distinct_receivers >= min_receivers:
+
                 cluster.reverse()  # make it ascending timestamps again
                 clusters.append((distinct_receivers, first_seen, cluster))
 
