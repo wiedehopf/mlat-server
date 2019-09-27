@@ -266,13 +266,7 @@ class Coordinator(object):
             else:
                 r.bad_syncs -= 0.05
 
-            if r.bad_syncs < 0:
-                r.bad_syncs = 0
-
-            if r.bad_syncs > 6:
-                r.bad_syncs = 6
-
-
+            r = max(0, min(6, r))
 
     @asyncio.coroutine
     def write_state(self):
