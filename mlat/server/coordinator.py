@@ -59,6 +59,8 @@ class Receiver(object):
 
         self.distance = {}
 
+        self.bad_syncs = 0
+
     def update_interest_sets(self, new_sync, new_mlat):
         for added in new_sync.difference(self.sync_interest):
             added.sync_interest.add(self)
@@ -205,7 +207,8 @@ class Coordinator(object):
 
         for r in self.receivers.values():
             sync[r.uuid] = {
-                'peers': self.clock_tracker.dump_receiver_state(r)
+                'peers': self.clock_tracker.dump_receiver_state(r),
+                'bad_syncs': r.bad_syncs
             }
             locations[r.uuid] = {
                 'user': r.user,
@@ -245,6 +248,31 @@ class Coordinator(object):
         with closing(open(tmpfile, 'w')) as f:
             json.dump(aircraft_state, fp=f, indent=True)
         os.rename(tmpfile, aircraftfile)
+
+        # blacklist receivers with bad clock
+        for r in self.receivers.values():
+            bad_peers = 0
+            num_peers = 5
+            # state = [ 0: pairing sync count, 1: offset, 2: drift,
+            #           3: timestamp?, 4: bad_syncs ]
+            for state in sync[r.uuid].peers.values():
+                if state[4] < 0.01 and state[0] > 2:
+                    num_peers += 1
+                    if state[1] > 4:
+                        bad_peers += 1
+
+            if bad_peers/num_peers > 0.2:
+                r.bad_syncs += 1
+            else:
+                r.bad_syncs -= 0.05
+
+            if r.bad_syncs < 0:
+                r.bad_syncs = 0
+
+            if r.bad_syncs > 6:
+                r.bad_syncs = 6
+
+
 
     @asyncio.coroutine
     def write_state(self):

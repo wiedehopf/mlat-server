@@ -84,6 +84,9 @@ class MlatTracker(object):
 
     @profile.trackcpu
     def receiver_mlat(self, receiver, timestamp, message, utc):
+        # ignore messages from receivers with bad sync
+        if receiver.bad_syncs > 0.01:
+            return
         # use message as key
         group = self.pending.get(message)
         if not group:
