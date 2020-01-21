@@ -265,12 +265,13 @@ class Coordinator(object):
             # iterate over sync state with all peers
             # state = [ 0: pairing sync count, 1: offset, 2: drift,
             #           3: timestamp?, 4: bad_syncs ]
-            for state in sync[r.uuid].peers.values():
-                if state[4] > 0:
-                    continue
-                num_peers += 1
-                if state[1] > 3:
-                    bad_peers += 1
+            if 'peers' in sync[r.uuid]:
+                for state in sync[r.uuid]['peers'].values():
+                    if state[4] > 0:
+                        continue
+                    num_peers += 1
+                    if state[1] > 3:
+                        bad_peers += 1
 
             # If your sync with 5 receivers or more than 10 percent of peers is bad,
             # it's likely you are the reason.
@@ -279,7 +280,7 @@ class Coordinator(object):
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
                 r.bad_syncs += min(1, 2*bad_peers/num_peers)
             else:
-                r.bad_syncs -= 0.1
+                r.bad_syncs -= 0.2
 
             # If your sync mostly looks good, your bad_sync score is decreased.
             # If you had a score before, once it goes down to zero you are
