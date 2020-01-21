@@ -29,7 +29,7 @@ from mlat import constants
 #
 # Please remember that this needs to be _the code that the server is running_.
 #
-AGPL_SERVER_CODE_URL = "https://github.com/nitro999/mlat-server"
+AGPL_SERVER_CODE_URL = "https://github.com/adsbexchange/mlat-server"
 
 # minimum NUCp value to accept as a sync message
 MIN_NUC = 6
@@ -44,10 +44,29 @@ MAX_INTERMESSAGE_RANGE = 10e3
 MAX_ALT = 50000 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 2.5
+MLAT_DELAY = 5
 
 # maxfev (maximum function evaluations) for the solver
-SOLVER_MAXFEV = 50
+SOLVER_MAXFEV = 125
+
+# limit group size, discard the rest of message copies
+# first pruning step before clock normalization
+MAX_GROUP = 50
+
+# only add receivers to the cluster if they are further than a certain distance
+# from all receivers already in the cluster
+# required distance is zero up to 6 receivers already in cluster
+# then the distance increases by CLUSTER_SPREAD m for every additional receiver
+# so for CLUSTER_SPREAD = 1000, if there are already 16 receivers, the new receiver
+# needs to be further than 16-6 = 10 km from all receivers in the cluster
+CLUSTER_SPREAD = 1000
+
+# initial number of receivers for which minimum distance is not checked
+# we don't want to have too few receivers just because they are close to each other
+CLUSTER_NOSPREAD = 15
+
+# hard limit the absolute size of the cluster given to the solver
+MAX_CLUSTER = 30
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')

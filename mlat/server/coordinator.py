@@ -59,6 +59,9 @@ class Receiver(object):
 
         self.distance = {}
 
+        # Receivers with bad_syncs>0 are not used to calculate positions
+        self.bad_syncs = 0
+
     def update_interest_sets(self, new_sync, new_mlat):
         for added in new_sync.difference(self.sync_interest):
             added.sync_interest.add(self)
@@ -205,7 +208,8 @@ class Coordinator(object):
 
         for r in self.receivers.values():
             sync[r.uuid] = {
-                'peers': self.clock_tracker.dump_receiver_state(r)
+                'peers': self.clock_tracker.dump_receiver_state(r),
+                'bad_syncs': r.bad_syncs
             }
             locations[r.uuid] = {
                 'user': r.user,
@@ -245,6 +249,47 @@ class Coordinator(object):
         with closing(open(tmpfile, 'w')) as f:
             json.dump(aircraft_state, fp=f, indent=True)
         os.rename(tmpfile, aircraftfile)
+
+        # blacklist receivers with bad clock
+        # note this section of code runs every 30 seconds
+        for r in self.receivers.values():
+            bad_peers = 0
+            # count how many peers we have bad sync with
+            # don't count peers who have been timed out (state[4] > 0)
+            # 3 microseconds error or more are considered a bad sync (state[1] > 3)
+            num_peers = 10
+            # start with 10 peers extra, so low peer receivers
+            # aren't timed out by the percentage threshold
+            # of bad_peers as easily.
+
+            # iterate over sync state with all peers
+            # state = [ 0: pairing sync count, 1: offset, 2: drift,
+            #           3: timestamp?, 4: bad_syncs ]
+            if 'peers' in sync[r.uuid]:
+                for state in sync[r.uuid]['peers'].values():
+                    if state[4] > 0:
+                        continue
+                    num_peers += 1
+                    if state[1] > 3:
+                        bad_peers += 1
+
+            # If your sync with 5 receivers or more than 10 percent of peers is bad,
+            # it's likely you are the reason.
+            # You get 0.2 to 1 to your bad_sync score and timed out.
+
+            if bad_peers > 5 or bad_peers/num_peers > 0.1:
+                r.bad_syncs += min(1, 2*bad_peers/num_peers)
+            else:
+                r.bad_syncs -= 0.2
+
+            # If your sync mostly looks good, your bad_sync score is decreased.
+            # If you had a score before, once it goes down to zero you are
+            # no longer timed out
+
+            # Limit bad_sync score to the range of 0 to 6
+
+            r.bad_syncs = max(0, min(6, r.bad_syncs))
+
 
     @asyncio.coroutine
     def write_state(self):

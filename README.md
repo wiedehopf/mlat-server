@@ -1,5 +1,12 @@
 # mlat-server
 
+# Changes by 'wiedehopf':
+ * Ignore servers with bad clock via karma system:
+    * Clock sync is checked every 30s, if receiver has bad sync, gets penalty added to its score
+    * Badness ranges from "0" to "6.0".  (6 = 30 min timeout)
+    * Each time sync is good, bad karma is decremented by small amount.
+
+
 # Changes by 'TanerH':
 1) in `coordinator.py`, write data to a temp file before overwriting the old file (prevents race conditions)
 2) in `jsonclient.py`, sanity check the username that is sent, disconnecting if invalid (non-alnum)
