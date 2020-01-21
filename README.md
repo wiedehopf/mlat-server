@@ -2,9 +2,9 @@
 
 # Changes by 'wiedehopf':
  * Ignore servers with bad clock via karma system:
-  * Clock syn is checked every 30s, if receiver has bad sync, gets penalty added to its score
-  * Badness ranges from "0" to "6.0".  (6 = 30 min timeout)
-  * Each time sync is good, bad karma is decremented by small amount.
+  1) Clock sync is checked every 30s, if receiver has bad sync, gets penalty added to its score
+  2) Badness ranges from "0" to "6.0".  (6 = 30 min timeout)
+  3) Each time sync is good, bad karma is decremented by small amount.
 
 
 # Changes by 'TanerH':
