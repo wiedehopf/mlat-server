@@ -44,10 +44,10 @@ MAX_INTERMESSAGE_RANGE = 10e3
 MAX_ALT = 50000 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 5
+MLAT_DELAY = 4
 
 # maxfev (maximum function evaluations) for the solver
-SOLVER_MAXFEV = 125
+SOLVER_MAXFEV = 135
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
