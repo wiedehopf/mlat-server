@@ -548,7 +548,7 @@ class JsonClient(connection.Connection):
 
             m_rate = self.message_counter / elapsed
             p_rate = self.processed_counter / elapsed
-            if self.message_counter > 10000:
+            if self.message_counter > 40000:
                 logging.info('used / total sync msg/s: ' + "{:.1f}".format(p_rate) + ' / ' + "{:.1f}".format(m_rate))
                 self.message_counter = 0
                 self.processed_counter = 0
@@ -562,7 +562,7 @@ class JsonClient(connection.Connection):
             if ramp < 0: ramp = 0
             # ramp from 0 to 1
 
-            if self.message_counter < 25 or random.random() > ramp * cut_ratio:
+            if self.message_counter < 250 or random.random() > ramp * cut_ratio:
                 self.processed_counter += 1
                 self.process_sync(float(sync['et']),
                                   float(sync['ot']),

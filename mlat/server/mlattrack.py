@@ -182,6 +182,12 @@ class MlatTracker(object):
         if elapsed < 3.0 and dof < last_result_dof:
             return
 
+        if elapsed < 2.0 and dof == last_result_dof:
+            return
+
+        if elapsed < 2.0 and last_result_dof > 5:
+            return
+
         # normalize timestamps. This returns a list of timestamp maps;
         # within each map, the timestamp values are comparable to each other.
         components = clocknorm.normalize(clocktracker=self.clock_tracker,
@@ -221,6 +227,9 @@ class MlatTracker(object):
                 return
 
             if elapsed < 3.0 and dof < last_result_dof:
+                return
+
+            if elapsed < 2.0 and dof == last_result_dof:
                 return
 
             # assume 250ft accuracy at the time it is reported
@@ -276,15 +285,19 @@ class MlatTracker(object):
         ac.last_result_time = cluster_utc
         ac.mlat_result_count += 1
 
-        if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
-            ac.mlat_kalman_count += 1
-
         if altitude is None:
             _, _, solved_alt = geodesy.ecef2llh(ecef)
             glogger.info("{addr:06x} solved altitude={solved_alt:.0f}ft with dof={dof}".format(
                 addr=decoded.address,
                 solved_alt=solved_alt*constants.MTOF,
                 dof=dof))
+
+        if altitude is None:
+            if ac.kalman.update(cluster_utc, cluster, solved_alt, 2000 / (dof + 1), ecef, ecef_cov, distinct, dof):
+                ac.mlat_kalman_count += 1
+        else:
+            if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
+                ac.mlat_kalman_count += 1
 
         for handler in self.coordinator.output_handlers:
             handler(cluster_utc, decoded.address,

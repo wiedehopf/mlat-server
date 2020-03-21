@@ -233,6 +233,9 @@ class BasestationClient(object):
             altitude = int(round(alt * constants.MTOF))
             send_timestamp = time.time()
 
+            if ac.altitude is None:
+                vrate = ''
+
             line = self.TEMPLATE.format(mtype=3,
                                         addr=address,
                                         rcv_date=format_date(receive_timestamp),
@@ -241,8 +244,8 @@ class BasestationClient(object):
                                         now_time=format_time(send_timestamp),
                                         callsign=csv_quote(callsign),
                                         squawk=csv_quote(squawk),
-                                        lat=round(lat, 4),
-                                        lon=round(lon, 4),
+                                        lat=round(lat, 6),
+                                        lon=round(lon, 6),
                                         altitude=altitude,
                                         speed=speed,
                                         heading=heading,
