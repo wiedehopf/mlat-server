@@ -49,17 +49,17 @@ class KalmanState(object):
     # minimum DOF to update a filter while tracking
     min_tracking_dof = 0
     # Mahalanobis distance threshold for outliers
-    outlier_mahalanobis_distance = 15.0
+    outlier_mahalanobis_distance = 18.0
     # position error threshold for switching from acquiring to tracking, meters
-    min_acquiring_position_error = 3e3
+    min_acquiring_position_error = 4e3
     # velocity error threshold for switching from acquiring to tracking, m/s
-    min_acquiring_velocity_error = 50
+    min_acquiring_velocity_error = 60
     # position error threshold for switching from tracking to acquiring, meters
-    max_tracking_position_error = 5e3
+    max_tracking_position_error = 6.5e3
     # velocity error threshold for switching from tracking to acquiring, m/s
-    max_tracking_velocity_error = 75
+    max_tracking_velocity_error = 90
     # process noise, m/s^2 or m/s^3
-    process_noise = 0.10
+    process_noise = 0.11
 
     def __init__(self, icao):
         self.icao = icao

@@ -213,21 +213,27 @@ class BasestationClient(object):
 
     def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_data):
         try:
+            ac = self.coordinator.tracker.aircraft[address]
+
+            speed = ''
+            heading = ''
+            vrate = ''
+
             if self.use_kalman_data:
                 if not kalman_data.valid or kalman_data.last_update < receive_timestamp:
-                    return
-
-                lat, lon, alt = kalman_data.position_llh
-                speed = int(round(kalman_data.ground_speed * constants.MS_TO_KTS))
-                heading = int(round(kalman_data.heading))
-                vrate = int(round(kalman_data.vertical_speed * constants.MS_TO_FPM))
+                    if receive_timestamp - ac.last_kalman_output > 13:
+                        lat, lon, alt = geodesy.ecef2llh(ecef)
+                    else:
+                        return
+                else:
+                    lat, lon, alt = kalman_data.position_llh
+                    speed = int(round(kalman_data.ground_speed * constants.MS_TO_KTS))
+                    heading = int(round(kalman_data.heading))
+                    vrate = int(round(kalman_data.vertical_speed * constants.MS_TO_FPM))
+                ac.last_kalman_output = receive_timestamp
             else:
                 lat, lon, alt = geodesy.ecef2llh(ecef)
-                speed = ''
-                heading = ''
-                vrate = ''
 
-            ac = self.coordinator.tracker.aircraft[address]
             callsign = ac.callsign
             squawk = ac.squawk
             altitude = int(round(alt * constants.MTOF))
