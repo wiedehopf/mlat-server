@@ -233,7 +233,7 @@ class BasestationClient(object):
             altitude = int(round(alt * constants.MTOF))
             send_timestamp = time.time()
 
-            if ac.altitude is None:
+            if ac.last_altitude_time is None or send_timestamp - ac.last_altitude_time > 30:
                 vrate = ''
 
             line = self.TEMPLATE.format(mtype=3,
