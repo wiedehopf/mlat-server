@@ -223,6 +223,8 @@ class BasestationClient(object):
                 if not kalman_data.valid or kalman_data.last_update < receive_timestamp:
                     if receive_timestamp - ac.last_kalman_output > 13:
                         lat, lon, alt = geodesy.ecef2llh(ecef)
+                        if ac.last_altitude_time is not None and receive_timestamp - ac.last_altitude_time < 15:
+                            alt = ac.altitude
                     else:
                         return
                 else:
@@ -239,7 +241,7 @@ class BasestationClient(object):
             altitude = int(round(alt * constants.MTOF))
             send_timestamp = time.time()
 
-            if ac.last_altitude_time is None or send_timestamp - ac.last_altitude_time > 30:
+            if ac.last_altitude_time is None or receive_timestamp - ac.last_altitude_time > 5:
                 vrate = ''
 
             line = self.TEMPLATE.format(mtype=3,
