@@ -92,7 +92,7 @@ class MlatTracker(object):
         if not group:
             group = self.pending[message] = MessageGroup(message, utc)
             group.handle = asyncio.get_event_loop().call_later(
-                1.0,
+                2.5,
                 self._resolve,
                 group)
 
