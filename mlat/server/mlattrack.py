@@ -92,7 +92,7 @@ class MlatTracker(object):
         if not group:
             group = self.pending[message] = MessageGroup(message, utc)
             group.handle = asyncio.get_event_loop().call_later(
-                config.MLAT_DELAY / 2,
+                2.5,
                 self._resolve,
                 group)
 
@@ -170,22 +170,25 @@ class MlatTracker(object):
         # basic ratelimit before we do more work
         elapsed = group.first_seen - last_result_time
 
-        if elapsed < 12.0 and dof < last_result_dof - 3:
+        if elapsed < 10.0 and dof < last_result_dof - 3:
             return
 
-        if elapsed < 9.0 and dof < last_result_dof - 2:
+        if elapsed < 8.0 and dof < last_result_dof - 2:
             return
 
         if elapsed < 6.0 and dof < last_result_dof - 1:
             return
 
-        if elapsed < 3.0 and dof < last_result_dof:
+        if elapsed < 4.0 and dof < last_result_dof:
             return
 
         if elapsed < 2.0 and dof == last_result_dof:
             return
 
-        if elapsed < 2.0 and last_result_dof > 5:
+        if elapsed < 1.0 and last_result_dof > 2:
+            return
+
+        if elapsed < 2.0 and last_result_dof > 3:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;
