@@ -125,9 +125,9 @@ class Coordinator(object):
         self.receiver_sync = self.clock_tracker.receiver_sync
 
     def start(self):
-        self._write_state_task = asyncio.async(self.write_state())
+        self._write_state_task = asyncio.ensure_future(self.write_state())
         if profile.enabled:
-            self._write_profile_task = asyncio.async(self.write_profile())
+            self._write_profile_task = asyncio.ensure_future(self.write_profile())
         else:
             self._write_profile_task = None
         return util.completed_future

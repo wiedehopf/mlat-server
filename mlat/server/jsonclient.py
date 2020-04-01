@@ -206,7 +206,7 @@ class JsonClient(connection.Connection):
         self._wanted_traffic = set()
 
         # start
-        self._read_task = asyncio.async(self.handle_connection())
+        self._read_task = asyncio.ensure_future(self.handle_connection())
 
     def close(self):
         if not self.transport:
@@ -285,7 +285,7 @@ class JsonClient(connection.Connection):
 
             # start heartbeat handling now that the handshake is done
             self._last_message_time = time.monotonic()
-            self._heartbeat_task = asyncio.async(self.handle_heartbeats())
+            self._heartbeat_task = asyncio.ensure_future(self.handle_heartbeats())
 
             yield from self.handle_messages()
 

@@ -67,7 +67,7 @@ class LeakChecker(object):
         if objgraph is None:
             self.logger.warning("Leak checking disabled (objgraph not available)")
         else:
-            self._task = asyncio.async(self.checker())
+            self._task = asyncio.ensure_future(self.checker())
 
         return util.completed_future
 
