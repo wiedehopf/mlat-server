@@ -206,7 +206,7 @@ class JsonClient(connection.Connection):
         self._wanted_traffic = set()
 
         # start
-        self._read_task = asyncio.async(self.handle_connection())
+        self._read_task = asyncio.ensure_future(self.handle_connection())
 
     def close(self):
         if not self.transport:
@@ -285,7 +285,7 @@ class JsonClient(connection.Connection):
 
             # start heartbeat handling now that the handshake is done
             self._last_message_time = time.monotonic()
-            self._heartbeat_task = asyncio.async(self.handle_heartbeats())
+            self._heartbeat_task = asyncio.ensure_future(self.handle_heartbeats())
 
             yield from self.handle_messages()
 
@@ -315,13 +315,26 @@ class JsonClient(connection.Connection):
 
                 user = str(hs['user'])
 
+                # Newlines wreak havoc on log files, strip them
+                user = re.sub("\n|\r", r'\\n', user)
+                # replace bad characters with an underscore
+                user = re.sub("[^A-Za-z0-9_.-]", r'_', user)
+                if len(user) > 400:
+                    user = user[:400]
+                if len(user) < 5:
+                    user = user + '_' + str(random.randrange(10000,99999))
                 # Make sure the user string is sane...
                 good_user_regex = '^[A-Za-z0-9_.-]+$'
                 user_ok = re.match(good_user_regex, user)
-                # Newlines wreak havoc on log files, strip them
-                safe_user = re.sub("\n|\r", r'\\n', user)
                 if user_ok is None:
-                    raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=safe_user))
+                    raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=user))
+
+
+                for i in range(5):
+                    if user in self.coordinator.receivers:
+                        user = user + '_' + str(random.randrange(10,99))
+                    else:
+                        break
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
@@ -423,6 +436,8 @@ class JsonClient(connection.Connection):
                                          self._udp_key)
 
         self.write_raw(**response)
+        if clock_type != 'dump1090':
+            self.logger.info("STRANGE CLOCK")
         self.logger.info("Handshake successful ({user} {conn_info})'".format(
             user=user,
             conn_info=conn_info))

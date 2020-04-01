@@ -81,7 +81,7 @@ class MonitoringListener(object):
     def start_client(self, r, w):
         newclient = self._new_client(r, w)
         self.clients.append(newclient)
-        self.monitoring.append(asyncio.async(self.monitor_client(newclient)))
+        self.monitoring.append(asyncio.ensure_future(self.monitor_client(newclient)))
 
     @asyncio.coroutine
     def monitor_client(self, client):
@@ -122,7 +122,7 @@ class MonitoringConnector(object):
     def start(self):
         if not self.started:
             self.started = True
-            self.reconnect_task = asyncio.async(self.reconnect())
+            self.reconnect_task = asyncio.ensure_future(self.reconnect())
 
         return util.completed_future
 

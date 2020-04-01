@@ -160,8 +160,8 @@ class BasestationClient(object):
         self.use_kalman_data = use_kalman_data
         self.heartbeat_interval = heartbeat_interval
         self.last_output = time.monotonic()
-        self.heartbeat_task = asyncio.async(self.send_heartbeats())
-        self.reader_task = asyncio.async(self.read_until_eof())
+        self.heartbeat_task = asyncio.ensure_future(self.send_heartbeats())
+        self.reader_task = asyncio.ensure_future(self.read_until_eof())
 
         self.logger.info("Connection established")
         self.coordinator.add_output_handler(self.write_result)
