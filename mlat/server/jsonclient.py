@@ -563,26 +563,34 @@ class JsonClient(connection.Connection):
 
             m_rate = self.message_counter / elapsed
             p_rate = self.processed_counter / elapsed
-            if self.message_counter > 40000:
+            if self.message_counter > 10000:
                 logging.info('used / total sync msg/s: ' + "{:.1f}".format(p_rate) + ' / ' + "{:.1f}".format(m_rate))
                 self.message_counter = 0
                 self.processed_counter = 0
                 self.mc_start = now
 
-            start_ramp = 15 # don't discard below this rate
-            end_ramp = 50 # discard cut_ratio above this rate
-            cut_ratio = 0.7 # maximum fraction of messages discarded
-            ramp = (m_rate - start_ramp) / (end_ramp - start_ramp)
-            if ramp > 1: ramp = 1
-            if ramp < 0: ramp = 0
-            # ramp from 0 to 1
+            if self.receiver.bad_syncs > 0 or self.receiver.peer_count < 3:
+                start_ramp = 5
+                range_ramp = 10
+                min_ratio = 0
+            else:
+                start_ramp = 15 # don't discard below this rate
+                range_ramp = 40
+                min_ratio = 0.3 # lowest ratio of messages accepted
 
-            if self.message_counter < 250 or random.random() > ramp * cut_ratio:
+            ramp = 1 - ((m_rate - start_ramp) / range_ramp)
+            if ramp > 1: ramp = 1
+            if ramp < min_ratio: ramp = min_ratio
+            # ramp from 1 - cut_ratio to 1
+
+            if self.message_counter < 100 or p_rate / m_rate < ramp:
                 self.processed_counter += 1
-                self.process_sync(float(sync['et']),
-                                  float(sync['ot']),
-                                  bytes.fromhex(sync['em']),
-                                  bytes.fromhex(sync['om']))
+                self.coordinator.receiver_sync(self.receiver,
+                        float(sync['et']),
+                        float(sync['ot']),
+                        bytes.fromhex(sync['em']),
+                        bytes.fromhex(sync['om']))
+
         elif 'mlat' in msg:
             mlat = msg['mlat']
             self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
