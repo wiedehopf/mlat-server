@@ -207,9 +207,11 @@ class Coordinator(object):
         sync = {}
         locations = {}
 
+        receiver_states = self.clock_tracker.dump_receiver_state()
+
         for r in self.receivers.values():
             sync[r.uuid] = {
-                'peers': self.clock_tracker.dump_receiver_state(r),
+                'peers': receiver_states.setdefault(r.uuid, {}),
                 'bad_syncs': r.bad_syncs
             }
             r.peer_count = len(sync[r.uuid]['peers'])
