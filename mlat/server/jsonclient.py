@@ -604,6 +604,9 @@ class JsonClient(connection.Connection):
             self.process_input_disconnected_message(msg['input_disconnected'])
         elif 'clock_reset' in msg:
             self.process_clock_reset_message(msg['clock_reset'])
+        elif 'clock_jump' in msg:
+            self.coordinator.receiver_clock_reset(self.receiver)
+            self.logger.info("Clock jump, resetting SYNC!")
         elif 'heartbeat' in msg:
             self.process_heartbeat_message(msg['heartbeat'])
         elif 'rate_report' in msg:
