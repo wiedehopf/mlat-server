@@ -149,6 +149,12 @@ class MlatTracker(object):
             last_result_dof = ac.last_result_dof
             last_result_time = ac.last_result_time
 
+        # even earlier rate limiting for aircraft that are well received
+        elapsed = group.first_seen - last_result_time
+
+        if elapsed < 2.0 and last_result_dof > 3:
+            return
+
         # find altitude
         if ac.altitude is None:
             altitude = None
@@ -168,27 +174,11 @@ class MlatTracker(object):
             return
 
         # basic ratelimit before we do more work
-        elapsed = group.first_seen - last_result_time
-
-        if elapsed < 10.0 and dof < last_result_dof - 3:
-            return
-
-        if elapsed < 8.0 and dof < last_result_dof - 2:
-            return
-
-        if elapsed < 6.0 and dof < last_result_dof - 1:
-            return
 
         if elapsed < 4.0 and dof < last_result_dof:
             return
 
         if elapsed < 2.0 and dof == last_result_dof:
-            return
-
-        if elapsed < 1.0 and last_result_dof > 2:
-            return
-
-        if elapsed < 2.0 and last_result_dof > 3:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;
@@ -220,19 +210,10 @@ class MlatTracker(object):
             elapsed = cluster_utc - last_result_time
             dof = distinct + altitude_dof - 4
 
-            if elapsed < 12.0 and dof < last_result_dof - 3:
+            if elapsed < 3.5 and dof < last_result_dof:
                 return
 
-            if elapsed < 9.0 and dof < last_result_dof - 2:
-                return
-
-            if elapsed < 6.0 and dof < last_result_dof - 1:
-                return
-
-            if elapsed < 3.0 and dof < last_result_dof:
-                return
-
-            if elapsed < 2.0 and dof == last_result_dof:
+            if elapsed < 1.5 and dof == last_result_dof:
                 return
 
             # assume 250ft accuracy at the time it is reported
