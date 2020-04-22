@@ -215,14 +215,24 @@ class Coordinator(object):
                 'bad_syncs': r.bad_syncs
             }
             r.peer_count = len(sync[r.uuid]['peers'])
-            locations[r.uuid] = {
-                'user': r.user,
-                'lat': r.position_llh[0],
-                'lon': r.position_llh[1],
-                'alt': r.position_llh[2],
-                'privacy': r.privacy,
-                'connection': r.connection_info
-            }
+            if r.privacy:
+                locations[r.uuid] = {
+                    'user': r.user,
+                    'lat': None,
+                    'lon': None,
+                    'alt': None,
+                    'privacy': r.privacy,
+                    'connection': r.connection_info
+                }
+            else:
+                locations[r.uuid] = {
+                    'user': r.user,
+                    'lat': 0.05 * round(r.position_llh[0]/0.05),
+                    'lon': 0.05 * round(r.position_llh[1]/0.05),
+                    'alt': 50 * round(r.position_llh[2]/50),
+                    'privacy': r.privacy,
+                    'connection': r.connection_info
+                }
 
         # The sync matrix json can be large.  This means it might take a little time to write out.
         # This therefore means someone could start reading it before it has completed writing...
