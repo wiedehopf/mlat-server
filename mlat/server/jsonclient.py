@@ -175,7 +175,10 @@ class JsonClient(connection.Connection):
         self.processed_counter = 0
 
         self.transport = writer.transport
-        self.host, self.port = self.transport.get_extra_info('peername')
+        peer = self.transport.get_extra_info('peername')
+        self.host = peer[0]
+        self.port = peer[1]
+
         self.udp_protocol = udp_protocol
         self.udp_host = udp_host
         self.udp_port = udp_port
