@@ -79,9 +79,13 @@ class MonitoringListener(object):
     # shouldn't need modifying:
 
     def start_client(self, r, w):
-        newclient = self._new_client(r, w)
-        self.clients.append(newclient)
-        self.monitoring.append(asyncio.ensure_future(self.monitor_client(newclient)))
+        try:
+            newclient = self._new_client(r, w)
+            self.clients.append(newclient)
+            self.monitoring.append(asyncio.ensure_future(self.monitor_client(newclient)))
+        except Exception:
+            self.logger.exception('Exception handling client')
+
 
     @asyncio.coroutine
     def monitor_client(self, client):
