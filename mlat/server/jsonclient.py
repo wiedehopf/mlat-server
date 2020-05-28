@@ -572,19 +572,15 @@ class JsonClient(connection.Connection):
                 self.processed_counter = 0
                 self.mc_start = now
 
-            if self.receiver.bad_syncs > 0 or self.receiver.sync_peers < 3:
-                start_ramp = 2
-                range_ramp = 1
-            else:
-                start_ramp = 10 # don't discard below this rate
-                range_ramp = 10
+            start_ramp = 10 # don't discard below this rate
+            range_ramp = 10
 
-            ramp = (m_rate - start_ramp) / range_ramp / 2
+            ramp = (m_rate - start_ramp) / range_ramp / 8
             if ramp > 1: ramp = 1
             if ramp < 0: ramp = 0
             # keep ramp in rnage 0 to 1
 
-            if self.message_counter < 100 or p_rate < start_ramp + ramp * range_ramp:
+            if self.message_counter < 20 or p_rate < start_ramp + ramp * range_ramp:
                 self.processed_counter += 1
                 self.coordinator.receiver_sync(self.receiver,
                         float(sync['et']),

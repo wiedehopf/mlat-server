@@ -239,7 +239,8 @@ class ClockTracker(object):
                                       even_lon,
                                       even_message.altitude * constants.FTOM))
         if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
-            logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
+            # suppress this spam, can't help if ppl give a wrong location
+            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
             return
 
         odd_ecef = geodesy.llh2ecef((odd_lat,
