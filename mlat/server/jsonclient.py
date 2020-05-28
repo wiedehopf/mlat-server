@@ -722,20 +722,24 @@ class JsonClient(connection.Connection):
     # one of these is assigned to report_mlat_position:
     def report_mlat_position_discard(self, receiver,
                                      receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                     dof, kalman_state):
+                                     dof, kalman_state, result_new_old):
         # client is not interested
         pass
 
     def report_mlat_position_old(self, receiver,
                                  receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                 dof, kalman_state):
+                                 dof, kalman_state, result_new_old):
         # old client, use the old format (somewhat incomplete)
+        if result_new_old[1]:
+            self.send(result=result_new_old[1])
+            return
+
         lat, lon, alt = geodesy.ecef2llh(ecef)
         ac = self.coordinator.tracker.aircraft[address]
         callsign = ac.callsign
         squawk = ac.squawk
 
-        self.send(result={'@': round(receive_timestamp, 3),
+        result = {'@': round(receive_timestamp, 3),
                           'addr': '{0:06x}'.format(address),
                           'lat': round(lat, 4),
                           'lon': round(lon, 4),
@@ -746,12 +750,18 @@ class JsonClient(connection.Connection):
                           'vdop': 0.0,
                           'tdop': 0.0,
                           'gdop': 0.0,
-                          'nstations': len(receivers)})
+                          'nstations': len(receivers)}
+        result_new_old[1] = result
+        self.send(result=result)
 
     def report_mlat_position_ecef(self, receiver,
                                   receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                  dof, kalman_state):
+                                  dof, kalman_state, result_new_old):
         # newer client
+        if result_new_old[0]:
+            self.send(result=result_new_old[0])
+            return
+
         result = {'@': round(receive_timestamp, 3),
                   'addr': '{0:06x}'.format(address),
                   'ecef': (round(ecef[0], 0),
@@ -771,4 +781,5 @@ class JsonClient(connection.Connection):
             # disconnect if the 'cov' key is missing
             result['cov'] = None
 
+        result_new_old[0] = result
         self.send(result=result)
