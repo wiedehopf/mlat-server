@@ -37,6 +37,10 @@ MIN_NUC = 6
 # absolute maximum receiver range for sync messages, metres
 MAX_RANGE = 500e3
 
+# maximum number of long range peers that are further away than sync range
+MAX_SYNC_RANGE = 40e3
+MAX_LONG_PEERS = 40
+
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3
 
@@ -51,7 +55,7 @@ SOLVER_MAXFEV = 135
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
-MAX_GROUP = 50
+MAX_GROUP = 35
 
 # only add receivers to the cluster if they are further than a certain distance
 # from all receivers already in the cluster
@@ -66,7 +70,7 @@ CLUSTER_SPREAD = 1000
 CLUSTER_NOSPREAD = 15
 
 # hard limit the absolute size of the cluster given to the solver
-MAX_CLUSTER = 30
+MAX_CLUSTER = 25
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')

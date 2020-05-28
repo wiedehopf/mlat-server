@@ -51,6 +51,8 @@ class Receiver(object):
         self.dead = False
 
         self.sync_count = 0
+        self.sync_peers = 0 # number of peers hopefully updated live
+        self.long_peers = 0 # number of peers that are far away
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()
