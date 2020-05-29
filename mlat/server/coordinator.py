@@ -51,6 +51,8 @@ class Receiver(object):
         self.dead = False
 
         self.sync_count = 0
+        self.sync_peers = 0 # number of peers hopefully updated live
+        self.long_peers = 0 # number of peers that are far away
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()
@@ -425,12 +427,13 @@ class Coordinator(object):
         if ac:
             ac.successful_mlat.update(receivers)
             broadcast = ac.successful_mlat
+        result_new_old = [ None, None ]
         for receiver in broadcast:
             try:
                 receiver.connection.report_mlat_position(receiver,
                                                          receive_timestamp, address,
                                                          ecef, ecef_cov, receivers, distinct,
-                                                         dof, kalman_state)
+                                                         dof, kalman_state, result_new_old)
             except Exception:
                 glogger.exception("Failed to forward result to receiver {r}".format(r=receiver.uuid))
                 # eat the exception so it doesn't break our caller

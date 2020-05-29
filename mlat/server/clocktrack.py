@@ -94,6 +94,11 @@ class ClockTracker(object):
                 prune.add(k)
 
         for k in prune:
+            if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
+                k[0].long_peers -= 1
+                k[1].long_peers -= 1
+            k[0].sync_peers -= 1
+            k[1].sync_peers -= 1
             del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -107,6 +112,11 @@ class ClockTracker(object):
         """
         for k in list(self.clock_pairs.keys()):
             if k[0] is receiver or k[1] is receiver:
+                if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
+                    k[0].long_peers -= 1
+                    k[1].long_peers -= 1
+                k[0].sync_peers -= 1
+                k[1].sync_peers -= 1
                 del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -127,6 +137,11 @@ class ClockTracker(object):
         # Any membership in a pending sync point is noticed when we try to sync more receivers with it.
         for k in list(self.clock_pairs.keys()):
             if k[0] is receiver or k[1] is receiver:
+                if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
+                    k[0].long_peers -= 1
+                    k[1].long_peers -= 1
+                k[0].sync_peers -= 1
+                k[1].sync_peers -= 1
                 del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -224,7 +239,8 @@ class ClockTracker(object):
                                       even_lon,
                                       even_message.altitude * constants.FTOM))
         if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
-            logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
+            # suppress this spam, can't help if ppl give a wrong location
+            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
             return
 
         odd_ecef = geodesy.llh2ecef((odd_lat,
@@ -317,6 +333,13 @@ class ClockTracker(object):
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
         if pairing is None:
+            if r0.distance[r1] > config.MAX_SYNC_RANGE:
+                if r0.long_peers > config.MAX_LONG_PEERS or r1.long_peers > config.MAX_LONG_PEERS:
+                    return False
+                r0.long_peers += 1
+                r1.long_peers += 1
+            r0.sync_peers += 1
+            r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
 
         # propagation delays, in clock units

@@ -572,21 +572,15 @@ class JsonClient(connection.Connection):
                 self.processed_counter = 0
                 self.mc_start = now
 
-            if self.receiver.bad_syncs > 0 or self.receiver.peer_count < 3:
-                start_ramp = 5
-                range_ramp = 10
-                min_ratio = 0
-            else:
-                start_ramp = 15 # don't discard below this rate
-                range_ramp = 40
-                min_ratio = 0.3 # lowest ratio of messages accepted
+            start_ramp = 10 # don't discard below this rate
+            range_ramp = 10
 
-            ramp = 1 - ((m_rate - start_ramp) / range_ramp)
+            ramp = (m_rate - start_ramp) / range_ramp / 8
             if ramp > 1: ramp = 1
-            if ramp < min_ratio: ramp = min_ratio
-            # ramp from 1 - cut_ratio to 1
+            if ramp < 0: ramp = 0
+            # keep ramp in rnage 0 to 1
 
-            if self.message_counter < 100 or p_rate / m_rate < ramp:
+            if self.message_counter < 20 or p_rate < start_ramp + ramp * range_ramp:
                 self.processed_counter += 1
                 self.coordinator.receiver_sync(self.receiver,
                         float(sync['et']),
@@ -595,8 +589,9 @@ class JsonClient(connection.Connection):
                         bytes.fromhex(sync['om']))
 
         elif 'mlat' in msg:
-            mlat = msg['mlat']
-            self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+            if self.receiver.bad_syncs < 0.001 and self.receiver.sync_peers > 0:
+                mlat = msg['mlat']
+                self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
         elif 'seen' in msg:
             self.process_seen_message(msg['seen'])
         elif 'lost' in msg:
@@ -723,20 +718,24 @@ class JsonClient(connection.Connection):
     # one of these is assigned to report_mlat_position:
     def report_mlat_position_discard(self, receiver,
                                      receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                     dof, kalman_state):
+                                     dof, kalman_state, result_new_old):
         # client is not interested
         pass
 
     def report_mlat_position_old(self, receiver,
                                  receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                 dof, kalman_state):
+                                 dof, kalman_state, result_new_old):
         # old client, use the old format (somewhat incomplete)
+        if result_new_old[1]:
+            self.send(result=result_new_old[1])
+            return
+
         lat, lon, alt = geodesy.ecef2llh(ecef)
         ac = self.coordinator.tracker.aircraft[address]
         callsign = ac.callsign
         squawk = ac.squawk
 
-        self.send(result={'@': round(receive_timestamp, 3),
+        result = {'@': round(receive_timestamp, 3),
                           'addr': '{0:06x}'.format(address),
                           'lat': round(lat, 4),
                           'lon': round(lon, 4),
@@ -747,12 +746,18 @@ class JsonClient(connection.Connection):
                           'vdop': 0.0,
                           'tdop': 0.0,
                           'gdop': 0.0,
-                          'nstations': len(receivers)})
+                          'nstations': len(receivers)}
+        result_new_old[1] = result
+        self.send(result=result)
 
     def report_mlat_position_ecef(self, receiver,
                                   receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
-                                  dof, kalman_state):
+                                  dof, kalman_state, result_new_old):
         # newer client
+        if result_new_old[0]:
+            self.send(result=result_new_old[0])
+            return
+
         result = {'@': round(receive_timestamp, 3),
                   'addr': '{0:06x}'.format(address),
                   'ecef': (round(ecef[0], 0),
@@ -772,4 +777,5 @@ class JsonClient(connection.Connection):
             # disconnect if the 'cov' key is missing
             result['cov'] = None
 
+        result_new_old[0] = result
         self.send(result=result)
