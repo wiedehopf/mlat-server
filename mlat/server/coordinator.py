@@ -212,29 +212,35 @@ class Coordinator(object):
         receiver_states = self.clock_tracker.dump_receiver_state()
 
         for r in self.receivers.values():
+
+            # fudge positions, set retained precision as a fraction of a degree:
+            precision = 20
+            if r.privacy:
+                rlat = None
+                rlon = None
+                ralt = None
+            else:
+                rlat = round(r.position_llh[0] * precision) / precision
+                rlon = round(r.position_llh[1] * precision) / precision
+                ralt = 50 * round(r.position_llh[2]/50)
+
             sync[r.uuid] = {
                 'peers': receiver_states.setdefault(r.uuid, {}),
-                'bad_syncs': r.bad_syncs
+                'bad_syncs': r.bad_syncs,
+                'lat': rlat,
+                'lon': rlon
             }
+
             r.peer_count = len(sync[r.uuid]['peers'])
-            if r.privacy:
-                locations[r.uuid] = {
-                    'user': r.user,
-                    'lat': None,
-                    'lon': None,
-                    'alt': None,
-                    'privacy': r.privacy,
-                    'connection': r.connection_info
-                }
-            else:
-                locations[r.uuid] = {
-                    'user': r.user,
-                    'lat': 0.05 * round(r.position_llh[0]/0.05),
-                    'lon': 0.05 * round(r.position_llh[1]/0.05),
-                    'alt': 50 * round(r.position_llh[2]/50),
-                    'privacy': r.privacy,
-                    'connection': r.connection_info
-                }
+
+            locations[r.uuid] = {
+                'user': r.user,
+                'lat': rlat,
+                'lon': rlon,
+                'alt': ralt,
+                'privacy': r.privacy,
+                'connection': r.connection_info
+            }
 
         # The sync matrix json can be large.  This means it might take a little time to write out.
         # This therefore means someone could start reading it before it has completed writing...
@@ -280,10 +286,10 @@ class Coordinator(object):
 
             # iterate over sync state with all peers
             # state = [ 0: pairing sync count, 1: offset, 2: drift,
-            #           3: timestamp?, 4: bad_syncs ]
+            #           3: bad_syncs ]
             if 'peers' in sync[r.uuid]:
                 for state in sync[r.uuid]['peers'].values():
-                    if state[4] > 0:
+                    if state[3] > 0:
                         continue
                     num_peers += 1
                     if state[1] > 3:
