@@ -238,9 +238,9 @@ class Coordinator(object):
 
             locations[r.uuid] = {
                 'user': r.user,
-                'lat': rlat,
-                'lon': rlon,
-                'alt': ralt,
+                'lat': r.position_llh[0],
+                'lon': r.position_llh[1],
+                'alt': r.position_llh[2],
                 'privacy': r.privacy,
                 'connection': r.connection_info
             }
