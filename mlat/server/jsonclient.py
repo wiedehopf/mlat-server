@@ -279,7 +279,7 @@ class JsonClient(connection.Connection):
         This coroutine's task is stashed as self.read_task; cancelling this
         task will cause the client connection to be closed and cleaned up."""
 
-        self.logger.info("Accepted new client connection")
+        #self.logger.info("Accepted new client connection")
 
         try:
             hs = yield from asyncio.wait_for(self.r.readline(), timeout=30.0)
@@ -438,10 +438,16 @@ class JsonClient(connection.Connection):
                                          self.udp_port,
                                          self._udp_key)
 
+        handshakeFile = self.coordinator.work_dir + '/handshakes.log'
+        with open(handshakeFile, 'a') as f:
+            f.write(line.decode('ascii'))
+
         self.write_raw(**response)
-        if clock_type != 'dump1090':
-            self.logger.info("STRANGE CLOCK")
-        self.logger.info("Handshake successful ({user} {conn_info})'".format(
+        strange = ''
+        if clock_type != 'dump1090' and clock_type != 'radarcape_gps':
+            strange = 'strange clock: '
+        self.logger.info("{strange}Handshake successful ({user} {conn_info})'".format(
+            strange=strange,
             user=user,
             conn_info=conn_info))
         self.logger = util.TaggingLogger(glogger, {'tag': '{user}'.format(user=user)})
