@@ -60,8 +60,8 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
-        self.offX = random.random() / 5 - 0.1
-        self.offY = random.random() / 5 - 0.1
+        self.offX = random.random() / 50 - 0.01
+        self.offY = random.random() / 50 - 0.01
 
         self.distance = {}
 
