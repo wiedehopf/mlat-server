@@ -21,6 +21,7 @@ Top level glue that knows about all receivers and moves data between
 the various sub-objects that make up the server.
 """
 
+import random
 import signal
 import asyncio
 import json
@@ -59,6 +60,8 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
+        self.offX = random.random() / 5 - 0.1
+        self.offY = random.random() / 5 - 0.1
 
         self.distance = {}
 
@@ -214,14 +217,14 @@ class Coordinator(object):
         for r in self.receivers.values():
 
             # fudge positions, set retained precision as a fraction of a degree:
-            precision = 20
+            precision = 25
             if r.privacy:
                 rlat = None
                 rlon = None
                 ralt = None
             else:
-                rlat = round(r.position_llh[0] * precision) / precision
-                rlon = round(r.position_llh[1] * precision) / precision
+                rlat = round(r.position_llh[0] * precision) / precision + r.offX
+                rlon = round(r.position_llh[1] * precision) / precision + r.offY
                 ralt = 50 * round(r.position_llh[2]/50)
 
             sync[r.uuid] = {
@@ -235,9 +238,9 @@ class Coordinator(object):
 
             locations[r.uuid] = {
                 'user': r.user,
-                'lat': rlat,
-                'lon': rlon,
-                'alt': ralt,
+                'lat': r.position_llh[0],
+                'lon': r.position_llh[1],
+                'alt': r.position_llh[2],
                 'privacy': r.privacy,
                 'connection': r.connection_info
             }
