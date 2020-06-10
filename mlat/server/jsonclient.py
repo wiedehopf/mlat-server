@@ -38,6 +38,7 @@ from mlat.server import net, util, connection, config
 
 
 glogger = logging.getLogger("client")
+random.seed()
 
 
 class JsonClientListener(net.MonitoringListener):

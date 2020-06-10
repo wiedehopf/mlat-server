@@ -34,6 +34,7 @@ from mlat import geodesy, profile, constants
 from mlat.server import tracker, clocksync, clocktrack, mlattrack, util
 
 glogger = logging.getLogger("coordinator")
+random.seed()
 
 
 class Receiver(object):
@@ -60,8 +61,8 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
-        self.offX = random.random() / 50 - 0.01
-        self.offY = random.random() / 50 - 0.01
+        self.offX = 0.005 * random.randrange(-2, 3)
+        self.offY = 0.005 * random.randrange(-2, 3)
 
         self.distance = {}
 
