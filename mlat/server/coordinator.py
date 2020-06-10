@@ -61,8 +61,8 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
-        self.offX = 0.01 * random.randrange(-1, 2)
-        self.offY = 0.01 * random.randrange(-1, 2)
+        self.offX = 0.0075 * random.randrange(-1, 2, 2)
+        self.offY = 0.0075 * random.randrange(-1, 2, 2)
 
         self.distance = {}
 
