@@ -61,8 +61,8 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
-        self.offX = 0.0075 * random.randrange(-1, 2, 2)
-        self.offY = 0.0075 * random.randrange(-1, 2, 2)
+        self.offX = 0.016 * random.randrange(-1, 2, 2)
+        self.offY = 0.016 * random.randrange(-1, 2, 2)
 
         self.distance = {}
 
@@ -218,7 +218,7 @@ class Coordinator(object):
         for r in self.receivers.values():
 
             # fudge positions, set retained precision as a fraction of a degree:
-            precision = 32
+            precision = 20
             if r.privacy:
                 rlat = None
                 rlon = None
