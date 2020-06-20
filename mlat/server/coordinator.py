@@ -26,6 +26,7 @@ import signal
 import asyncio
 import json
 import logging
+import logging.handlers
 import time
 import os
 from contextlib import closing
@@ -130,6 +131,16 @@ class Coordinator(object):
 
         self.receiver_mlat = self.mlat_tracker.receiver_mlat
         self.receiver_sync = self.clock_tracker.receiver_sync
+
+
+        self.handshake_logger = logging.getLogger("handshake")
+        self.handshake_logger.setLevel(logging.INFO)
+
+        self.handshake_handler = logging.handlers.RotatingFileHandler(
+                (self.work_dir + '/handshakes.log'),
+                maxBytes=(1*1024*1024), backupCount=2)
+
+        self.handshake_logger.addHandler(self.handshake_handler)
 
     def start(self):
         self._write_state_task = asyncio.ensure_future(self.write_state())

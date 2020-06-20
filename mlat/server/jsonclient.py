@@ -439,9 +439,7 @@ class JsonClient(connection.Connection):
                                          self.udp_port,
                                          self._udp_key)
 
-        handshakeFile = self.coordinator.work_dir + '/handshakes.log'
-        with open(handshakeFile, 'a') as f:
-            f.write(line.decode('ascii'))
+        self.coordinator.handshake_logger.info(line.decode('ascii'))
 
         self.write_raw(**response)
         strange = ''
