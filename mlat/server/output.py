@@ -18,6 +18,7 @@
 
 import asyncio
 import logging
+import logging.handlers
 import time
 import math
 import functools
@@ -59,28 +60,23 @@ class LocalCSVWriter(object):
         self.logger = logging.getLogger("csv")
         self.coordinator = coordinator
         self.filename = filename
-        self.f = open(filename, 'a')
         self.coordinator.add_output_handler(self.write_result)
-        self.coordinator.add_sighup_handler(self.reopen)
+
+        self.pos_logger = logging.getLogger("positions")
+        self.pos_logger.setLevel(logging.INFO)
+
+        self.pos_handler = logging.handlers.RotatingFileHandler(
+                self.filename, maxBytes=(1*1024*1024), backupCount=10)
+        self.pos_logger.addHandler(self.pos_handler)
 
     def start(self):
         return util.completed_future
 
     def close(self):
         self.coordinator.remove_output_handler(self.write_result)
-        self.coordinator.remove_sighup_handler(self.reopen)
-        self.f.close()
 
     def wait_closed(self):
         return util.completed_future
-
-    def reopen(self):
-        try:
-            self.f.close()
-            self.f = open(self.filename, 'a')
-            self.logger.info("Reopened {filename}".format(filename=self.filename))
-        except Exception:
-            self.logger.exception("Failed to reopen {filename}".format(filename=self.filename))
 
     def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state):
         try:
@@ -135,7 +131,7 @@ class LocalCSVWriter(object):
                     dof=dof,
                     receivers=csv_quote(','.join([receiver.uuid for receiver in receivers])))
 
-            self.f.write(line)
+            self.pos_logger.info(line)
 
         except Exception:
             self.logger.exception("Failed to write result")
