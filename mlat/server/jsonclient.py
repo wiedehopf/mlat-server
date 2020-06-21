@@ -63,7 +63,7 @@ class JsonClientListener(net.MonitoringListener):
                                                                            local_addr=(bind_address, self.udp_port))
             self.udp_transport, self.udp_protocol = (yield from dgram_coro)
             name = self.udp_transport.get_extra_info('sockname')
-            self.logger.info("{what} listening on {host}:{port} (UDP)".format(host=name[0],
+            self.logger.warning("{what} listening on {host}:{port} (UDP)".format(host=name[0],
                                                                               port=name[1],
                                                                               what=self.description))
 
@@ -216,7 +216,7 @@ class JsonClient(connection.Connection):
         if not self.transport:
             return  # already closed
 
-        self.logger.info('Disconnected')
+        self.logger.warning('Disconnected')
         self.send = self.write_discard  # suppress all output from hereon in
 
         if self._udp_key is not None:
@@ -409,7 +409,7 @@ class JsonClient(connection.Connection):
                 deny = 'Bad values in handshake: ' + str(e)
 
         if deny:
-            self.logger.info('Handshake failed: %s', deny)
+            self.logger.warning('Handshake failed: %s', deny)
             self.write_raw(deny=[deny], reconnect_in=util.fuzzy(900))
             return False
 
@@ -439,13 +439,13 @@ class JsonClient(connection.Connection):
                                          self.udp_port,
                                          self._udp_key)
 
-        self.coordinator.handshake_logger.info(line.decode('ascii'))
+        self.coordinator.handshake_logger.debug(line.decode('ascii'))
 
         self.write_raw(**response)
         strange = ''
         if clock_type != 'dump1090' and clock_type != 'radarcape_gps':
             strange = 'strange clock: '
-        self.logger.info("{strange}Handshake successful ({user} {conn_info})'".format(
+        self.logger.warning("{strange}Handshake successful ({user} {conn_info})'".format(
             strange=strange,
             user=user,
             conn_info=conn_info))
@@ -571,8 +571,8 @@ class JsonClient(connection.Connection):
 
             m_rate = self.message_counter / elapsed
             p_rate = self.processed_counter / elapsed
-            if self.message_counter > 10000:
-                logging.info('used / total sync msg/s: ' + "{:.1f}".format(p_rate) + ' / ' + "{:.1f}".format(m_rate))
+            if self.message_counter > 100000:
+                logging.warning('used / total sync msg/s: ' + "{:.1f}".format(p_rate) + ' / ' + "{:.1f}".format(m_rate))
                 self.message_counter = 0
                 self.processed_counter = 0
                 self.mc_start = now
@@ -609,7 +609,7 @@ class JsonClient(connection.Connection):
             self.process_clock_reset_message(msg['clock_reset'])
         elif 'clock_jump' in msg:
             self.coordinator.receiver_clock_reset(self.receiver)
-            self.logger.info("Clock jump, resetting SYNC!")
+            self.logger.warning("Clock jump, resetting SYNC!")
         elif 'heartbeat' in msg:
             self.process_heartbeat_message(msg['heartbeat'])
         elif 'rate_report' in msg:
@@ -617,7 +617,7 @@ class JsonClient(connection.Connection):
         elif 'quine' in msg:
             self.process_quine_message(msg['quine'])
         else:
-            self.logger.info('Received an unexpected message: %s', msg)
+            self.logger.warning('Received an unexpected message: %s', msg)
 
     def process_sync(self, et, ot, em, om):
         self.coordinator.receiver_sync(self.receiver, et, ot, em, om)

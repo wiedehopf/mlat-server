@@ -134,7 +134,7 @@ class Coordinator(object):
 
 
         self.handshake_logger = logging.getLogger("handshake")
-        self.handshake_logger.setLevel(logging.INFO)
+        self.handshake_logger.setLevel(logging.DEBUG)
 
         self.handshake_handler = logging.handlers.RotatingFileHandler(
                 (self.work_dir + '/handshakes.log'),

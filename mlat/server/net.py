@@ -62,7 +62,7 @@ class MonitoringListener(object):
                                                           port=self.port)
         for s in self.tcp_server.sockets:
             name = s.getsockname()
-            self.logger.info("{what} listening on {host}:{port} (TCP)".format(host=name[0],
+            self.logger.warning("{what} listening on {host}:{port} (TCP)".format(host=name[0],
                                                                               port=name[1],
                                                                               what=self.description))
 

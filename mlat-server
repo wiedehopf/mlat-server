@@ -21,9 +21,12 @@ import logging
 import mlat.server.main
 
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO,
+    logging.basicConfig(level=logging.DEBUG,
                         style='{',
-                        format='{asctime}.{msecs:03.0f}  {levelname:8s} {name:20s} {message}',
+                        format='{asctime}.{msecs:03.0f} {name:12} {message}',
                         datefmt='%Y%m%d %H:%M:%S')
+
+    for h in logging.getLogger().handlers:
+        h.setLevel(logging.WARNING)
 
     mlat.server.main.MlatServer().run()

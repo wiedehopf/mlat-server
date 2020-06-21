@@ -63,7 +63,7 @@ class LocalCSVWriter(object):
         self.coordinator.add_output_handler(self.write_result)
 
         self.pos_logger = logging.getLogger("positions")
-        self.pos_logger.setLevel(logging.INFO)
+        self.pos_logger.setLevel(logging.DEBUG)
 
         self.pos_handler = logging.handlers.RotatingFileHandler(
                 self.filename, maxBytes=(1*1024*1024), backupCount=10)
@@ -131,7 +131,7 @@ class LocalCSVWriter(object):
                     dof=dof,
                     receivers=csv_quote(','.join([receiver.uuid for receiver in receivers])))
 
-            self.pos_logger.info(line)
+            self.pos_logger.debug(line)
 
         except Exception:
             self.logger.exception("Failed to write result")
@@ -159,7 +159,7 @@ class BasestationClient(object):
         self.heartbeat_task = asyncio.ensure_future(self.send_heartbeats())
         self.reader_task = asyncio.ensure_future(self.read_until_eof())
 
-        self.logger.info("Connection established")
+        self.logger.warning("Connection established")
         self.coordinator.add_output_handler(self.write_result)
 
     def close(self):
