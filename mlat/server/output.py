@@ -53,8 +53,8 @@ def csv_quote(s):
 class LocalCSVWriter(object):
     """Writes multilateration results to a local CSV file"""
 
-    TEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof}\n'  # noqa
-    KTEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof},{klat:.4f},{klon:.4f},{kalt:.0f},{kheading:.0f},{kspeed:.0f},{kvrate:.0f},{kerr:.0f}\n'  # noqa
+    TEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof}'  # noqa
+    KTEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof},{klat:.4f},{klon:.4f},{kalt:.0f},{kheading:.0f},{kspeed:.0f},{kvrate:.0f},{kerr:.0f}'  # noqa
 
     def __init__(self, coordinator, filename):
         self.logger = logging.getLogger("csv")
