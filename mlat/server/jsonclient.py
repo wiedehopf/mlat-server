@@ -317,6 +317,8 @@ class JsonClient(connection.Connection):
             deny = 'Badly formatted handshake: ' + str(e)
         else:
             try:
+                self.coordinator.handshake_logger.debug(line.decode('ascii'))
+
                 if hs['version'] != 2 and hs['version'] != 3:
                     raise ValueError('Unsupported version in handshake')
 
@@ -441,8 +443,6 @@ class JsonClient(connection.Connection):
             response['udp_transport'] = (self.udp_host,
                                          self.udp_port,
                                          self._udp_key)
-
-        self.coordinator.handshake_logger.debug(line.decode('ascii'))
 
         self.write_raw(**response)
         strange = ''
