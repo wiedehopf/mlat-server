@@ -230,8 +230,10 @@ class BasestationClient(object):
                     heading = int(round(kalman_data.heading))
                     vrate = int(round(kalman_data.vertical_speed * constants.MS_TO_FPM))
                 ac.last_kalman_output = receive_timestamp
-            else:
-                lat, lon, alt = geodesy.ecef2llh(ecef)
+
+            # as a test: always use non kalman position, only speed, heading, vertical speed are used from kalman
+            #else:
+            lat, lon, alt = geodesy.ecef2llh(ecef)
 
             callsign = ac.callsign
             squawk = ac.squawk
