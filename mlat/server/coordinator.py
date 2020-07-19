@@ -32,7 +32,7 @@ import os
 from contextlib import closing
 
 from mlat import geodesy, profile, constants
-from mlat.server import tracker, clocksync, clocktrack, mlattrack, util
+from mlat.server import tracker, clocksync, clocktrack, mlattrack, util, config
 
 glogger = logging.getLogger("coordinator")
 random.seed()
@@ -59,6 +59,7 @@ class Receiver(object):
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()
+        self.adsb_seen = set()
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
@@ -70,7 +71,22 @@ class Receiver(object):
         # Receivers with bad_syncs>0 are not used to calculate positions
         self.bad_syncs = 0
 
-    def update_interest_sets(self, new_sync, new_mlat):
+    def update_interest_sets(self, new_sync, new_mlat, new_adsb):
+
+        if len(new_sync) > config.MAX_SYNC_AC:
+            new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
+
+        if self.bad_syncs > 0:
+            new_mlat = set()
+
+
+        for added in new_adsb.difference(self.adsb_seen):
+            added.adsb_seen.add(self)
+
+        for removed in self.adsb_seen.difference(new_adsb):
+            removed.adsb_seen.discard(self)
+
+
         for added in new_sync.difference(self.sync_interest):
             added.sync_interest.add(self)
 
@@ -83,6 +99,7 @@ class Receiver(object):
         for removed in self.mlat_interest.difference(new_mlat):
             removed.mlat_interest.discard(self)
 
+        self.adsb_seen = new_adsb
         self.sync_interest = new_sync
         self.mlat_interest = new_mlat
 

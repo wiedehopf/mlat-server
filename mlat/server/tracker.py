@@ -22,6 +22,7 @@ Works out the set of "interesting" aircraft and arranges for clients to
 send us traffic for these.
 """
 
+import random
 import asyncio
 from mlat import profile
 from mlat.server import kalman
@@ -45,6 +46,9 @@ class TrackedAircraft(object):
         # this aircraft is interesting if this set is non-empty.
         # invariant: r.sync_interest.contains(a) iff a.sync_interest.contains(r)
         self.sync_interest = set()
+
+        # set of receivers who have seen ADS-B from this aircraft
+        self.adsb_seen = set()
 
         # set of receivers who want to use this aircraft for multilateration.
         # this aircraft is interesting if this set has at least three receivers.
@@ -138,11 +142,13 @@ class Tracker(object):
             ac.tracking.discard(receiver)
             ac.successful_mlat.discard(receiver)
             ac.sync_interest.discard(receiver)
+            ac.adsb_seen.discard(receiver)
             ac.mlat_interest.discard(receiver)
             if not ac.tracking:
                 del self.aircraft[ac.icao]
 
         receiver.tracking.clear()
+        receiver.adsb_seen.clear()
         receiver.sync_interest.clear()
         receiver.mlat_interest.clear()
 
@@ -151,24 +157,29 @@ class Tracker(object):
         """Update the interest sets of one receiver based on the
         latest tracking and rate report data."""
 
+        new_adsb = set()
+
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
-            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat}
-            receiver.update_interest_sets(new_sync, new_mlat)
+            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 3}
+            receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
             asyncio.get_event_loop().call_later(15.0, receiver.refresh_traffic_requests)
             return
+
 
         # Work out the aircraft that are transmitting ADS-B that this
         # receiver wants to use for synchronization.
         ac_to_ratepair_map = {}
         ratepair_list = []
         for icao, rate in receiver.last_rate_report.items():
-            if rate < 0.20:
-                continue
-
             ac = self.aircraft.get(icao)
             if not ac:
+                continue
+
+            new_adsb.add(ac)
+
+            if rate < 0.20:
                 continue
 
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
@@ -178,7 +189,7 @@ class Tracker(object):
 
                 if r1.last_rate_report is None:
                     # Receiver that does not produce rate reports, just take a guess.
-                    rate1 = 1.0
+                    rate1 = 0.8
                 else:
                     rate1 = r1.last_rate_report.get(icao, 0.0)
 
@@ -211,8 +222,8 @@ class Tracker(object):
         # transmitting positions)
         new_mlat_set = set()
         for ac in receiver.tracking:
-            if ac.icao not in receiver.last_rate_report and ac.allow_mlat:
+            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and len(ac.adsb_seen) < 3:
                 new_mlat_set.add(ac)
 
-        receiver.update_interest_sets(new_sync_set, new_mlat_set)
+        receiver.update_interest_sets(new_sync_set, new_mlat_set, new_adsb)
         asyncio.get_event_loop().call_later(15.0, receiver.refresh_traffic_requests)
