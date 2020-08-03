@@ -105,7 +105,7 @@ class Receiver(object):
 
     @profile.trackcpu
     def refresh_traffic_requests(self):
-        self.requested = {x for x in self.tracking if x.interesting}
+        self.requested = self.sync_interest | self.mlat_interest
         self.connection.request_traffic(self, {x.icao for x in self.requested})
 
     def __lt__(self, other):
