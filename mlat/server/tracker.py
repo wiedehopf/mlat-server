@@ -18,8 +18,7 @@
 
 """
 Maintains state for all aircraft known to some client.
-Works out the set of "interesting" aircraft and arranges for clients to
-send us traffic for these.
+Works out the set of aircraft we want the clients to send traffic for.
 """
 
 import random
@@ -42,7 +41,7 @@ class TrackedAircraft(object):
         # invariant: r.tracking.contains(a) iff a.tracking.contains(r)
         self.tracking = set()
 
-        # set of receivers who want to use this aircraft for synchronization.
+        # set of receivers who use this aircraft for synchronization.
         # this aircraft is interesting if this set is non-empty.
         # invariant: r.sync_interest.contains(a) iff a.sync_interest.contains(r)
         self.sync_interest = set()
@@ -51,7 +50,7 @@ class TrackedAircraft(object):
         self.adsb_seen = set()
 
         # set of receivers who want to use this aircraft for multilateration.
-        # this aircraft is interesting if this set has at least three receivers.
+        # this aircraft is interesting if this set is non-empty.
         # invariant: r.mlat_interest.contains(a) iff a.mlat_interest.contains(r)
         self.mlat_interest = set()
 
@@ -89,8 +88,8 @@ class TrackedAircraft(object):
 
     @property
     def interesting(self):
-        """Is this aircraft interesting, i.e. should we forward traffic for it?"""
-        return bool(self.sync_interest or (self.allow_mlat and len(self.mlat_interest) >= 3))
+        """Is this aircraft interesting, i.e. are we asking any station to transmit data for it?"""
+        return bool(self.sync_interest or (self.allow_mlat and self.mlat_interest))
 
     def __lt__(self, other):
         return self.icao < other.icao
