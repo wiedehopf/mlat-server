@@ -77,6 +77,14 @@ def solve(measurements, altitude, altitude_error, initial_guess):
     if len(measurements) + (0 if altitude is None else 1) < 4:
         raise ValueError('Not enough measurements available')
 
+    glat, glng, galt = geodesy.ecef2llh(initial_guess)
+    if galt < config.MIN_ALT:
+        galt = -galt
+        initial_guess = geodesy.llh2ecef([glat, glng, galt])
+    if galt > config.MAX_ALT:
+        galt = config.MAX_ALT
+        initial_guess = geodesy.llh2ecef([glat, glng, galt])
+
     base_timestamp = measurements[0][1]
     pseudorange_data = [(receiver.position,
                          (timestamp - base_timestamp) * constants.Cair,

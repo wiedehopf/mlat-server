@@ -48,7 +48,8 @@ MAX_SYNC_AC = 20
 MAX_INTERMESSAGE_RANGE = 10e3
 
 # absolute maximum altitude, metres
-MAX_ALT = 50000 * constants.FTOM
+MAX_ALT = 75000 * constants.FTOM
+MIN_ALT = -1500 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
 MLAT_DELAY = 4

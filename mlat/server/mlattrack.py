@@ -163,6 +163,10 @@ class MlatTracker(object):
             altitude = ac.altitude * constants.FTOM
             altitude_dof = 1
 
+        if altitude < config.MIN_ALT or altitude > config.MAX_ALT:
+            altitude = None
+            altitude_dof = 0
+
         # construct a map of receiver -> list of timestamps
         timestamp_map = {}
         for receiver, timestamp, utc in group.copies:
