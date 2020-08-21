@@ -155,6 +155,9 @@ class MlatTracker(object):
         if elapsed < 2.0 and last_result_dof > 3:
             return
 
+        if elapsed < 3.0 and last_result_dof > 5 and last_result_var < 20e6:
+            return
+
         # find altitude
         if ac.altitude is None:
             altitude = None
@@ -248,11 +251,7 @@ class MlatTracker(object):
                     # more than 10km, too inaccurate
                     continue
 
-                if elapsed < 2 and var_est > last_result_var * 1.1:
-                    # less accurate than a recent position
-                    continue
-
-                if elapsed > 2 and elapsed < 10 and var_est > last_result_var * (1 + elapsed / 20):
+                if elapsed < 10 and var_est > last_result_var + (elapsed / 10) * 25e6:
                     # less accurate than a recent position
                     continue
 
