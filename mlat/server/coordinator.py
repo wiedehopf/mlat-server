@@ -334,7 +334,7 @@ class Coordinator(object):
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
                 r.bad_syncs += min(1, 2*bad_peers/num_peers)
             else:
-                r.bad_syncs -= 0.2
+                r.bad_syncs -= 0.1
 
             # If your sync mostly looks good, your bad_sync score is decreased.
             # If you had a score before, once it goes down to zero you are
@@ -353,7 +353,7 @@ class Coordinator(object):
             except Exception:
                 glogger.exception("Failed to write state files")
 
-            yield from asyncio.sleep(30.0)
+            yield from asyncio.sleep(15.0)
 
     @asyncio.coroutine
     def write_profile(self):
