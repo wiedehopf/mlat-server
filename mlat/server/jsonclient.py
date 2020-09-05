@@ -734,6 +734,8 @@ class JsonClient(connection.Connection):
                                  receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
                                  dof, kalman_state, result_new_old):
         # old client, use the old format (somewhat incomplete)
+        if receiver.bad_syncs > 0:
+            return
         if result_new_old[1]:
             self.send(result=result_new_old[1])
             return
@@ -762,6 +764,8 @@ class JsonClient(connection.Connection):
                                   receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
                                   dof, kalman_state, result_new_old):
         # newer client
+        if receiver.bad_syncs > 0:
+            return
         if result_new_old[0]:
             self.send(result=result_new_old[0])
             return

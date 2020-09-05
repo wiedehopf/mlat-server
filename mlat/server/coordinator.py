@@ -76,6 +76,9 @@ class Receiver(object):
         if len(new_sync) > config.MAX_SYNC_AC:
             new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
+        if self.bad_syncs > 2:
+            new_sync = set(random.sample(new_sync, k=round(config.MAX_SYNC_AC / 4)))
+
         if self.bad_syncs > 0:
             new_mlat = set()
 
@@ -310,7 +313,7 @@ class Coordinator(object):
             bad_peers = 0
             # count how many peers we have bad sync with
             # don't count peers who have been timed out (state[4] > 0)
-            # 3 microseconds error or more are considered a bad sync (state[1] > 3)
+            # 1.5 microseconds error or more are considered a bad sync (state[1] > 3)
             num_peers = 10
             # start with 10 peers extra, so low peer receivers
             # aren't timed out by the percentage threshold
@@ -324,7 +327,7 @@ class Coordinator(object):
                     if state[3] > 0:
                         continue
                     num_peers += 1
-                    if state[1] > 3:
+                    if state[1] > 1.5:
                         bad_peers += 1
 
             # If your sync with 5 receivers or more than 10 percent of peers is bad,

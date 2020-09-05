@@ -161,7 +161,7 @@ class Tracker(object):
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
-            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 5}
+            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 3}
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
             asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
             return
@@ -221,7 +221,7 @@ class Tracker(object):
         # transmitting positions)
         new_mlat_set = set()
         for ac in receiver.tracking:
-            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and len(ac.adsb_seen) < 5:
+            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and len(ac.adsb_seen) < 3:
                 new_mlat_set.add(ac)
 
         receiver.update_interest_sets(new_sync_set, new_mlat_set, new_adsb)
