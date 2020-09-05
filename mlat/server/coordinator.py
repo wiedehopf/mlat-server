@@ -252,8 +252,8 @@ class Coordinator(object):
                 rlon = None
                 ralt = None
             else:
-                rlat = round(r.position_llh[0] * precision) / precision + r.offX
-                rlon = round(r.position_llh[1] * precision) / precision + r.offY
+                rlat = round(round(r.position_llh[0] * precision) / precision + r.offX, 2)
+                rlon = round(round(r.position_llh[1] * precision) / precision + r.offY, 2)
                 ralt = 50 * round(r.position_llh[2]/50)
 
             sync[r.uuid] = {
@@ -288,7 +288,7 @@ class Coordinator(object):
         # sync.json
         tmpfile = syncfile + '.tmp.' + tmprand
         with closing(open(tmpfile, 'w')) as f:
-            json.dump(sync, fp=f, indent=None)
+            json.dump(sync, fp=f, indent=None, separators=(',', ':'))
         # We should probably check for errors here, but let's fire-and-forget, instead...
         os.rename(tmpfile, syncfile)
 

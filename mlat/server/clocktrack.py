@@ -366,12 +366,12 @@ class ClockTracker(object):
 
             state.setdefault(r0.uuid, {})[r1.uuid] = [pairing.n,
                               round(pairing.error * 1e6, 1),
-                              round(pairing.drift * 1e6, 2),
-                              r1.bad_syncs]
+                              round(pairing.drift * 1e6),
+                              round(r1.bad_syncs, 2)]
                     #removed: #pairing.ts_peer[-1] - pairing.ts_base[-1]]
             state.setdefault(r1.uuid, {})[r0.uuid] = [pairing.n,
                               round(pairing.error * 1e6, 1),
-                              round(pairing.i_drift * 1e6, 2),
-                              r0.bad_syncs]
+                              round(pairing.i_drift * 1e6),
+                              round(r0.bad_syncs, 2)]
                     #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
         return state
