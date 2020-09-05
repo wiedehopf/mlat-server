@@ -42,7 +42,7 @@ MAX_SYNC_RANGE = 40e3
 MAX_LONG_PEERS = 40
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 30 seconds):
-MAX_SYNC_AC = 20
+MAX_SYNC_AC = 18
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3
@@ -71,10 +71,10 @@ CLUSTER_SPREAD = 1000
 
 # initial number of receivers for which minimum distance is not checked
 # we don't want to have too few receivers just because they are close to each other
-CLUSTER_NOSPREAD = 15
+CLUSTER_NOSPREAD = 8
 
 # hard limit the absolute size of the cluster given to the solver
-MAX_CLUSTER = 25
+MAX_CLUSTER = 20
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')
