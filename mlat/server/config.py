@@ -38,8 +38,8 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # maximum number of long range peers that are further away than sync range
-MAX_SYNC_RANGE = 40e3
-MAX_LONG_PEERS = 40
+MAX_SYNC_RANGE = 20e3
+MAX_LONG_PEERS = 70
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 30 seconds):
 MAX_SYNC_AC = 18
