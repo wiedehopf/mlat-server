@@ -92,7 +92,7 @@ class MlatTracker(object):
         if not group:
             group = self.pending[message] = MessageGroup(message, utc)
             group.handle = asyncio.get_event_loop().call_later(
-                2.5,
+                config.MLAT_DELAY,
                 self._resolve,
                 group)
 
@@ -149,14 +149,7 @@ class MlatTracker(object):
             last_result_dof = ac.last_result_dof
             last_result_time = ac.last_result_time
 
-        # even earlier rate limiting for aircraft that are well received
         elapsed = group.first_seen - last_result_time
-
-        if elapsed < 2.0 and last_result_dof > 3:
-            return
-
-        if elapsed < 3.0 and last_result_dof > 5 and last_result_var < 20e6:
-            return
 
         # find altitude
         if ac.altitude is None:
@@ -170,6 +163,12 @@ class MlatTracker(object):
             altitude = None
             altitude_dof = 0
 
+        # rate limiting
+        if elapsed < 2.5:
+            return
+        if elapsed < 5 and len(group.copies) + altitude_dof < last_result_dof:
+            return
+
         # construct a map of receiver -> list of timestamps
         timestamp_map = {}
         for receiver, timestamp, utc in group.copies:
@@ -182,10 +181,7 @@ class MlatTracker(object):
 
         # basic ratelimit before we do more work
 
-        if elapsed < 4.0 and dof < last_result_dof:
-            return
-
-        if elapsed < 2.0 and dof == last_result_dof:
+        if elapsed < 5 and dof < last_result_dof:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;
@@ -211,16 +207,12 @@ class MlatTracker(object):
             distinct, cluster_utc, cluster = clusters.pop()
 
             # accept fewer receivers after 10s
-            # accept the same number of receivers after MLAT_DELAY - 0.5s
             # accept more receivers immediately
 
             elapsed = cluster_utc - last_result_time
             dof = distinct + altitude_dof - 4
 
             if elapsed < 3.5 and dof < last_result_dof:
-                return
-
-            if elapsed < 1.5 and dof == last_result_dof:
                 return
 
             # assume 250ft accuracy at the time it is reported
@@ -251,7 +243,7 @@ class MlatTracker(object):
                     # more than 10km, too inaccurate
                     continue
 
-                if elapsed < 10 and var_est > last_result_var + (elapsed / 10) * 25e6:
+                if elapsed < 8 and var_est > last_result_var + elapsed * 4e6:
                     # less accurate than a recent position
                     continue
 
