@@ -52,10 +52,10 @@ MAX_ALT = 75000 * constants.FTOM
 MIN_ALT = -1500 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 1.5
+MLAT_DELAY = 1.0
 
 # maxfev (maximum function evaluations) for the solver
-SOLVER_MAXFEV = 135
+SOLVER_MAXFEV = 145
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
