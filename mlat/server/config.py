@@ -38,11 +38,11 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # maximum number of long range peers that are further away than sync range
-MAX_SYNC_RANGE = 20e3
-MAX_LONG_PEERS = 70
+MAX_SYNC_RANGE = 15e3
+MAX_LONG_PEERS = 60
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 30 seconds):
-MAX_SYNC_AC = 17
+MAX_SYNC_AC = 16
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3
@@ -52,7 +52,7 @@ MAX_ALT = 75000 * constants.FTOM
 MIN_ALT = -1500 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 1.0
+MLAT_DELAY = 2.0
 
 # maxfev (maximum function evaluations) for the solver
 SOLVER_MAXFEV = 145
