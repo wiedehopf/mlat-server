@@ -173,7 +173,6 @@ class JsonClient(connection.Connection):
 
         self.message_counter = 0
         self.mc_start = time.monotonic();
-        self.processed_counter = 0
 
         self.transport = writer.transport
         peer = self.transport.get_extra_info('peername')
@@ -567,29 +566,16 @@ class JsonClient(connection.Connection):
         if 'sync' in msg:
             sync = msg['sync']
 
-            self.message_counter += 1
             now = time.monotonic()
             elapsed = now - self.mc_start
-            if elapsed < 2: elapsed = 2
+            self.message_counter += 1
 
-            m_rate = self.message_counter / elapsed
-            p_rate = self.processed_counter / elapsed
-            if self.message_counter > 100000:
-                logging.warning('used / total sync msg/s: ' + "{:.1f}".format(p_rate) + ' / ' + "{:.1f}".format(m_rate))
+            # reset counter every 15 seconds
+            if elapsed > 15:
                 self.message_counter = 0
-                self.processed_counter = 0
                 self.mc_start = now
 
-            start_ramp = 10 # don't discard below this rate
-            range_ramp = 10
-
-            ramp = (m_rate - start_ramp) / range_ramp / 8
-            if ramp > 1: ramp = 1
-            if ramp < 0: ramp = 0
-            # keep ramp in rnage 0 to 1
-
-            if self.message_counter < 20 or p_rate < start_ramp + ramp * range_ramp:
-                self.processed_counter += 1
+            if self.message_counter < 20 * elapsed + 10:
                 self.coordinator.receiver_sync(self.receiver,
                         float(sync['et']),
                         float(sync['ot']),
