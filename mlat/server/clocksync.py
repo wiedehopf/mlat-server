@@ -132,7 +132,8 @@ class ClockPairing(object):
         """
 
         # clean old data
-        self._prune_old_data(base_ts)
+        if self.n > 25 or (self.n > 1 and (base_ts - self.ts_base[0]) > 30 * self.base_clock.freq):
+            self._prune_old_data(base_ts)
 
         # predict from existing data, compare to actual value
         if self.n > 0:
@@ -162,7 +163,11 @@ class ClockPairing(object):
 
     def _prune_old_data(self, latest_base_ts):
         i = 0
-        while i < self.n and (latest_base_ts - self.ts_base[i]) > 30*self.base_clock.freq:
+
+        if self.n > 20:
+            i = self.n - 20
+
+        while i < self.n and (latest_base_ts - self.ts_base[i]) > 25 * self.base_clock.freq:
             i += 1
 
         if i > 0:
@@ -245,7 +250,13 @@ class ClockPairing(object):
         if self.n == 0:
             return None
 
-        i = bisect.bisect_left(self.ts_base, base_ts)
+        if base_ts > self.ts_base[-1]:
+            i = self.n
+        elif base_ts > self.ts_base[-2]:
+            i = self.n - 1
+        else:
+            i = bisect.bisect_left(self.ts_base, base_ts)
+
         if i == 0:
             # extrapolate before first point
             elapsed = base_ts - self.ts_base[0]
