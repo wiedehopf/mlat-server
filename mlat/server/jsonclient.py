@@ -172,9 +172,8 @@ class JsonClient(connection.Connection):
         self.motd = motd
 
         self.message_counter = 0
-        self.mc_start = time.monotonic();
-        self.first_sync_ts = time.monotonic();
-        self.mrate_limit = 20;
+        self.mc_start = time.monotonic()
+        self.mrate_limit = 20
 
         self.transport = writer.transport
         peer = self.transport.get_extra_info('peername')
@@ -577,7 +576,7 @@ class JsonClient(connection.Connection):
                 self.message_counter = 0
                 self.mc_start = now
                 r = self.receiver
-                if now - self.first_sync_ts < 60:
+                if now - r.last_clock_reset < 60:
                     self.mrate_limit = 40
                 elif r.bad_syncs > 3 or r.sync_range_exceeded or r.sync_peers < 1:
                     self.mrate_limit = 3

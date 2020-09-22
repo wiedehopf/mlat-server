@@ -47,6 +47,7 @@ class Receiver(object):
         self.user = user
         self.connection = connection
         self.clock = clock
+        self.last_clock_reset = time.monotonic()
         self.position_llh = position_llh
         self.position = geodesy.llh2ecef(position_llh)
         self.privacy = privacy
@@ -454,6 +455,7 @@ class Coordinator(object):
     def receiver_clock_reset(self, receiver):
         """Reset current clock synchronization for a receiver."""
         self.clock_tracker.receiver_clock_reset(receiver)
+        receiver.last_clock_reset = time.monotonic()
 
     @profile.trackcpu
     def receiver_rate_report(self, receiver, report):
