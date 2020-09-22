@@ -94,9 +94,6 @@ class ClockTracker(object):
                 prune.add(k)
 
         for k in prune:
-            if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
-                k[0].long_peers -= 1
-                k[1].long_peers -= 1
             k[0].sync_peers -= 1
             k[1].sync_peers -= 1
             del self.clock_pairs[k]
@@ -112,9 +109,6 @@ class ClockTracker(object):
         """
         for k in list(self.clock_pairs.keys()):
             if k[0] is receiver or k[1] is receiver:
-                if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
-                    k[0].long_peers -= 1
-                    k[1].long_peers -= 1
                 k[0].sync_peers -= 1
                 k[1].sync_peers -= 1
                 del self.clock_pairs[k]
@@ -137,9 +131,6 @@ class ClockTracker(object):
         # Any membership in a pending sync point is noticed when we try to sync more receivers with it.
         for k in list(self.clock_pairs.keys()):
             if k[0] is receiver or k[1] is receiver:
-                if k[0].distance[k[1]] > config.MAX_SYNC_RANGE:
-                    k[0].long_peers -= 1
-                    k[1].long_peers -= 1
                 k[0].sync_peers -= 1
                 k[1].sync_peers -= 1
                 del self.clock_pairs[k]
@@ -341,11 +332,8 @@ class ClockTracker(object):
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
         if pairing is None:
-            if r0.distance[r1] > config.MAX_SYNC_RANGE:
-                if r0.long_peers > config.MAX_LONG_PEERS or r1.long_peers > config.MAX_LONG_PEERS:
-                    return False
-                r0.long_peers += 1
-                r1.long_peers += 1
+            if r0.sync_peers + r1.sync_peers > 1.5 * config.MAX_PEERS and r0.sync_peers > 10 and r1.sync_peers > 10:
+                return False
             r0.sync_peers += 1
             r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)

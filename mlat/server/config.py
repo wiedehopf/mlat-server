@@ -37,11 +37,10 @@ MIN_NUC = 6
 # absolute maximum receiver range for sync messages, metres
 MAX_RANGE = 500e3
 
-# maximum number of long range peers that are further away than sync range
-MAX_SYNC_RANGE = 15e3
-MAX_LONG_PEERS = 60
+# soft limit for the number of peers a single receiver will have
+MAX_PEERS = 50
 
-# maximum number of planes we use for sync per receiver (randomly chosen every 30 seconds):
+# maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 16
 
 # maximum distance between even/odd DF17 messages, metres
