@@ -296,13 +296,15 @@ class ClockTracker(object):
                 # odd, but could happen
                 continue
 
+            now = time.monotonic()
+
             # order the clockpair so that the receiver that sorts lower is the base clock
             if r0 < r1:
-                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r0, t0A, t0B, r1, t1A, t1B):
+                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r0, t0A, t0B, r1, t1A, t1B, now):
                     # sync worked, note it for stats
                     r0l[3] = r1l[3] = True
             else:
-                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r1, t1A, t1B, r0, t0A, t0B):
+                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r1, t1A, t1B, r0, t0A, t0B, now):
                     # sync worked, note it for stats
                     r0l[3] = r1l[3] = True
 
@@ -329,7 +331,7 @@ class ClockTracker(object):
             if synced:
                 r.sync_count += 1
 
-    def _do_sync(self, address, posA, posB, r0, t0A, t0B, r1, t1A, t1B):
+    def _do_sync(self, address, posA, posB, r0, t0A, t0B, r1, t1A, t1B, now):
         # find or create clock pair
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
@@ -340,7 +342,7 @@ class ClockTracker(object):
             r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
 
-        if pairing.n > 15 and time.monotonic() < pairing.updated + 0.5:
+        if pairing.n > 15 and now < pairing.updated + 0.5:
             return False
 
         # propagation delays, in clock units
@@ -357,7 +359,7 @@ class ClockTracker(object):
             return True  # timestamp is in the past or duplicated, don't use this
 
         # do the update
-        return pairing.update(address, t0B - delay0B, t1B - delay1B, i0, i1)
+        return pairing.update(address, t0B - delay0B, t1B - delay1B, i0, i1, now)
 
     def dump_receiver_state(self):
         state = {}

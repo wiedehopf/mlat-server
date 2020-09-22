@@ -120,7 +120,7 @@ class ClockPairing(object):
         return (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
                     self.outliers == 0 and self.validity > now)
 
-    def update(self, address, base_ts, peer_ts, base_interval, peer_interval):
+    def update(self, address, base_ts, peer_ts, base_interval, peer_interval, now):
         """Update the relative drift and offset of this pairing given:
 
         address: the ICAO address of the sync aircraft, for logging purposes
@@ -131,8 +131,6 @@ class ClockPairing(object):
 
         Returns True if the update was used, False if it was an outlier.
         """
-
-        now = time.monotonic()
 
         # clean old data
         if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
