@@ -350,6 +350,9 @@ class ClockTracker(object):
             r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
 
+        if pairing.n > 15 and time.monotonic() < pairing.updated + 0.5:
+            return False
+
         # propagation delays, in clock units
         delay0A = geodesy.ecef_distance(posA, r0.position) * r0.clock.freq / constants.Cair
         delay0B = geodesy.ecef_distance(posB, r0.position) * r0.clock.freq / constants.Cair
