@@ -94,6 +94,7 @@ class ClockPairing(object):
         now = time.monotonic()
         self.expiry = now + 120.0
         self.validity = now + 30.0
+        self.updated = now
 
     def is_new(self, base_ts):
         """Returns True if the given base timestamp is in the extrapolation region."""
@@ -132,7 +133,7 @@ class ClockPairing(object):
         """
 
         # clean old data
-        if self.n > 25 or (self.n > 1 and (base_ts - self.ts_base[0]) > 30 * self.base_clock.freq):
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
             self._prune_old_data(base_ts)
 
         # predict from existing data, compare to actual value
@@ -159,6 +160,7 @@ class ClockPairing(object):
         now = time.monotonic()
         self.expiry = now + 120.0
         self.validity = now + 30.0
+        self.updated = now
         return True
 
     def _prune_old_data(self, latest_base_ts):
