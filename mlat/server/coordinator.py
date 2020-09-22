@@ -70,6 +70,7 @@ class Receiver(object):
 
         # Receivers with bad_syncs>0 are not used to calculate positions
         self.bad_syncs = 0
+        self.sync_range_exceeded = 0
 
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 

@@ -190,9 +190,13 @@ class ClockTracker(object):
                 if abs(candidate.interval - interval) < 1e-3:
                     # interval matches within 1ms, close enough.
                     self._add_to_existing_syncpoint(candidate, receiver, tA, tB)
+                    receiver.sync_range_exceeded = 0
                     return
 
         # No existing match. Validate the messages and maybe create a new sync point
+
+        if receiver.sync_range_exceeded:
+            return
 
         # basic validity
         even_message = modes.message.decode(even_message)
@@ -234,6 +238,8 @@ class ClockTracker(object):
             # CPR failed
             return
 
+        receiver.sync_range_exceeded = 1 #unset when everything checks out
+
         # convert to ECEF, do range checks
         even_ecef = geodesy.llh2ecef((even_lat,
                                       even_lon,
@@ -253,6 +259,8 @@ class ClockTracker(object):
         if geodesy.ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
             logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
+
+        receiver.sync_range_exceeded = 0
 
         # valid. Create a new sync point.
         if even_time < odd_time:
