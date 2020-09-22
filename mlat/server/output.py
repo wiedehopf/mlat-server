@@ -243,6 +243,9 @@ class BasestationClient(object):
             if ac.last_altitude_time is None or receive_timestamp - ac.last_altitude_time > 5:
                 vrate = ''
 
+            if address == 0:
+                address = 0xfffabc
+
             line = self.TEMPLATE.format(mtype=3,
                                         addr=address,
                                         rcv_date=format_date(receive_timestamp),
