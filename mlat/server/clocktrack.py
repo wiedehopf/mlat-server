@@ -83,15 +83,17 @@ class ClockTracker(object):
         asyncio.get_event_loop().call_later(1.0, self._cleanup)
 
     def _cleanup(self):
-        """Called periodically to clean up clock pairings that have expired."""
+        """Called periodically to clean up clock pairings that have expired and update pairing.valid"""
 
-        asyncio.get_event_loop().call_later(30.0, self._cleanup)
+        asyncio.get_event_loop().call_later(5.0, self._cleanup)
 
         now = time.monotonic()
         prune = set()
         for k, pairing in self.clock_pairs.items():
             if pairing.expiry <= now:
                 prune.add(k)
+            else:
+                pairing.valid = pairing.check_valid(now)
 
         for k in prune:
             k[0].sync_peers -= 1

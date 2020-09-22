@@ -92,9 +92,10 @@ class ClockPairing(object):
         self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2)   # 5 sigma
 
         now = time.monotonic()
-        self.expiry = now + 120.0
-        self.validity = now + 30.0
+        self.expiry = now + 90.0
+        self.validity = now + 25.0
         self.updated = now
+        self.valid = False
 
     def is_new(self, base_ts):
         """Returns True if the given base timestamp is in the extrapolation region."""
@@ -114,11 +115,10 @@ class ClockPairing(object):
             return None
         return math.sqrt(self.var_sum / self.n)
 
-    @property
-    def valid(self):
+    def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
-        return bool(self.n >= 2 and (self.var_sum / self.n) < 16e-12 and
-                    self.outliers == 0 and self.validity > time.monotonic())
+        return (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
+                    self.outliers == 0 and self.validity > now)
 
     def update(self, address, base_ts, peer_ts, base_interval, peer_interval):
         """Update the relative drift and offset of this pairing given:
@@ -131,6 +131,8 @@ class ClockPairing(object):
 
         Returns True if the update was used, False if it was an outlier.
         """
+
+        now = time.monotonic()
 
         # clean old data
         if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
@@ -145,6 +147,7 @@ class ClockPairing(object):
                 self.outliers += 1
                 if self.outliers < 5:
                     # don't accept this one
+                    self.valid = self.check_valid(now)
                     return False
         else:
             prediction_error = 0  # first sync point, no error
@@ -152,15 +155,16 @@ class ClockPairing(object):
         # update clock drift based on interval ratio
         # this might reject the update
         if not self._update_drift(address, base_interval, peer_interval):
+            self.valid = self.check_valid(now)
             return False
 
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error)
 
-        now = time.monotonic()
-        self.expiry = now + 120.0
-        self.validity = now + 30.0
+        self.expiry = now + 90.0
+        self.validity = now + 25.0
         self.updated = now
+        self.valid = self.check_valid(now)
         return True
 
     def _prune_old_data(self, latest_base_ts):
