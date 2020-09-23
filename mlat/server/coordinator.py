@@ -206,6 +206,7 @@ class Coordinator(object):
             s['tracking'] = len(ac.tracking)
             s['sync_interest'] = len(ac.sync_interest)
             s['mlat_interest'] = len(ac.mlat_interest)
+            s['adsb_seen'] = len(ac.adsb_seen)
             s['mlat_message_count'] = ac.mlat_message_count
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count

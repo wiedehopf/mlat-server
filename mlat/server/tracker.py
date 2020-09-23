@@ -179,7 +179,8 @@ class Tracker(object):
             if rate < 0.20:
                 continue
 
-            new_adsb.add(ac)
+            if rate > 0.5:
+                new_adsb.add(ac)
 
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
