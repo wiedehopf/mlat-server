@@ -38,9 +38,9 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # soft limit for the number of peers a single receiver will have
-MAX_PEERS = 50
+MAX_PEERS = 70
 # limit is only in effect when receivers are further than 50 km apart
-MAX_PEERS_MIN_DISTANCE = 50e3
+MAX_PEERS_MIN_DISTANCE = 70e3
 
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
@@ -57,11 +57,11 @@ MIN_ALT = -1500 * constants.FTOM
 MLAT_DELAY = 2.0
 
 # maxfev (maximum function evaluations) for the solver
-SOLVER_MAXFEV = 145
+SOLVER_MAXFEV = 165
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
-MAX_GROUP = 35
+MAX_GROUP = 25
 
 # only add receivers to the cluster if they are further than a certain distance
 # from all receivers already in the cluster

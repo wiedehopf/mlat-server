@@ -98,7 +98,7 @@ class MlatTracker(object):
 
         # limit group size, discard the rest of message copies
         # first pruning step before clock normalization
-        if len(group.copies) >= config.MAX_GROUP:
+        if len(group.copies) > config.MAX_GROUP:
             return
 
         group.copies.append((receiver, timestamp, utc))
