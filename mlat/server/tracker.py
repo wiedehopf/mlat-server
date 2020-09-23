@@ -23,6 +23,7 @@ Works out the set of aircraft we want the clients to send traffic for.
 
 import random
 import asyncio
+import time
 from mlat import profile
 from mlat.server import kalman
 
@@ -48,6 +49,10 @@ class TrackedAircraft(object):
 
         # set of receivers who have seen ADS-B from this aircraft
         self.adsb_seen = set()
+
+        # timestamp of when the last sync point was created using this aircraft
+        # set this to 3 min in the past, hacky
+        self.last_syncpoint_time = time.monotonic() - 180
 
         # set of receivers who want to use this aircraft for multilateration.
         # this aircraft is interesting if this set is non-empty.
@@ -157,11 +162,12 @@ class Tracker(object):
         latest tracking and rate report data."""
 
         new_adsb = set()
+        earlier = time.monotonic() - 300
 
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
-            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 3}
+            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < earlier)}
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
             asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
             return
@@ -221,8 +227,9 @@ class Tracker(object):
         # which we have no ADS-B rate (i.e. are not
         # transmitting positions)
         new_mlat_set = set()
+
         for ac in receiver.tracking:
-            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and len(ac.adsb_seen) < 3:
+            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < earlier):
                 new_mlat_set.add(ac)
 
         receiver.update_interest_sets(new_sync_set, new_mlat_set, new_adsb)

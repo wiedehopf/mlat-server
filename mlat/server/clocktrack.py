@@ -65,7 +65,7 @@ class ClockTracker(object):
     """Maintains clock pairings between receivers, and matches up incoming sync messages
     from receivers to update the parameters of the pairings."""
 
-    def __init__(self):
+    def __init__(self, coordinator):
         # map of (sync key) -> list of sync points
         #
         # sync key is a pair of bytearrays: (msgA, msgB)
@@ -78,6 +78,8 @@ class ClockTracker(object):
         # pair key is (receiver 0, receiver 1) where receiver 0
         # is always less than receiver 1.
         self.clock_pairs = {}
+
+        self.coordinator = coordinator
 
         # schedule periodic cleanup
         asyncio.get_event_loop().call_later(1.0, self._cleanup)
@@ -253,7 +255,12 @@ class ClockTracker(object):
             logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
+        #valid, do some extra bookkeeping before sync stuff
         receiver.sync_range_exceeded = 0
+
+        ac = self.coordinator.tracker.aircraft.get(even_message.address)
+        if ac:
+            ac.last_syncpoint_time = time.monotonic()
 
         # valid. Create a new sync point.
         if even_time < odd_time:

@@ -144,7 +144,7 @@ class Coordinator(object):
         self.partition = partition
         self.tag = tag
         self.tracker = tracker.Tracker(partition)
-        self.clock_tracker = clocktrack.ClockTracker()
+        self.clock_tracker = clocktrack.ClockTracker(self)
         self.mlat_tracker = mlattrack.MlatTracker(self,
                                                   blacklist_filename=work_dir + '/blacklist.txt',
                                                   pseudorange_filename=pseudorange_filename)
