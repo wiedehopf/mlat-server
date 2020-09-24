@@ -248,11 +248,11 @@ class ClockTracker(object):
                                      odd_lon,
                                      odd_message.altitude * constants.FTOM))
         if geodesy.ecef_distance(odd_ecef, receiver.position) > config.MAX_RANGE:
-            logging.info("{a:06X}: receiver range check (odd) failed".format(a=odd_message.address))
+            #logging.info("{a:06X}: receiver range check (odd) failed".format(a=odd_message.address))
             return
 
         if geodesy.ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
-            logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
+            #logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
         #valid, do some extra bookkeeping before sync stuff
