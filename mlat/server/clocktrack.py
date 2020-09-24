@@ -268,7 +268,8 @@ class ClockTracker(object):
         else:
             syncpoint = SyncPoint(even_message.address, odd_ecef, even_ecef, interval)
 
-        syncpoint.receivers.append([receiver, tA, tB, False])
+        self._add_to_existing_syncpoint(syncpoint, receiver, tA, tB)
+
         if not syncpointlist:
             syncpointlist = self.sync_points[key] = []
         syncpointlist.append(syncpoint)
@@ -288,12 +289,23 @@ class ClockTracker(object):
         # new state for the syncpoint: receiver, timestamp A, timestamp B,
         # and a flag indicating if this receiver actually managed to sync
         # with another receiver using this syncpoint (used for stats)
-        r0l = [r0, t0A, t0B, False]
+
+        # propagation delays, in clock units
+        delay0A = geodesy.ecef_distance(syncpoint.posA, r0.position) * r0.clock.freq / constants.Cair
+        delay0B = geodesy.ecef_distance(syncpoint.posB, r0.position) * r0.clock.freq / constants.Cair
+
+        td0A = t0A - delay0A
+        td0B = t0B - delay0B
+
+        # compute interval, adjusted for transmitter motion
+        i0 = td0B - td0A
+
+        r0l = [r0, td0B, i0, False]
 
         # try to sync the new receiver with all receivers that previously
         # saw the same pair
         for r1l in syncpoint.receivers:
-            r1, t1A, t1B, r1sync = r1l
+            r1, td1B, i1, r1sync = r1l
 
             if r1.dead:
                 # receiver went away before we started resolving this
@@ -307,11 +319,11 @@ class ClockTracker(object):
 
             # order the clockpair so that the receiver that sorts lower is the base clock
             if r0 < r1:
-                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r0, t0A, t0B, r1, t1A, t1B, now):
+                if self._do_sync(syncpoint.address, now, r0, td0B, i0, r1, td1B, i1):
                     # sync worked, note it for stats
                     r0l[3] = r1l[3] = True
             else:
-                if self._do_sync(syncpoint.address, syncpoint.posA, syncpoint.posB, r1, t1A, t1B, r0, t0A, t0B, now):
+                if self._do_sync(syncpoint.address, now, r1, td1B, i1, r0, td0B, i0):
                     # sync worked, note it for stats
                     r0l[3] = r1l[3] = True
 
@@ -338,7 +350,7 @@ class ClockTracker(object):
             if synced:
                 r.sync_count += 1
 
-    def _do_sync(self, address, posA, posB, r0, t0A, t0B, r1, t1A, t1B, now):
+    def _do_sync(self, address, now, r0, td0B, i0, r1, td1B, i1):
         # find or create clock pair
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
@@ -359,21 +371,11 @@ class ClockTracker(object):
         if pairing.n > 15 and now < pairing.updated + 0.5:
             return False
 
-        # propagation delays, in clock units
-        delay0A = geodesy.ecef_distance(posA, r0.position) * r0.clock.freq / constants.Cair
-        delay0B = geodesy.ecef_distance(posB, r0.position) * r0.clock.freq / constants.Cair
-        delay1A = geodesy.ecef_distance(posA, r1.position) * r1.clock.freq / constants.Cair
-        delay1B = geodesy.ecef_distance(posB, r1.position) * r1.clock.freq / constants.Cair
-
-        # compute intervals, adjusted for transmitter motion
-        i0 = (t0B - delay0B) - (t0A - delay0A)
-        i1 = (t1B - delay1B) - (t1A - delay1A)
-
-        if not pairing.is_new(t0B - delay0B):
+        if not pairing.is_new(td0B):
             return True  # timestamp is in the past or duplicated, don't use this
 
         # do the update
-        return pairing.update(address, t0B - delay0B, t1B - delay1B, i0, i1, now)
+        return pairing.update(address, td0B, td1B, i0, i1, now)
 
     def dump_receiver_state(self):
         state = {}
