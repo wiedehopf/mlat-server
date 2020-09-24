@@ -299,11 +299,12 @@ class JsonClient(connection.Connection):
         except asyncio.CancelledError:
             pass
 
+        except Exception:
+            self.logger.exception('Exception handling client')
+
         except OSError.ConnectionError as e:
             self.logger.error(e)
 
-        except Exception:
-            self.logger.exception('Exception handling client')
 
         finally:
             self.close()

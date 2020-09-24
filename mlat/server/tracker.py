@@ -208,7 +208,7 @@ class Tracker(object):
                 if rp < 0.10:
                     continue
 
-                ratepair = (rp, r1, ac)
+                ratepair = (rp, r1, ac, rate)
                 l.append(ratepair)
                 ratepair_list.append(ratepair)
 
@@ -216,7 +216,8 @@ class Tracker(object):
 
         ntotal = {}
         new_sync_set = set()
-        for rp, r1, ac in ratepair_list:
+        total_rate = 0
+        for rp, r1, ac, rate in ratepair_list:
             if ac in new_sync_set:
                 continue  # already added
 
@@ -227,7 +228,7 @@ class Tracker(object):
                 # use this aircraft for sync
                 new_sync_set.add(ac)
                 # update rate-product totals for all receivers that see this aircraft
-                for rp2, r2, ac2 in ac_to_ratepair_map[ac]:
+                for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
 
         if now - receiver.last_clock_reset < 30:
