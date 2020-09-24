@@ -44,7 +44,7 @@ MAX_PEERS_MIN_DISTANCE = 70e3
 
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
-MAX_SYNC_AC = 16
+MAX_SYNC_AC = 15
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3

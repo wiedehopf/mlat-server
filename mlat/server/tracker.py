@@ -223,7 +223,7 @@ class Tracker(object):
             if ac in new_sync_set:
                 continue  # already added
 
-            if len(new_sync_set) >= config.MAX_SYNC_AC or total_rate > 3 * config.MAX_SYNC_AC:
+            if total_rate > 2.5 * config.MAX_SYNC_AC:
                 break
 
             if ntotal.get(r1, 0.0) < 1.0:
@@ -239,10 +239,10 @@ class Tracker(object):
             if ac in new_sync_set:
                 continue  # already added
 
-            if len(new_sync_set) >= config.MAX_SYNC_AC or total_rate > 3 * config.MAX_SYNC_AC:
+            if total_rate > 2.5 * config.MAX_SYNC_AC:
                 break
 
-            if ntotal.get(r1, 0.0) < 2.0:
+            if ntotal.get(r1, 0.0) < 2.5:
                 # use this aircraft for sync
                 new_sync_set.add(ac)
                 total_rate += rate
