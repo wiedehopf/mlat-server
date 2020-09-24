@@ -25,7 +25,7 @@ import random
 import asyncio
 import time
 from mlat import profile
-from mlat.server import kalman
+from mlat.server import kalman, config
 
 
 class TrackedAircraft(object):
@@ -162,12 +162,17 @@ class Tracker(object):
         latest tracking and rate report data."""
 
         new_adsb = set()
-        earlier = time.monotonic() - 300
+        now = time.monotonic()
 
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
-            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < earlier)}
+            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300)}
+            if now - receiver.last_clock_reset < 30:
+                new_sync = set(receiver.tracking)
+            elif len(new_sync) > config.MAX_SYNC_AC:
+                new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
+
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
             asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
             return
@@ -182,7 +187,7 @@ class Tracker(object):
             if not ac:
                 continue
 
-            if rate < 0.20:
+            if rate < 0.25:
                 continue
 
             if rate > 0.5:
@@ -199,7 +204,7 @@ class Tracker(object):
                 else:
                     rate1 = r1.last_rate_report.get(icao, 0.0)
 
-                rp = rate * rate1 / 4.0
+                rp = rate * rate1 / 2.25
                 if rp < 0.10:
                     continue
 
@@ -215,12 +220,18 @@ class Tracker(object):
             if ac in new_sync_set:
                 continue  # already added
 
+            if len(new_sync_set) >= config.MAX_SYNC_AC:
+                break
+
             if ntotal.get(r1, 0.0) < 1.0:
                 # use this aircraft for sync
                 new_sync_set.add(ac)
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2 in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
+
+        if now - receiver.last_clock_reset < 30:
+            new_sync = set(receiver.tracking)
 
         # for multilateration we are interesting in
         # all aircraft that we are tracking but for
@@ -229,7 +240,7 @@ class Tracker(object):
         new_mlat_set = set()
 
         for ac in receiver.tracking:
-            if ac.icao not in receiver.last_rate_report and ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < earlier):
+            if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300):
                 new_mlat_set.add(ac)
 
         receiver.update_interest_sets(new_sync_set, new_mlat_set, new_adsb)

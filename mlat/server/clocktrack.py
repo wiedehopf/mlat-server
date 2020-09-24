@@ -190,7 +190,7 @@ class ClockTracker(object):
 
         # No existing match. Validate the messages and maybe create a new sync point
 
-        if receiver.sync_range_exceeded or receiver.bad_syncs > 1:
+        if receiver.sync_range_exceeded or receiver.bad_syncs > 2:
             return
 
         # basic validity

@@ -577,13 +577,14 @@ class JsonClient(connection.Connection):
                 self.mc_start = now
                 r = self.receiver
                 if now - r.last_clock_reset < 60:
-                    self.mrate_limit = 40
-                elif r.bad_syncs > 3 or r.sync_range_exceeded or r.sync_peers < 1:
-                    self.mrate_limit = 3
-                    #if self.receiver.user == 'euerdorf1':
-                    #    logging.warning("mrate_limit = 3")
+                    self.mrate_limit = 60
+                elif r.sync_range_exceeded or r.sync_peers < 1 or r.bad_syncs > 2:
+                    self.mrate_limit = 5
                 else:
                     self.mrate_limit = 40
+
+                #if self.receiver.user == 'euerdorf1':
+                #    logging.warning("mrate_limit = 3")
 
             if self.message_counter < self.mrate_limit * elapsed + 10:
                 self.coordinator.receiver_sync(self.receiver,
