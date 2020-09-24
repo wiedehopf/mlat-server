@@ -576,8 +576,8 @@ class JsonClient(connection.Connection):
                 self.message_counter = 0
                 self.mc_start = now
                 r = self.receiver
-                if now - r.last_clock_reset < 60:
-                    self.mrate_limit = 60
+                if now - r.last_clock_reset < 30:
+                    self.mrate_limit = 80
                 elif r.sync_range_exceeded or r.sync_peers < 1 or r.bad_syncs > 2:
                     self.mrate_limit = 5
                 else:

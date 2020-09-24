@@ -48,6 +48,7 @@ class Receiver(object):
         self.connection = connection
         self.clock = clock
         self.last_clock_reset = time.monotonic()
+        self.clock_reset_counter = 0
         self.position_llh = position_llh
         self.position = geodesy.llh2ecef(position_llh)
         self.privacy = privacy
@@ -454,6 +455,10 @@ class Coordinator(object):
         """Reset current clock synchronization for a receiver."""
         self.clock_tracker.receiver_clock_reset(receiver)
         receiver.last_clock_reset = time.monotonic()
+        receiver.clock_reset_counter += 1
+        if receiver.clock_reset_counter < 130 and receiver.clock_reset_counter % 30 == 5:
+            glogger.warning("Clock reset: {r} count: {c}".format(r=receiver.uuid, c=receiver.clock_reset_counter))
+
 
     @profile.trackcpu
     def receiver_rate_report(self, receiver, report):
