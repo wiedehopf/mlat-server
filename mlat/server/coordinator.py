@@ -75,7 +75,7 @@ class Receiver(object):
 
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
-        if self.bad_syncs > 2:
+        if self.bad_syncs > 2 and len(new_sync) > config.MAX_SYNC_AC / 4:
             new_sync = set(random.sample(new_sync, k=round(config.MAX_SYNC_AC / 4)))
 
         if self.bad_syncs > 0:
