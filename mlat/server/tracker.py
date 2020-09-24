@@ -217,16 +217,35 @@ class Tracker(object):
         ntotal = {}
         new_sync_set = set()
         total_rate = 0
+
+        # select SYNC aircraft round1
         for rp, r1, ac, rate in ratepair_list:
             if ac in new_sync_set:
                 continue  # already added
 
-            if len(new_sync_set) >= config.MAX_SYNC_AC:
+            if len(new_sync_set) >= config.MAX_SYNC_AC or total_rate > 3 * config.MAX_SYNC_AC:
                 break
 
             if ntotal.get(r1, 0.0) < 1.0:
                 # use this aircraft for sync
                 new_sync_set.add(ac)
+                total_rate += rate
+                # update rate-product totals for all receivers that see this aircraft
+                for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
+                    ntotal[r2] = ntotal.get(r2, 0.0) + rp2
+
+        # select SYNC aircraft round2 < 2.0 instead of < 1.0 ntotal
+        for rp, r1, ac, rate in ratepair_list:
+            if ac in new_sync_set:
+                continue  # already added
+
+            if len(new_sync_set) >= config.MAX_SYNC_AC or total_rate > 3 * config.MAX_SYNC_AC:
+                break
+
+            if ntotal.get(r1, 0.0) < 2.0:
+                # use this aircraft for sync
+                new_sync_set.add(ac)
+                total_rate += rate
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
