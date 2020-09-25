@@ -427,16 +427,10 @@ def _cluster_timestamps(component, min_receivers):
 
                 if can_cluster:
                     #glogger.info("   accept")
-                    # as the cluster grows, only accept receivers located further apart
-                    # also limit the absolute size of the cluster
-                    if (
-                        min_d/config.CLUSTER_SPREAD > len(cluster) - config.CLUSTER_NOSPREAD
-                        and len(cluster) <= config.MAX_CLUSTER
-                    ):
-                        cluster.append((receiver, timestamp, variance))
-                        first_seen = min(first_seen, utc)
-                        if is_distinct:
-                            distinct_receivers += 1
+                    cluster.append((receiver, timestamp, variance))
+                    first_seen = min(first_seen, utc)
+                    if is_distinct:
+                        distinct_receivers += 1
 
                     del group[i]
 
