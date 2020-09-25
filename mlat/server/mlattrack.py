@@ -272,7 +272,7 @@ class MlatTracker(object):
                 dof=dof))
 
         if altitude is None:
-            if ac.kalman.update(cluster_utc, cluster, solved_alt, 2000 / (dof + 1), ecef, ecef_cov, distinct, dof):
+            if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / Math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
         else:
             if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
