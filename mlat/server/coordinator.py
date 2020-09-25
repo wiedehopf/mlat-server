@@ -141,7 +141,7 @@ class Coordinator(object):
         self.authenticator = authenticator
         self.partition = partition
         self.tag = tag
-        self.tracker = tracker.Tracker(partition)
+        self.tracker = tracker.Tracker(self, partition)
         self.clock_tracker = clocktrack.ClockTracker(self)
         self.mlat_tracker = mlattrack.MlatTracker(self,
                                                   blacklist_filename=work_dir + '/blacklist.txt',

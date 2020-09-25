@@ -104,10 +104,11 @@ class Tracker(object):
     """Tracks which receivers can see which aircraft, and asks receivers to
     forward traffic accordingly."""
 
-    def __init__(self, partition):
+    def __init__(self, coordinator, partition):
         self.aircraft = {}
         self.partition_id = partition[0] - 1
         self.partition_count = partition[1]
+        self.coordinator = coordinator
 
     def in_local_partition(self, icao):
         if self.partition_count == 1:
@@ -166,7 +167,7 @@ class Tracker(object):
 
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
-            new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
+            new_sync = {ac for ac in receiver.tracking}
             new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300)}
             if now - receiver.last_clock_reset < 45:
                 new_sync = set(receiver.tracking)
@@ -184,10 +185,11 @@ class Tracker(object):
         ratepair_list = []
         rate_report_set = set()
         for icao, rate in receiver.last_rate_report.items():
-            rate_report_set.add(icao)
             ac = self.aircraft.get(icao)
             if not ac:
-                continue
+                self.coordinator.receiver_tracking_add(self.receiver, {int(icao, 16)})
+
+            rate_report_set.add(ac)
 
             if rate < 0.25:
                 continue
@@ -217,12 +219,12 @@ class Tracker(object):
         ratepair_list.sort()
 
         ntotal = {}
-        new_sync_set = set()
+        new_sync = set()
         total_rate = 0
 
         # select SYNC aircraft round1
         for rp, r1, ac, rate in ratepair_list:
-            if ac in new_sync_set:
+            if ac in new_sync:
                 continue  # already added
 
             if total_rate > config.MAX_SYNC_RATE:
@@ -230,7 +232,7 @@ class Tracker(object):
 
             if ntotal.get(r1, 0.0) < 1.0:
                 # use this aircraft for sync
-                new_sync_set.add(ac)
+                new_sync.add(ac)
                 total_rate += rate
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
@@ -238,7 +240,7 @@ class Tracker(object):
 
         # select SYNC aircraft round2 < 2.0 instead of < 1.0 ntotal
         for rp, r1, ac, rate in ratepair_list:
-            if ac in new_sync_set:
+            if ac in new_sync:
                 continue  # already added
 
             if total_rate > config.MAX_SYNC_RATE:
@@ -246,24 +248,24 @@ class Tracker(object):
 
             if ntotal.get(r1, 0.0) < 2.5:
                 # use this aircraft for sync
-                new_sync_set.add(ac)
+                new_sync.add(ac)
                 total_rate += rate
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
 
-        if now - receiver.last_clock_reset < 45:
-            new_sync = rate_report_set.union(receiver.tracking)
+        if now - receiver.last_clock_reset < 45 and len(new_sync) < 10:
+            new_sync = receiver.tracking
 
         # for multilateration we are interesting in
         # all aircraft that we are tracking but for
         # which we have no ADS-B rate (i.e. are not
         # transmitting positions)
-        new_mlat_set = set()
+        new_mlat = set()
 
         for ac in receiver.tracking:
             if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300):
-                new_mlat_set.add(ac)
+                new_mlat.add(ac)
 
-        receiver.update_interest_sets(new_sync_set, new_mlat_set, new_adsb)
+        receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
         asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
