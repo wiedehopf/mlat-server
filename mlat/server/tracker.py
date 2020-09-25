@@ -168,7 +168,7 @@ class Tracker(object):
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if len(ac.tracking) > 1}
             new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300)}
-            if now - receiver.last_clock_reset < 30:
+            if now - receiver.last_clock_reset < 45:
                 new_sync = set(receiver.tracking)
             elif len(new_sync) > config.MAX_SYNC_AC:
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
@@ -182,7 +182,9 @@ class Tracker(object):
         # receiver wants to use for synchronization.
         ac_to_ratepair_map = {}
         ratepair_list = []
+        rate_report_set = set()
         for icao, rate in receiver.last_rate_report.items():
+            rate_report_set.add(icao)
             ac = self.aircraft.get(icao)
             if not ac:
                 continue
@@ -223,7 +225,7 @@ class Tracker(object):
             if ac in new_sync_set:
                 continue  # already added
 
-            if total_rate > 2.5 * config.MAX_SYNC_AC:
+            if total_rate > config.MAX_SYNC_RATE:
                 break
 
             if ntotal.get(r1, 0.0) < 1.0:
@@ -239,7 +241,7 @@ class Tracker(object):
             if ac in new_sync_set:
                 continue  # already added
 
-            if total_rate > 2.5 * config.MAX_SYNC_AC:
+            if total_rate > config.MAX_SYNC_RATE:
                 break
 
             if ntotal.get(r1, 0.0) < 2.5:
@@ -250,8 +252,8 @@ class Tracker(object):
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
 
-        if now - receiver.last_clock_reset < 30:
-            new_sync = set(receiver.tracking)
+        if now - receiver.last_clock_reset < 45:
+            new_sync = rate_report_set.union(receiver.tracking)
 
         # for multilateration we are interesting in
         # all aircraft that we are tracking but for

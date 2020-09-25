@@ -173,7 +173,7 @@ class JsonClient(connection.Connection):
 
         self.message_counter = 0
         self.mc_start = time.monotonic()
-        self.mrate_limit = 20
+        self.mrate_limit = 80
 
         self.transport = writer.transport
         peer = self.transport.get_extra_info('peername')
@@ -577,12 +577,16 @@ class JsonClient(connection.Connection):
                 self.message_counter = 0
                 self.mc_start = now
                 r = self.receiver
-                if now - r.last_clock_reset < 30:
-                    self.mrate_limit = 80
+                if now - r.last_clock_reset < 45:
+                    # help with fast initial / resync
+                    self.mrate_limit = 2 * config.MAX_SYNC_RATE
                 elif r.sync_range_exceeded or r.sync_peers < 1 or r.bad_syncs > 2:
                     self.mrate_limit = 5
+                elif r.last_rate_report is None:
+                    self.mrate_limit = config.MAX_SYNC_RATE
                 else:
-                    self.mrate_limit = 40
+                    # very rough limit in case interest_set based limiting in tracker.py doesn't work.
+                    self.mrate_limit = 1.25 * config.MAX_SYNC_RATE
 
                 #if self.receiver.user == 'euerdorf1':
                 #    logging.warning("mrate_limit = 3")
