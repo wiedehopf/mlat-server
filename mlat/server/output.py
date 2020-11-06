@@ -260,7 +260,7 @@ class BasestationClient(object):
                                         speed=speed,
                                         heading=heading,
                                         vrate=vrate,
-                                        fs='',
+                                        fs=len(receivers),
                                         emerg='',
                                         ident='',
                                         aog='')
