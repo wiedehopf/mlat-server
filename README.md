@@ -67,25 +67,20 @@ users, and they may redistribute it further if they wish.
 ## Example of how to make it run with virtualenv:
 
 ```
-mkdir -p /usr/local/py382
-cd /usr/local/py382
-wget https://www.python.org/ftp/python/3.8.2/Python-3.8.2.tar.xz
-tar xf Python-3.8.2.tar.xz
-cd Python-3.8.2
-CFLAGS="-march=native" ./configure && make -j4
-pip3 install virtualenv pathlib2
-hash -r
-rm -rf /usr/local/py382/venv
-virtualenv -p /usr/local/py382/Python-3.8.2/python /usr/local/py382/venv
-source /usr/local/py382/venv/bin/activate
-pip3 install numpy scipy pykalman python-graph-core
+apt install python3-pip python3 python3-virtualenv
+VENV=/usr/local/share/mlat-server-venv
+rm -rf $VENV
+python3 -m venv $VENV
+source $VENV/bin/activate
+pip3 install -U pip
+pip3 install numpy scipy pykalman python-graph-core uvloop
 ```
 
 To use this virtualenv python directory, it needs to be activated before each start of mlat-server:
 
 ```
 source /usr/local/py382/venv/bin/activate
-python3 mlat-server
+./mlat-server
 ```
 
 ## Developer-ware
