@@ -21,12 +21,14 @@ Top level server object, arg parsing, etc.
 """
 
 import asyncio
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 import logging
 import signal
 import argparse
 
 from mlat.server import jsonclient, output, coordinator, leakcheck
-
 
 def hostport(s):
     parts = s.split(':')
