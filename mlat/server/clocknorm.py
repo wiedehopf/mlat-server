@@ -22,6 +22,7 @@ Clock normalization routines.
 
 import pygraph.classes.graph
 import pygraph.algorithms.minmax
+import time
 
 from mlat import profile
 
@@ -37,7 +38,7 @@ def _identity_predict(x):
     return x
 
 
-def _make_predictors(clocktracker, station0, station1):
+def _make_predictors(clocktracker, station0, station1, now):
     """Return a tuple of predictors (p_01, p_10) where:
 
     p_01 will predict a station1 timestamp given a station0 timestamp
@@ -46,7 +47,6 @@ def _make_predictors(clocktracker, station0, station1):
     Returns None if no suitable clock sync model is available for
     this pair of stations.
     """
-
     if station0 is station1:
         return None
 
@@ -58,18 +58,32 @@ def _make_predictors(clocktracker, station0, station1):
         predictor = _Predictor(_identity_predict, station0.clock.jitter ** 2 + station1.clock.jitter ** 2)
         return (predictor, predictor)
 
+    pairing = None
+
     if station0 < station1:
         pairing = clocktracker.clock_pairs.get((station0, station1))
-        if pairing is None or not pairing.valid:
-            return None
-        return (_Predictor(pairing.predict_peer, pairing.variance),
-                _Predictor(pairing.predict_base, pairing.variance))
     else:
         pairing = clocktracker.clock_pairs.get((station1, station0))
-        if pairing is None or not pairing.valid:
-            return None
-        return (_Predictor(pairing.predict_base, pairing.variance),
-                _Predictor(pairing.predict_peer, pairing.variance))
+
+    if pairing is None or not pairing.valid:
+        return None
+
+    variance = pairing.variance
+    stale = now - pairing.updated
+
+    # increase variance for stale pairings
+    variance *= 1 + stale / 12
+
+    # increase variance for pairing with fewer sync points
+    if pairing.n < 10:
+        variance *= 1 + (10 - pairing.n) / 10
+
+    if station0 < station1:
+        return (_Predictor(pairing.predict_peer, variance),
+                _Predictor(pairing.predict_base, variance))
+    else:
+        return (_Predictor(pairing.predict_base, variance),
+                _Predictor(pairing.predict_peer, variance))
 
 
 def _label_heights(g, node, heights):
@@ -175,11 +189,13 @@ def normalize(clocktracker, timestamp_map):
     # also build a map of predictor objects corresponding to the
     # edges for later use
 
+    now = time.monotonic()
+
     predictor_map = {}
     for si in timestamp_map.keys():
         for sj in timestamp_map.keys():
             if si < sj:
-                predictors = _make_predictors(clocktracker, si, sj)
+                predictors = _make_predictors(clocktracker, si, sj, now)
                 if predictors:
                     predictor_map[(si, sj)] = predictors[0]
                     predictor_map[(sj, si)] = predictors[1]

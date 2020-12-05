@@ -104,17 +104,15 @@ class ClockPairing(object):
         return bool(self.n == 0 or self.ts_base[-1] < base_ts)
 
     def updateVars(self):
-        """Variance of recent predictions of the sync point versus the actual sync point."""
         if self.n == 0:
             self.variance = None
-        else:
-            self.variance = self.var_sum / self.n
-
-        """Standard error of recent predictions."""
-        if self.n == 0:
             self.error = None
         else:
-            self.error = math.sqrt(self.var_sum / self.n)
+            """Variance of recent predictions of the sync point versus the actual sync point."""
+            self.variance = self.var_sum / self.n
+
+            """Standard error of recent predictions."""
+            self.error = math.sqrt(self.variance)
 
     def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
@@ -142,7 +140,7 @@ class ClockPairing(object):
             prediction = self.predict_peer(base_ts)
             prediction_error = (prediction - peer_ts) / self.peer_clock.freq
 
-            if abs(prediction_error) > self.outlier_threshold and abs(prediction_error) > self.error * 2.5 : # 2.5 sigma
+            if abs(prediction_error) > self.outlier_threshold and abs(prediction_error) > self.error * 3 : # 3 sigma
                 self.outliers += 1
                 if self.outliers < 5:
                     # don't accept this one
