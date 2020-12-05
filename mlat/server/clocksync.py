@@ -240,6 +240,7 @@ class ClockPairing(object):
         p_var = prediction_error ** 2
         self.var.append(p_var)
         self.var_sum += p_var
+        self.updateVars();
 
         # if we are accepting an outlier, do not include it in our integral term
         if not self.outliers:
