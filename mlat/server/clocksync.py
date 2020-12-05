@@ -82,6 +82,7 @@ class ClockPairing(object):
         self.ts_peer = []
         self.var = []
         self.var_sum = 0.0
+        self.outlier = False
         self.outliers = 0
         self.cumulative_error = 0.0
         self.error = None
@@ -132,7 +133,7 @@ class ClockPairing(object):
         """
 
         # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq) or self.outliers >= 5:
             self._prune_old_data(base_ts)
 
         # predict from existing data, compare to actual value
@@ -140,12 +141,14 @@ class ClockPairing(object):
             prediction = self.predict_peer(base_ts)
             prediction_error = (prediction - peer_ts) / self.peer_clock.freq
 
-            if abs(prediction_error) > self.outlier_threshold and abs(prediction_error) > self.error * 3 : # 3 sigma
+            if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
                 self.outliers += 1
                 if self.outliers < 5:
                     # don't accept this one
                     self.valid = self.check_valid(now)
                     return False
+                else:
+                    self.outlier = True
         else:
             prediction_error = 0  # first sync point, no error
 
@@ -169,6 +172,9 @@ class ClockPairing(object):
 
         if self.n > 20:
             i = self.n - 20
+
+        if self.n > 15 and self.outliers >= 5:
+            i = self.n - 15
 
         while i < self.n and (latest_base_ts - self.ts_base[i]) > 25 * self.base_clock.freq:
             i += 1
@@ -240,10 +246,11 @@ class ClockPairing(object):
         self.updateVars();
 
         # if we are accepting an outlier, do not include it in our integral term
-        if not self.outliers:
+        if not self.outlier:
             self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 
-        self.outliers = max(0, self.outliers - 2)
+        self.outlier = False
+        self.outliers = max(0, self.outliers - 1)
 
         #if self.outliers and abs(prediction_error) > self.outlier_threshold:
         #    glogger.info("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
