@@ -84,12 +84,14 @@ class ClockPairing(object):
         self.var_sum = 0.0
         self.outliers = 0
         self.cumulative_error = 0.0
+        self.error = None
+        self.variance = None
 
         self.relative_freq = peer.clock.freq / base.clock.freq
         self.i_relative_freq = base.clock.freq / peer.clock.freq
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
         self.drift_max_delta = self.drift_max / 10.0
-        self.sigma = 3
+        self.sigma = 3.5
         self.outlier_threshold = self.sigma * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2)
 
         now = time.monotonic()
@@ -102,19 +104,18 @@ class ClockPairing(object):
         """Returns True if the given base timestamp is in the extrapolation region."""
         return bool(self.n == 0 or self.ts_base[-1] < base_ts)
 
-    @property
-    def variance(self):
+    def updateVars(self):
         """Variance of recent predictions of the sync point versus the actual sync point."""
         if self.n == 0:
-            return None
-        return self.var_sum / self.n
+            self.variance = None
+        else:
+            self.variance = self.var_sum / self.n
 
-    @property
-    def error(self):
         """Standard error of recent predictions."""
         if self.n == 0:
-            return None
-        return math.sqrt(self.var_sum / self.n)
+            self.error = None
+        else:
+            self.error = math.sqrt(self.var_sum / self.n)
 
     def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
@@ -181,6 +182,7 @@ class ClockPairing(object):
             del self.var[0:i]
             self.n -= i
             self.var_sum = sum(self.var)
+            self.updateVars();
 
     def _update_drift(self, address, base_interval, peer_interval):
         # try to reduce the effects of catastropic cancellation here:
@@ -227,6 +229,7 @@ class ClockPairing(object):
                 self.ts_peer = []
                 self.var = []
                 self.var_sum = 0
+                self.updateVars();
                 self.cumulative_error = 0
                 self.n = 0
 
