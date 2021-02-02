@@ -185,7 +185,6 @@ class ClockTracker(object):
                 if abs(candidate.interval - interval) < 1e-3:
                     # interval matches within 1ms, close enough.
                     self._add_to_existing_syncpoint(candidate, receiver, tA, tB)
-                    receiver.sync_range_exceeded = 0
                     return
 
         # No existing match. Validate the messages and maybe create a new sync point
@@ -233,8 +232,6 @@ class ClockTracker(object):
             # CPR failed
             return
 
-        receiver.sync_range_exceeded = 1 #unset when everything checks out
-
         # convert to ECEF, do range checks
         even_ecef = geodesy.llh2ecef((even_lat,
                                       even_lon,
@@ -242,21 +239,23 @@ class ClockTracker(object):
         if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
             # suppress this spam, can't help if ppl give a wrong location
             # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
+            receiver.sync_range_exceeded = 1
             return
 
         odd_ecef = geodesy.llh2ecef((odd_lat,
                                      odd_lon,
                                      odd_message.altitude * constants.FTOM))
-        if geodesy.ecef_distance(odd_ecef, receiver.position) > config.MAX_RANGE:
+
+        # checking range for the even position and intermessage distance is sufficient
+        #if geodesy.ecef_distance(odd_ecef, receiver.position) > config.MAX_RANGE:
             #logging.info("{a:06X}: receiver range check (odd) failed".format(a=odd_message.address))
-            return
+            #return
 
         if geodesy.ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
             #logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
         #valid, do some extra bookkeeping before sync stuff
-        receiver.sync_range_exceeded = 0
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
@@ -290,9 +289,19 @@ class ClockTracker(object):
         # and a flag indicating if this receiver actually managed to sync
         # with another receiver using this syncpoint (used for stats)
 
+        receiverDistA = geodesy.ecef_distance(syncpoint.posA, r0.position)
+        receiverDistB = geodesy.ecef_distance(syncpoint.posB, r0.position)
+
+        # add receiver distance check here
+        if receiverDistA > config.MAX_RANGE or receiverDistB > config.MAX_RANGE:
+            r0.sync_range_exceeded = 1
+            return
+
+        r0.sync_range_exceeded = 0
+
         # propagation delays, in clock units
-        delay0A = geodesy.ecef_distance(syncpoint.posA, r0.position) * r0.clock.freq / constants.Cair
-        delay0B = geodesy.ecef_distance(syncpoint.posB, r0.position) * r0.clock.freq / constants.Cair
+        delay0A = receiverDistA * r0.clock.freq / constants.Cair
+        delay0B = receiverDistB * r0.clock.freq / constants.Cair
 
         td0A = t0A - delay0A
         td0B = t0B - delay0B
