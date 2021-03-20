@@ -103,7 +103,7 @@ class MlatServer(object):
         parser.add_argument('--motd',
                             type=str,
                             help="set the server MOTD sent to clients.",
-                            default="In-development v2 server. Expect odd behaviour.")
+                            default="")
 
     def add_output_args(self, parser):
         parser.add_argument('--write-csv',
