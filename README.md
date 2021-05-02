@@ -68,7 +68,7 @@ users, and they may redistribute it further if they wish.
 
 ```
 apt install python3-pip python3 python3-virtualenv
-VENV=/usr/local/share/mlat-server-venv
+VENV=/opt/mlat-python-venv
 rm -rf $VENV
 python3 -m venv $VENV
 source $VENV/bin/activate
@@ -76,12 +76,13 @@ pip3 install -U pip
 pip3 install numpy scipy pykalman python-graph-core uvloop
 ```
 
-To use this virtualenv python directory, it needs to be activated before each start of mlat-server:
+Starting mlat server:
+```
+$VENV/bin/python3 /opt/mlat-server/mlat-server
+```
+(example has git directory cloned into /opt/mlat-server)
 
-```
-source /usr/local/py382/venv/bin/activate
-./mlat-server
-```
+For an example service file see systemd-service.example
 
 ## Developer-ware
 
@@ -97,7 +98,9 @@ to hack on the code.
 ## Clients
 
 You need a bunch of receivers running mlat-client:
-https://github.com/mutability/mlat-client
+https://github.com/adsbxchange/mlat-client
+The original version by mutability will also work but the adsbexchange client has some changes that are useful.
+(https://github.com/mutability/mlat-client)
 
 ## Output
 

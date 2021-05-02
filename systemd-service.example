@@ -1,0 +1,30 @@
+[Unit]
+Wants=network.target
+After=network.target
+
+[Service]
+User=mlat-server
+SyslogIdentifier=mlat-server
+RuntimeDirectory=mlat-server
+RuntimeDirectoryMode=0755
+Type=simple
+Restart=always
+RestartSec=20
+# this cuts down on load, multithreading beyond the one extra num thread is detrimental:
+Environment=MKL_NUM_THREADS=1
+Environment=NUMEXPR_NUM_THREADS=1
+Environment=OMP_NUM_THREADS=1
+# not really required but doesn't hurt:
+Environment=PYTHONOPTIMIZE=2
+# display python version on startup:
+ExecStartPre=/opt/mlat-python-venv/bin/python3 --version
+ExecStart=/opt/mlat-python-venv/bin/python3 /opt/mlat-server/mlat-server \
+    --client-listen 31090 \
+    --filtered-basestation-listen 31003 \
+    --basestation-listen 31004 \
+    --write-csv /run/mlat-server/positions.csv \
+    --work-dir /run/mlat-server
+
+[Install]
+WantedBy=default.target
+
