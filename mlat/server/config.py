@@ -38,8 +38,8 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # soft limit for the number of peers a single receiver will have
-MAX_PEERS = 60
-# limit depends on the distance, peers closer are somewhat preferred
+MAX_PEERS = 80
+# unused ... # limit depends on the distance, peers closer are somewhat preferred
 MAX_PEERS_MIN_DISTANCE = 50e3
 
 

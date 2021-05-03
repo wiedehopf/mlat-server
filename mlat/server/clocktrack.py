@@ -365,21 +365,28 @@ class ClockTracker(object):
         pairing = self.clock_pairs.get(k)
         if pairing is None:
             distance = r0.distance[r1]
+
             if distance < 500:
                 return False
-            if r0.sync_peers > 1.7 * config.MAX_PEERS or r1.sync_peers > 1.7 * config.MAX_PEERS:
-                return False
-            if (
-                    r0.sync_peers + r1.sync_peers > (2 / (1 + (0.5 * distance / config.MAX_PEERS_MIN_DISTANCE))) * config.MAX_PEERS
-                    and r0.sync_peers > config.MAX_PEERS / 5 and r1.sync_peers > config.MAX_PEERS / 5
-               ):
-                return False
+
+            if r0.sync_peers > config.MAX_PEERS / 2 and r1.sync_peers > config.MAX_PEERS / 2:
+                if r0.bad_syncs > 0 or r1.bad_syncs > 0:
+                    return False
+                if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
+                    return False
+                #if r0.sync_peers + r1.sync_peers > (2 / (1 + (0.5 * distance / config.MAX_PEERS_MIN_DISTANCE))) * config.MAX_PEERS:
+                #    return False
+
             r0.sync_peers += 1
             r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
 
         if pairing.n > 15 and now < pairing.updated + 0.5:
             return False
+
+        if r0.sync_peers > config.MAX_PEERS / 3 and r1.sync_peers > config.MAX_PEERS / 3:
+            if r0.bad_syncs > 0 or r1.bad_syncs > 0:
+                return False
 
         if not pairing.is_new(td0B):
             return True  # timestamp is in the past or duplicated, don't use this
