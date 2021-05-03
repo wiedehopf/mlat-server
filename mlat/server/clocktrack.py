@@ -162,6 +162,9 @@ class ClockTracker(object):
 
         # Do sanity checks.
 
+        if receiver.bad_syncs > 2:
+            return
+
         # Messages must be within 5 seconds of each other.
         if abs(even_time - odd_time) / receiver.clock.freq > 5.0:
             return
@@ -189,7 +192,7 @@ class ClockTracker(object):
 
         # No existing match. Validate the messages and maybe create a new sync point
 
-        if receiver.sync_range_exceeded or receiver.bad_syncs > 2:
+        if receiver.sync_range_exceeded:
             return
 
         # basic validity
@@ -370,7 +373,7 @@ class ClockTracker(object):
                 return False
 
             if r0.sync_peers > config.MAX_PEERS / 2 and r1.sync_peers > config.MAX_PEERS / 2:
-                if r0.bad_syncs > 0 or r1.bad_syncs > 0:
+                if r0.bad_syncs > 1 or r1.bad_syncs > 1:
                     return False
                 if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
                     return False
@@ -383,10 +386,6 @@ class ClockTracker(object):
 
         if pairing.n > 15 and now < pairing.updated + 0.5:
             return False
-
-        if r0.sync_peers > config.MAX_PEERS / 3 and r1.sync_peers > config.MAX_PEERS / 3:
-            if r0.bad_syncs > 0 or r1.bad_syncs > 0:
-                return False
 
         if not pairing.is_new(td0B):
             return True  # timestamp is in the past or duplicated, don't use this

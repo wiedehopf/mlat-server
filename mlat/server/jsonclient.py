@@ -752,8 +752,8 @@ class JsonClient(connection.Connection):
 
         result = {'@': round(receive_timestamp, 3),
                           'addr': '{0:06x}'.format(address),
-                          'lat': round(lat, 4),
-                          'lon': round(lon, 4),
+                          'lat': round(lat, 5),
+                          'lon': round(lon, 5),
                           'alt': round(alt * constants.MTOF, 0),
                           'callsign': callsign,
                           'squawk': squawk,
@@ -777,9 +777,6 @@ class JsonClient(connection.Connection):
 
         result = {'@': round(receive_timestamp, 3),
                   'addr': '{0:06x}'.format(address),
-                  'ecef': (round(ecef[0], 0),
-                           round(ecef[1], 0),
-                           round(ecef[2], 0)),
                   'n': len(receivers),
                   'nd': distinct}
         if ecef_cov is not None:
@@ -793,6 +790,17 @@ class JsonClient(connection.Connection):
             # work around a client bug in 0.1.7 which will
             # disconnect if the 'cov' key is missing
             result['cov'] = None
+
+        if kalman_state.valid and kalman_state.last_update >= receive_timestamp:
+            speed = kalman_state.ground_speed * constants.MS_TO_KTS
+            heading = kalman_state.heading
+            result['nsvel'] = round(math.cos(math.radians(heading)) * speed, 1)
+            result['ewvel'] = round(math.sin(math.radians(heading)) * speed, 1)
+            result['vrate'] = round(kalman_state.vertical_speed * constants.MS_TO_FPM, 0)
+
+        result['ecef'] = (round(ecef[0], 0),
+                round(ecef[1], 0),
+                round(ecef[2], 0))
 
         result_new_old[0] = result
         self.send(result=result)
