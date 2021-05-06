@@ -366,19 +366,16 @@ class ClockTracker(object):
         # find or create clock pair
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
+
         if pairing is None:
+
             distance = r0.distance[r1]
-
-            if distance < 500:
-                return False
-
-            if r0.sync_peers > config.MAX_PEERS / 2 and r1.sync_peers > config.MAX_PEERS / 2:
-                if r0.bad_syncs > 1 or r1.bad_syncs > 1:
+            if r0.bad_syncs > 1 or r1.bad_syncs > 1:
+                if r0.sync_peers > 0.5 * config.MIN_PEERS and 0.5 * r1.sync_peers > config.MIN_PEERS:
                     return False
+            if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS and distance > config.MAX_PEERS_MIN_DISTANCE:
                 if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
                     return False
-                #if r0.sync_peers + r1.sync_peers > (2 / (1 + (0.5 * distance / config.MAX_PEERS_MIN_DISTANCE))) * config.MAX_PEERS:
-                #    return False
 
             r0.sync_peers += 1
             r1.sync_peers += 1

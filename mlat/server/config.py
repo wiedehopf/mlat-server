@@ -38,9 +38,12 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # soft limit for the number of peers a single receiver will have
-MAX_PEERS = 80
-# unused ... # limit depends on the distance, peers closer are somewhat preferred
-MAX_PEERS_MIN_DISTANCE = 50e3
+MAX_PEERS = 40
+# if the other peer has less than this many peers, the above oft limit is ignored
+MIN_PEERS = 30
+# if closer than this, always allow sync
+MAX_PEERS_MIN_DISTANCE = 40e3
+
 
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
