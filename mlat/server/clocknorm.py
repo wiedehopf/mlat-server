@@ -26,6 +26,7 @@ import time
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from scipy.sparse.csgraph import minimum_spanning_tree
+import numpy as np
 
 from mlat import profile
 
@@ -257,6 +258,14 @@ def normalize(clocktracker, timestamp_map):
 
     return resultComponents
 
+class _my_component(object):
+    """Simple object for holding a graph component"""
+    def __init__(self, label, receivers, size):
+        self.label = label
+        self.receivers = receivers
+        self.size = size
+
+
 @profile.trackcpu
 def normalize2(clocktracker, timestamp_map):
     """
@@ -288,9 +297,12 @@ def normalize2(clocktracker, timestamp_map):
     # Finally, convert all timestamps in the tree to the basis of the
     # central node.
 
+    receivers = list(timestamp_map.keys())
+    receivers.sort() # to get a matrix with only entries above the diagonal when doing si < sj
+
     # populate initial graph
     g = pygraph.classes.graph.graph()
-    g.add_nodes(timestamp_map.keys())
+    g.add_nodes(receivers)
 
     # build a weighted graph where edges represent usable clock
     # synchronization paths, and the weight of each edge represents
@@ -302,31 +314,87 @@ def normalize2(clocktracker, timestamp_map):
 
     now = time.monotonic()
 
+    reclen = len(receivers)
+    predictor_count = 0
     predictor_map = {}
-    for si in timestamp_map.keys():
-        for sj in timestamp_map.keys():
+
+    row = []
+    col = []
+    data = []
+    ri = 0
+    for si in receivers:
+        ci = 0
+        for sj in receivers:
             if si < sj:
                 predictors = _make_predictors(clocktracker, si, sj, now)
                 if predictors:
                     predictor_map[(si, sj)] = predictors[0]
                     predictor_map[(sj, si)] = predictors[1]
                     g.add_edge((si, sj), wt=predictors[0].variance)
+                    predictor_count += 1
+                    data.append(predictors[0].variance)
+                    row.append(ri)
+                    col.append(ci)
+            ci += 1
+        ri += 1
 
-    # find a minimal spanning tree for each component of the graph
-    mst_forest = pygraph.algorithms.minmax.minimal_spanning_tree(g)
+    if predictor_count < 2:
+        return []
+
+    cm = csr_matrix((np.array(data), (np.array(row), np.array(col))), shape=(reclen, reclen))
+
+    #for row in cm.toarray():
+    #    print(row)
+
+    mst = minimum_spanning_tree(csgraph=cm, overwrite=True)
+
+    n_components, labels = connected_components(csgraph=mst, directed=False, return_labels=True)
+    #print('labels: ' + str(labels))
+
+    comps = {}
+    for label in labels:
+        if label not in comps:
+            comps[label] = (_my_component(label=label, receivers=[], size=0))
+
+    index = 0
+    for label in labels:
+        comps[label].size += 1 # increment component size
+        comps[label].receivers.append(receivers[index])
+        index += 1
+
+    # make our dict a list so we can sort it
+    comps = list(comps.values())
+    comps.sort(key=lambda x: x.size, reverse=True)
+
+    if len(comps) == 0:
+        return [] # no results, return empty list
+
+    bigComp = comps[0] # biggest component
+    roots = [bigComp.receivers[0]] # let's just stay with a list for a moment ... doesn't hurt even if we only do one entry
+    #print(bigComp.size)
+
+    if bigComp.size < 3:
+        return [] # too small, don't continue
 
     # rebuild the graph with only the spanning edges, retaining weights
-    # also note the roots of each tree as we go
     g = pygraph.classes.graph.graph()
-    g.add_nodes(mst_forest.keys())
-    roots = []
-    for edge in mst_forest.items():
-        if edge[1] is None:
-            roots.append(edge[0])
-        else:
-            g.add_edge(edge, wt=predictor_map[edge].variance)
+    g.add_nodes(bigComp.receivers)
+
+    coo = mst.tocoo(copy=False)
+    for index in range(len(coo.data)):
+        weight = coo.data[index]
+        si = receivers[coo.row[index]]
+        sj = receivers[coo.col[index]]
+        if si in bigComp.receivers:
+            if si < sj:
+                edge = (si,sj)
+            else:
+                edge = (sj,si)
+            #g.add_edge((si, sj), wt=predictor_map[edge].variance)
+            g.add_edge((si, sj), wt=weight)
 
     # for each spanning tree, find a central node and convert timestamps
+    # actually we're only searching the biggest spanning tree now
     resultComponents = []
     for root in roots:
         # label heights of nodes, where the height of a node is

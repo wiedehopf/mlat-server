@@ -29,6 +29,8 @@ import operator
 import numpy
 from contextlib import closing
 
+import traceback
+
 import modes.message
 from mlat import geodesy, constants, profile
 from mlat.server import clocknorm, solver, config
@@ -175,6 +177,7 @@ class MlatTracker(object):
         for receiver, timestamp, utc in group.copies:
             timestamp_map.setdefault(receiver, []).append((timestamp, utc))
 
+
         # check for minimum needed receivers
         dof = len(timestamp_map) + altitude_dof - 4
         if dof < 0:
@@ -185,10 +188,14 @@ class MlatTracker(object):
         if elapsed < 3 and dof < last_result_dof and dof < 5:
             return
 
+
         # normalize timestamps. This returns a list of timestamp maps;
         # within each map, the timestamp values are comparable to each other.
-        components = clocknorm.normalize(clocktracker=self.clock_tracker,
-                                         timestamp_map=timestamp_map)
+        try:
+            components = clocknorm.normalize2(clocktracker=self.clock_tracker,
+                                             timestamp_map=timestamp_map)
+        except Exception as e:
+            traceback.print_exc()
 
         # cluster timestamps into clusters that are probably copies of the
         # same transmission.

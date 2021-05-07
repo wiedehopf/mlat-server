@@ -572,6 +572,9 @@ class JsonClient(connection.Connection):
             elapsed = now - self.mc_start
             self.message_counter += 1
 
+            # test code to do MLAT on sync messages
+            # self.process_mlat(float(sync['et']), bytes.fromhex(sync['em']), time.time())
+
             # reset counter every 15 seconds
             if elapsed > 15:
                 self.message_counter = 0
