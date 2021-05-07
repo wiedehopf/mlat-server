@@ -38,9 +38,9 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # soft limit for the number of peers a single receiver will have
-MAX_PEERS = 40
+MAX_PEERS = 50
 # if the other peer has less than this many peers, the above oft limit is ignored
-MIN_PEERS = 30
+MIN_PEERS = 50
 # if closer than this, always allow sync
 MAX_PEERS_MIN_DISTANCE = 40e3
 
