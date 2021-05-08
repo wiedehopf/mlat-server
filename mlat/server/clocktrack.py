@@ -165,10 +165,6 @@ class ClockTracker(object):
         if receiver.bad_syncs > 2:
             return
 
-        # Messages must be within 5 seconds of each other.
-        if abs(even_time - odd_time) / receiver.clock.freq > 5.0:
-            return
-
         # compute key and interval
         if even_time < odd_time:
             tA = even_time
@@ -180,6 +176,10 @@ class ClockTracker(object):
             key = (odd_message, even_message)
 
         interval = (tB - tA) / receiver.clock.freq
+
+        # Messages must be within 5 seconds of each other.
+        if interval > 5.0:
+            return
 
         # do we have a suitable existing match?
         syncpointlist = self.sync_points.get(key)
@@ -314,6 +314,8 @@ class ClockTracker(object):
 
         r0l = [r0, td0B, i0, False]
 
+        now = time.monotonic()
+
         # try to sync the new receiver with all receivers that previously
         # saw the same pair
         for r1l in syncpoint.receivers:
@@ -326,8 +328,6 @@ class ClockTracker(object):
             if r0 is r1:
                 # odd, but could happen
                 continue
-
-            now = time.monotonic()
 
             # order the clockpair so that the receiver that sorts lower is the base clock
             if r0 < r1:
@@ -390,7 +390,7 @@ class ClockTracker(object):
             k[1].sync_peers -= 1
             del self.clock_pairs[k]
 
-        if pairing.n > 15 and now < pairing.updated + 0.5:
+        if pairing.n > 20 and now < pairing.updated + 0.8:
             return False
 
         if not pairing.is_new(td0B):
