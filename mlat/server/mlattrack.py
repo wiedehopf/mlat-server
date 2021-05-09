@@ -22,7 +22,7 @@ than one receiver, clusters them by time, and passes them on to the solver to
 derive positions.
 """
 
-import json
+import ujson
 import asyncio
 import logging
 import operator
@@ -326,7 +326,7 @@ class MlatTracker(object):
                 state['altitude'] = round(altitude, 0)
                 state['altitude_error'] = round(altitude_error, 0)
 
-            json.dump(state, self.pseudorange_file)
+            ujson.dump(state, self.pseudorange_file)
             self.pseudorange_file.write('\n')
 
 

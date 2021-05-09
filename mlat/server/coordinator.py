@@ -24,7 +24,7 @@ the various sub-objects that make up the server.
 import random
 import signal
 import asyncio
-import json
+import ujson
 import logging
 import logging.handlers
 import time
@@ -291,20 +291,20 @@ class Coordinator(object):
         # sync.json
         tmpfile = syncfile + '.tmp.' + tmprand
         with closing(open(tmpfile, 'w')) as f:
-            json.dump(sync, fp=f, indent=None, separators=(',', ':'))
+            ujson.dump(sync, f)
         # We should probably check for errors here, but let's fire-and-forget, instead...
         os.rename(tmpfile, syncfile)
 
         # locations.json
         tmpfile = locationsfile + '.tmp.' + tmprand
         with closing(open(tmpfile, 'w')) as f:
-            json.dump(locations, fp=f, indent=True)
+            ujson.dump(locations, f)
         os.rename(tmpfile, locationsfile)
 
         # aircraft.json
         tmpfile = aircraftfile + '.tmp.' + tmprand
         with closing(open(tmpfile, 'w')) as f:
-            json.dump(aircraft_state, fp=f, indent=True)
+            ujson.dump(aircraft_state, f)
         os.rename(tmpfile, aircraftfile)
 
         # blacklist receivers with bad clock

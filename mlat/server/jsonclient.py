@@ -23,7 +23,7 @@ JSON client protocol implementation.
 import asyncio
 import zlib
 import logging
-import json
+import ujson
 import struct
 import time
 import random
@@ -313,7 +313,7 @@ class JsonClient(connection.Connection):
         deny = None
 
         try:
-            hs = json.loads(line.decode('ascii'))
+            hs = ujson.loads(line.decode('ascii'))
         except ValueError as e:
             deny = 'Badly formatted handshake: ' + str(e)
         else:
@@ -457,19 +457,19 @@ class JsonClient(connection.Connection):
         return True
 
     def write_raw(self, **kwargs):
-        line = json.dumps(kwargs)
+        line = ujson.dumps(kwargs)
         #logging.info("%s <<  %s", self.receiver.user, line)
         self.w.write((line + '\n').encode('ascii'))
 
     def write_zlib(self, **kwargs):
-        line = json.dumps(kwargs)
+        line = ujson.dumps(kwargs)
         #logging.info("%s <<Z %s", self.receiver.user, line)
         self._writebuf.append(line + '\n')
         if self._pending_flush is None:
             self._pending_flush = asyncio.get_event_loop().call_soon(self._flush_zlib)
 
     def write_discard(self, **kwargs):
-        #line = json.dumps(kwargs)
+        #line = ujson.dumps(kwargs)
         #logging.info("%s <<D %s", self.receiver.user, line)
         pass
 
@@ -563,7 +563,7 @@ class JsonClient(connection.Connection):
 
     def process_message(self, line):
         #logging.info("%s >> %s", self.receiver.user, line)
-        msg = json.loads(line)
+        msg = ujson.loads(line)
 
         if 'sync' in msg:
             sync = msg['sync']
