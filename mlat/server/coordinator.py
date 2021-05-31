@@ -146,7 +146,7 @@ class Coordinator(object):
         self.mlat_tracker = mlattrack.MlatTracker(self,
                                                   blacklist_filename=work_dir + '/blacklist.txt',
                                                   pseudorange_filename=pseudorange_filename)
-        self.output_handlers = [self.forward_results]
+        self.output_handlers = []
 
         self.receiver_mlat = self.mlat_tracker.receiver_mlat
         self.receiver_sync = self.clock_tracker.receiver_sync
@@ -469,10 +469,11 @@ class Coordinator(object):
     @profile.trackcpu
     def forward_results(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state):
         broadcast = receivers
-        ac = self.tracker.aircraft.get(address)
-        if ac:
-            ac.successful_mlat.update(receivers)
-            broadcast = ac.successful_mlat
+        # only send result to receivers who received this message
+        #ac = self.tracker.aircraft.get(address)
+        #if ac:
+        #    ac.successful_mlat.update(receivers)
+        #    broadcast = ac.successful_mlat
         result_new_old = [ None, None ]
         for receiver in broadcast:
             try:

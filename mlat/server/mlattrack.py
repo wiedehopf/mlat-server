@@ -43,6 +43,7 @@ class MessageGroup:
         self.message = message
         self.first_seen = first_seen
         self.copies = []
+        self.receivers = set()
         self.handle = None
 
 
@@ -86,8 +87,8 @@ class MlatTracker(object):
 
     @profile.trackcpu
     def receiver_mlat(self, receiver, timestamp, message, utc):
-        # ignore messages from receivers with bad sync
-        if receiver.bad_syncs > 0:
+        # ignore messages from receivers with bad sync or no synced peers
+        if receiver.bad_syncs > 0 or receiver.sync_peers < 1:
             return
         # use message as key
         group = self.pending.get(message)
@@ -97,6 +98,9 @@ class MlatTracker(object):
                 config.MLAT_DELAY,
                 self._resolve,
                 group)
+
+        # remember ALL the receivers which received this message (used in forward_results)
+        group.receivers.add(receiver)
 
         # limit group size, discard the rest of message copies
         # first pruning step before clock normalization
@@ -291,6 +295,12 @@ class MlatTracker(object):
                     ecef, ecef_cov,
                     [receiver for receiver, timestamp, error in cluster], distinct, dof,
                     ac.kalman)
+
+        # forward result to all receivers that received the raw message the result is based on
+        self.coordinator.forward_results(cluster_utc, decoded.address,
+                ecef, ecef_cov,
+                list(group.receivers), distinct, dof,
+                ac.kalman)
 
         if self.pseudorange_file:
             cluster_state = []
