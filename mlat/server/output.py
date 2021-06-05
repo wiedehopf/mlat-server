@@ -216,6 +216,8 @@ class BasestationClient(object):
             vrate = ''
 
             if self.use_kalman_data:
+                if not kalman_data.valid and dof < 1:
+                    return
                 if not kalman_data.valid or kalman_data.last_update < receive_timestamp:
                     if receive_timestamp - ac.last_kalman_output > 13 or receive_timestamp == ac.last_kalman_output:
                         #self.logger.info("{icao:06X} noKalman".format(icao=address))
