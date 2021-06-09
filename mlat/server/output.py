@@ -227,10 +227,10 @@ class BasestationClient(object):
                         return
 
                 if not kalman_data.valid or kalman_data.last_update < receive_timestamp:
-                    if receive_timestamp - ac.last_kalman_output > 13 or receive_timestamp == ac.last_kalman_output:
+                    if receive_timestamp - ac.last_kalman_output > 30 or receive_timestamp == ac.last_kalman_output:
                         #self.logger.info("{icao:06X} noKalman".format(icao=address))
                         lat, lon, alt = geodesy.ecef2llh(ecef)
-                        if ac.last_altitude_time is not None and receive_timestamp - ac.last_altitude_time < 15:
+                        if ac.last_altitude_time is not None and receive_timestamp - ac.last_altitude_time < 30:
                             alt = ac.altitude
                     else:
                         return
