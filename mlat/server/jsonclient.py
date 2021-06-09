@@ -216,7 +216,7 @@ class JsonClient(connection.Connection):
         if not self.transport:
             return  # already closed
 
-        self.logger.warning('Disconnected')
+        self.logger.warning("Disconnected: ({conn_info})".format(conn_info=self.receiver.connection_info))
         self.send = self.write_discard  # suppress all output from hereon in
 
         if self._udp_key is not None:
@@ -324,27 +324,25 @@ class JsonClient(connection.Connection):
                     raise ValueError('Unsupported version in handshake')
 
                 user = str(hs['user'])
+                uuid = hs.get('uuid')
 
-                # Newlines wreak havoc on log files, strip them
-                user = re.sub("\n|\r", r'\\n', user)
                 # replace bad characters with an underscore
                 user = re.sub("[^A-Za-z0-9_.-]", r'_', user)
                 if len(user) > 400:
                     user = user[:400]
-                if len(user) < 5:
-                    user = user + '_' + str(random.randrange(10000,99999))
-                # Make sure the user string is sane...
-                good_user_regex = '^[A-Za-z0-9_.-]+$'
-                user_ok = re.match(good_user_regex, user)
-                if user_ok is None:
-                    raise ValueError("Bad username '{user}'.  Please only use alphanum, '_', '-', or '.'".format(user=user))
+                if len(user) < 3:
+                    user = user + '_' + str(random.randrange(10,99))
 
+                if user in self.coordinator.usernames:
+                    existingReceiver = self.coordinator.usernames[user]
 
-                for i in range(5):
-                    if user in self.coordinator.receivers:
-                        user = user + '_' + str(random.randrange(10,99))
+                    if uuid and uuid == existingReceiver.uuid:
+                        # if we have another user with the same uuid, disconnect the existing user
+                        existingReceiver.connection.close()
                     else:
-                        break
+                        while user in self.coordinator.usernames:
+                            user = user + '_' + str(random.randrange(10,99))
+
 
                 peer_compression_methods = set(hs['compress'])
                 self.compress = None
@@ -387,14 +385,15 @@ class JsonClient(connection.Connection):
 
                 self.use_udp = (self.udp_protocol is not None and hs.get('udp_transport', 0) == 2)
 
-                conn_info = 'v{v} {clock_type} {cversion} {udp} {compress}'.format(
+                conn_info = '{user} v{v} {clock_type} {cversion} {udp} {compress}'.format(
+                    user=user,
                     v=hs['version'],
                     cversion=hs.get("client_version", "unknown"),
                     udp="udp" if self.use_udp else "tcp",
                     clock_type=clock_type,
                     compress=self.compress)
                 self.receiver = self.coordinator.new_receiver(connection=self,
-                                                              uuid=user,
+                                                              uuid=uuid,
                                                               user=user,
                                                               auth=hs.get('auth'),
                                                               clock_type=clock_type,
@@ -449,10 +448,7 @@ class JsonClient(connection.Connection):
         strange = ''
         if clock_type != 'dump1090' and clock_type != 'radarcape_gps':
             strange = 'strange clock: '
-        self.logger.warning("{strange}Handshake successful ({user} {conn_info})'".format(
-            strange=strange,
-            user=user,
-            conn_info=conn_info))
+        self.logger.warning("Handshake successful ({conn_info})".format(conn_info=conn_info))
         self.logger = util.TaggingLogger(glogger, {'tag': '{user}'.format(user=user)})
         return True
 

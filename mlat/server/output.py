@@ -108,7 +108,7 @@ class LocalCSVWriter(object):
                     n=len(receivers),
                     d=distinct,
                     dof=dof,
-                    receivers=csv_quote(','.join([receiver.uuid for receiver in receivers])),
+                    receivers=csv_quote(','.join([receiver.user for receiver in receivers])),
                     klat=kalman_state.position_llh[0],
                     klon=kalman_state.position_llh[1],
                     kalt=kalman_state.position_llh[2] * constants.MTOF,
@@ -129,7 +129,7 @@ class LocalCSVWriter(object):
                     n=len(receivers),
                     d=distinct,
                     dof=dof,
-                    receivers=csv_quote(','.join([receiver.uuid for receiver in receivers])))
+                    receivers=csv_quote(','.join([receiver.user for receiver in receivers])))
 
             self.pos_logger.debug(line)
 
