@@ -86,7 +86,8 @@ class TrackedAircraft(object):
         # kalman filter state
         self.kalman = kalman.KalmanStateCA(self.icao)
 
-        self.last_kalman_output = 0
+        self.last_crappy_output = 0
+        self.last_filtered_pos = 0
 
         self.callsign = None
         self.squawk = None
