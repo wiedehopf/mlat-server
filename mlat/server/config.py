@@ -47,7 +47,7 @@ MAX_PEERS_MIN_DISTANCE = 40e3
 
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
-MAX_SYNC_AC = 15
+MAX_SYNC_AC = 20
 # max sync rate
 MAX_SYNC_RATE = 20
 
