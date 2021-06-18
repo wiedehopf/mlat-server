@@ -66,7 +66,7 @@ SOLVER_MAXFEV = 165
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
-MAX_GROUP = 35
+MAX_GROUP = 25
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')
