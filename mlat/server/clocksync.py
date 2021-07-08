@@ -82,7 +82,6 @@ class ClockPairing(object):
         self.ts_peer = []
         self.var = []
         self.var_sum = 0.0
-        self.outlier = False
         self.outliers = 0
         self.cumulative_error = 0.0
         self.error = None
@@ -136,6 +135,7 @@ class ClockPairing(object):
         if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq) or self.outliers >= 5:
             self._prune_old_data(base_ts)
 
+        outlier = False
         # predict from existing data, compare to actual value
         if self.n > 0:
             prediction = self.predict_peer(base_ts)
@@ -143,12 +143,11 @@ class ClockPairing(object):
 
             if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
                 self.outliers += 1
+                outlier = True
                 if self.outliers < 5:
                     # don't accept this one
                     self.valid = self.check_valid(now)
                     return False
-                else:
-                    self.outlier = True
         else:
             prediction_error = 0  # first sync point, no error
 
@@ -159,7 +158,7 @@ class ClockPairing(object):
             return False
 
         # update clock offset based on the actual clock values
-        self._update_offset(address, base_ts, peer_ts, prediction_error)
+        self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
 
         self.expiry = now + 90.0
         self.validity = now + 25.0
@@ -185,7 +184,7 @@ class ClockPairing(object):
             del self.var[0:i]
             self.n -= i
             self.var_sum = sum(self.var)
-            self.updateVars();
+            self.updateVars()
 
     def _update_drift(self, address, base_interval, peer_interval):
         # try to reduce the effects of catastropic cancellation here:
@@ -214,7 +213,7 @@ class ClockPairing(object):
         self.i_drift = -self.drift / (1.0 + self.drift)
         return True
 
-    def _update_offset(self, address, base_ts, peer_ts, prediction_error):
+    def _update_offset(self, address, base_ts, peer_ts, prediction_error, outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
         if self.n != 0:
             assert base_ts > self.ts_base[-1]
@@ -232,7 +231,7 @@ class ClockPairing(object):
                 self.ts_peer = []
                 self.var = []
                 self.var_sum = 0
-                self.updateVars();
+                self.updateVars()
                 self.cumulative_error = 0
                 self.n = 0
 
@@ -243,13 +242,12 @@ class ClockPairing(object):
         p_var = prediction_error ** 2
         self.var.append(p_var)
         self.var_sum += p_var
-        self.updateVars();
+        self.updateVars()
 
         # if we are accepting an outlier, do not include it in our integral term
-        if not self.outlier:
+        if not outlier:
             self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 
-        self.outlier = False
         self.outliers = max(0, self.outliers - 1)
 
         #if self.outliers and abs(prediction_error) > self.outlier_threshold:
