@@ -148,6 +148,17 @@ class ClockPairing(object):
                     # don't accept this one
                     self.valid = self.check_valid(now)
                     return False
+            else:
+                # wiedehopf: add hacky sync averaging
+                # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
+                # changing the prediction functions to take into account more past values would likely be the cleaner approach
+                # but this modification is significantly easier in regards to the code required
+                # so far it seems to be working quite well
+                # note that using weight 1/2 so the exact geometric mean seems to be unstable
+                # weights 1/4 and 1/3 seem to work well though
+                prediction_base = self.predict_base(peer_ts)
+                peer_ts += (prediction - peer_ts) / 3
+                base_ts += (prediction_base - base_ts) / 3
         else:
             prediction_error = 0  # first sync point, no error
 
