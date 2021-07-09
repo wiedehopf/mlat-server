@@ -272,31 +272,35 @@ class ClockPairing(object):
         if self.n == 0:
             return None
 
-        if base_ts > self.ts_base[-1]:
-            i = self.n
-        elif base_ts > self.ts_base[-2]:
-            i = self.n - 1
-        else:
-            i = bisect.bisect_left(self.ts_base, base_ts)
-
-        if i == 0:
-            # extrapolate before first point
+        if base_ts < self.ts_base[0] or self.n == 1:
+            # extrapolate before first point or if we only have one point
             elapsed = base_ts - self.ts_base[0]
             return (self.ts_peer[0] +
                     elapsed * self.relative_freq +
                     elapsed * self.relative_freq * self.drift)
-        elif i == self.n:
-            # extrapolate after last point
+
+        if base_ts > self.ts_base[-2]:
+            # extrapolate after or before the last point
             elapsed = base_ts - self.ts_base[-1]
-            return (self.ts_peer[-1] +
+            result = (self.ts_peer[-1] +
                     elapsed * self.relative_freq +
                     elapsed * self.relative_freq * self.drift)
-        else:
-            # interpolate between two points
-            return (self.ts_peer[i-1] +
-                    (self.ts_peer[i] - self.ts_peer[i-1]) *
-                    (base_ts - self.ts_base[i-1]) /
-                    (self.ts_base[i] - self.ts_base[i-1]))
+
+            if self.ts_base[-1] - self.ts_base[-2] > 10 * self.base_clock.freq and base_ts > self.ts_base[-1]:
+                return result
+
+            elapsed = base_ts - self.ts_base[-2]
+            result += (self.ts_peer[-2] +
+                    elapsed * self.relative_freq +
+                    elapsed * self.relative_freq * self.drift)
+            return result / 2
+
+        i = bisect.bisect_left(self.ts_base, base_ts)
+        # interpolate between two points
+        return (self.ts_peer[i-1] +
+                (self.ts_peer[i] - self.ts_peer[i-1]) *
+                (base_ts - self.ts_base[i-1]) /
+                (self.ts_base[i] - self.ts_base[i-1]))
 
     def predict_base(self, peer_ts):
         """
@@ -307,25 +311,35 @@ class ClockPairing(object):
         if self.n == 0:
             return None
 
-        i = bisect.bisect_left(self.ts_peer, peer_ts)
-        if i == 0:
-            # extrapolate before first point
+        if peer_ts < self.ts_peer[0] or self.n == 1:
+            # extrapolate before first point or if we only have one point
             elapsed = peer_ts - self.ts_peer[0]
             return (self.ts_base[0] +
                     elapsed * self.i_relative_freq +
                     elapsed * self.i_relative_freq * self.i_drift)
-        elif i == self.n:
-            # extrapolate after last point
+
+        if peer_ts > self.ts_peer[-2]:
+            # extrapolate after or before the last point
             elapsed = peer_ts - self.ts_peer[-1]
-            return (self.ts_base[-1] +
+            result = (self.ts_base[-1] +
                     elapsed * self.i_relative_freq +
                     elapsed * self.i_relative_freq * self.i_drift)
-        else:
-            # interpolate between two points
-            return (self.ts_base[i-1] +
-                    (self.ts_base[i] - self.ts_base[i-1]) *
-                    (peer_ts - self.ts_peer[i-1]) /
-                    (self.ts_peer[i] - self.ts_peer[i-1]))
+
+            if self.ts_peer[-1] - self.ts_peer[-2] > 10 * self.peer_clock.freq and peer_ts > self.ts_peer[-1]:
+                return result
+
+            elapsed = peer_ts - self.ts_peer[-2]
+            result += (self.ts_base[-2] +
+                    elapsed * self.i_relative_freq +
+                    elapsed * self.i_relative_freq * self.i_drift)
+            return result / 2
+
+        i = bisect.bisect_left(self.ts_peer, peer_ts)
+        # interpolate between two points
+        return (self.ts_base[i-1] +
+                (self.ts_base[i] - self.ts_base[i-1]) *
+                (peer_ts - self.ts_peer[i-1]) /
+                (self.ts_peer[i] - self.ts_peer[i-1]))
 
     def __str__(self):
         return self.base.uid + ':' + self.peer.uid
