@@ -253,6 +253,46 @@ class Coordinator(object):
 
         receiver_states = self.clock_tracker.dump_receiver_state()
 
+        # blacklist receivers with bad clock
+        # note this section of code runs every 15 seconds
+        for r in self.receivers.values():
+            bad_peers = 0
+            # count how many peers we have bad sync with
+            # don't count peers who have been timed out (state[4] > 0)
+            # 1.5 microseconds error or more are considered a bad sync (state[1] > 3)
+            num_peers = 10
+            # start with 10 peers extra, so low peer receivers
+            # aren't timed out by the percentage threshold
+            # of bad_peers as easily.
+
+            # iterate over sync state with all peers
+            # state = [ 0: pairing sync count, 1: offset, 2: drift,
+            #           3: bad_syncs, 4: pairing.jumped]
+            peers = receiver_states.get(r.user, {})
+            for state in peers.values():
+                if state[3] > 0:
+                    continue
+                num_peers += 1
+                if state[4] == 1 or (state[0] > 5 and state[1] > 1.5) or state[1] > 4:
+                    bad_peers += 1
+
+            # If your sync with 5 receivers or more than 10 percent of peers is bad,
+            # it's likely you are the reason.
+            # You get 0.2 to 1 to your bad_sync score and timed out.
+
+            if bad_peers > 5 or bad_peers/num_peers > 0.1:
+                r.bad_syncs += min(1, 2*bad_peers/num_peers)
+            else:
+                r.bad_syncs -= 0.1
+
+            # If your sync mostly looks good, your bad_sync score is decreased.
+            # If you had a score before, once it goes down to zero you are
+            # no longer timed out
+
+            # Limit bad_sync score to the range of 0 to 6
+
+            r.bad_syncs = max(0, min(6, r.bad_syncs))
+
         for r in self.receivers.values():
 
             # fudge positions, set retained precision as a fraction of a degree:
@@ -267,7 +307,7 @@ class Coordinator(object):
                 ralt = 50 * round(r.position_llh[2]/50)
 
             sync[r.user] = {
-                'peers': receiver_states.setdefault(r.user, {}),
+                'peers': receiver_states.get(r.user, {}),
                 'bad_syncs': r.bad_syncs,
                 'lat': rlat,
                 'lon': rlon
@@ -313,46 +353,6 @@ class Coordinator(object):
         with closing(open(tmpfile, 'w')) as f:
             ujson.dump(aircraft_state, f)
         os.rename(tmpfile, aircraftfile)
-
-        # blacklist receivers with bad clock
-        # note this section of code runs every 30 seconds
-        for r in self.receivers.values():
-            bad_peers = 0
-            # count how many peers we have bad sync with
-            # don't count peers who have been timed out (state[4] > 0)
-            # 1.5 microseconds error or more are considered a bad sync (state[1] > 3)
-            num_peers = 10
-            # start with 10 peers extra, so low peer receivers
-            # aren't timed out by the percentage threshold
-            # of bad_peers as easily.
-
-            # iterate over sync state with all peers
-            # state = [ 0: pairing sync count, 1: offset, 2: drift,
-            #           3: bad_syncs ]
-            if 'peers' in sync[r.user]:
-                for state in sync[r.user]['peers'].values():
-                    if state[3] > 0:
-                        continue
-                    num_peers += 1
-                    if (state[0] > 5 and state[1] > 1.5) or state[1] > 4:
-                        bad_peers += 1
-
-            # If your sync with 5 receivers or more than 10 percent of peers is bad,
-            # it's likely you are the reason.
-            # You get 0.2 to 1 to your bad_sync score and timed out.
-
-            if bad_peers > 5 or bad_peers/num_peers > 0.1:
-                r.bad_syncs += min(1, 2*bad_peers/num_peers)
-            else:
-                r.bad_syncs -= 0.1
-
-            # If your sync mostly looks good, your bad_sync score is decreased.
-            # If you had a score before, once it goes down to zero you are
-            # no longer timed out
-
-            # Limit bad_sync score to the range of 0 to 6
-
-            r.bad_syncs = max(0, min(6, r.bad_syncs))
 
 
     @asyncio.coroutine

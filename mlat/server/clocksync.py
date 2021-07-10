@@ -87,6 +87,8 @@ class ClockPairing(object):
         self.error = None
         self.variance = None
 
+        self.jumped = 0
+
         self.relative_freq = peer.clock.freq / base.clock.freq
         self.i_relative_freq = base.clock.freq / peer.clock.freq
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
@@ -261,7 +263,8 @@ class ClockPairing(object):
 
         self.outliers = max(0, self.outliers - 1)
 
-        #if self.outliers and abs(prediction_error) > self.outlier_threshold:
+        if outlier:
+            self.jumped = 1
         #    glogger.info("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
     def predict_peer(self, base_ts):
