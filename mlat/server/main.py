@@ -28,7 +28,7 @@ import logging
 import signal
 import argparse
 
-from mlat.server import jsonclient, output, coordinator, leakcheck
+from mlat.server import jsonclient, output, coordinator
 
 def hostport(s):
     parts = s.split(':')
@@ -219,21 +219,27 @@ class MlatServer(object):
         subtasks = []
 
         if args.check_leaks:
+            from mlat.server import leakcheck
+            import tracemalloc
+            tracemalloc.start()
             subtasks.append(leakcheck.LeakChecker())
 
         return subtasks
 
     def stop(self, msg):
-        logging.info(msg)
+        logging.warn(msg)
         self.loop.stop()
 
     def run(self):
         args = self.make_arg_parser().parse_args()
 
         def loop_handle_exception(loop, context):
-            msg = context.get("exception", context["message"])
-            # Don't really log anything, this is mostly for cleanup for python > 3.4
-            #logging.error(f"Caught exception: {msg}")
+            exception = context.get("exception")
+            if exception:
+                logging.exception("asyncio loop exception")
+            else:
+                msg = context["message"]
+                logging.warn(f"Caught exception: {msg}")
 
         self.coordinator = coordinator.Coordinator(work_dir=args.work_dir,
                                                    pseudorange_filename=args.dump_pseudorange,
@@ -253,7 +259,7 @@ class MlatServer(object):
 
         self.loop.run_forever()  # Well, until stop() is called anyway!
 
-        logging.info("Server shutting down.")
+        logging.warn("Server shutting down.")
 
         # Stop everything
         for t in reversed(subtasks):
@@ -267,4 +273,4 @@ class MlatServer(object):
                 logging.error("Exception thrown during shutdown", exc_info=(type(e), e, e.__traceback__))
 
         self.loop.close()
-        logging.info("Server shutdown done.")
+        logging.warn("Server shutdown done.")

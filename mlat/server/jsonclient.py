@@ -203,6 +203,7 @@ class JsonClient(connection.Connection):
         )
         self._last_message_time = None
         self._compressor = None
+        self._decompressor = None
         self._pending_flush = None
         self._writebuf = []
 
@@ -212,12 +213,17 @@ class JsonClient(connection.Connection):
         # start
         self._read_task = asyncio.ensure_future(self.handle_connection())
 
+    #def __del__(self):
+    #    self.logger.warning("Deleted: ({conn_info})".format(conn_info=self.receiver.connection_info))
+    # handy for checking that receiver objects get cleaned up
+
     def close(self):
         if not self.transport:
             return  # already closed
 
         self.logger.warning("Disconnected: ({conn_info})".format(conn_info=self.receiver.connection_info))
-        self.send = self.write_discard  # suppress all output from hereon in
+        self.send = self.discard  # suppress all output from hereon in
+        self.handle_messages = self.discard # suppress inputs
 
         if self._udp_key is not None:
             self.udp_protocol.remove_client(self._udp_key)
@@ -464,7 +470,7 @@ class JsonClient(connection.Connection):
         if self._pending_flush is None:
             self._pending_flush = asyncio.get_event_loop().call_soon(self._flush_zlib)
 
-    def write_discard(self, **kwargs):
+    def discard(self, **kwargs):
         #line = ujson.dumps(kwargs)
         #logging.info("%s <<D %s", self.receiver.user, line)
         pass
@@ -515,7 +521,10 @@ class JsonClient(connection.Connection):
 
     @asyncio.coroutine
     def handle_zlib_messages(self):
-        decompressor = zlib.decompressobj()
+        if self._decompressor is None:
+            self._decompressor = zlib.decompressobj()
+
+        decompressor = self._decompressor
 
         while not self.r.at_eof():
             header = (yield from self.r.readexactly(2))

@@ -368,7 +368,7 @@ class ClockTracker(object):
         pairing = self.clock_pairs.get(k)
 
         rejectPairing = False
-        distance = r0.distance[r1]
+        distance = r0.distance[r1.uid]
         if r0.bad_syncs > 1 or r1.bad_syncs > 1:
             if r0.sync_peers > 0.5 * config.MIN_PEERS and 0.5 * r1.sync_peers > config.MIN_PEERS:
                 rejectPairing = True

@@ -383,7 +383,7 @@ class Coordinator(object):
 
     @asyncio.coroutine
     def wait_closed(self):
-        util.safe_wait([self._write_state_task, self._write_profile_task])
+        yield from util.safe_wait([self._write_state_task, self._write_profile_task])
 
     @profile.trackcpu
     def new_receiver(self, connection, uuid, user, auth, position_llh, clock_type, privacy, connection_info):
@@ -426,8 +426,8 @@ class Coordinator(object):
                 distance = 0
             else:
                 distance = geodesy.ecef_distance(receiver.position, other_receiver.position)
-            receiver.distance[other_receiver] = distance
-            other_receiver.distance[receiver] = distance
+            receiver.distance[other_receiver.uid] = distance
+            other_receiver.distance[receiver.uid] = distance
 
     @profile.trackcpu
     def receiver_location_update(self, receiver, position_llh):
@@ -449,7 +449,7 @@ class Coordinator(object):
 
         # clean up old distance entries
         for other_receiver in self.receivers.values():
-            other_receiver.distance.pop(receiver, None)
+            other_receiver.distance.pop(receiver.uid, None)
 
     @profile.trackcpu
     def receiver_tracking_add(self, receiver, icao_set):

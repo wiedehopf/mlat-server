@@ -51,6 +51,8 @@ import operator
 
 from mlat.server import util
 
+import tracemalloc
+
 try:
     import objgraph
 except ImportError:
@@ -83,18 +85,30 @@ class LeakChecker(object):
     def checker(self):
         yield from asyncio.sleep(120.0)  # let startup settle
 
+        self.logger.warning("Leak checker started.")
         gc.collect()
         self.check_leaks(suppress=True)
 
         while True:
-            yield from asyncio.sleep(3600.0)
+            yield from asyncio.sleep(1800.0)
+
+            gc.collect()
+
+            self.printTraceMalloc()
 
             try:
-                gc.collect()
                 self.show_hogs()
                 self.check_leaks()
             except Exception:
-                self.logger.exception("leak checking failed")
+                self.logger.warning("leak checking failed")
+
+    def printTraceMalloc(self):
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
+
+        self.logger.warning("[ Top 20 ]")
+        for stat in top_stats[:20]:
+            self.logger.warning(stat)
 
     def check_leaks(self, suppress=False, limit=20):
         stats = objgraph.typestats(shortnames=False)
@@ -110,14 +124,14 @@ class LeakChecker(object):
 
         if not suppress:
             if deltas:
-                self.logger.info("Peak memory usage change:")
+                self.logger.warning("Peak memory usage change:")
                 width = max(len(name) for name, count in deltas)
                 for name, delta in deltas:
-                    self.logger.info('  %-*s%9d %+9d' % (width, name, stats[name], delta))
+                    self.logger.warning('  %-*s%9d %+9d' % (width, name, stats[name], delta))
 
     def show_hogs(self, limit=20):
-        self.logger.info("Top memory hogs:")
+        self.logger.warning("Top memory hogs:")
         stats = objgraph.most_common_types(limit=limit, shortnames=False)
         width = max(len(name) for name, count in stats)
         for name, count in stats:
-            self.logger.info('  %-*s %i' % (width, name, count))
+            self.logger.warning('  %-*s %i' % (width, name, count))

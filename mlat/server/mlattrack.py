@@ -424,7 +424,7 @@ def _cluster_timestamps(component, min_receivers):
                         can_cluster = False
                         break
 
-                    d = receiver.distance[other_receiver]
+                    d = receiver.distance[other_receiver.uid]
                     if abs(other_timestamp - timestamp) > (d * 1.05 + 1e3) / constants.Cair:
                         #glogger.info("   discard: delta {dt:.1f}us > max {m:.1f}us for range {d:.1f}m".format(
                         #    dt=abs(other_timestamp - timestamp)*1e6,
