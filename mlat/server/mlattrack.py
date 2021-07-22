@@ -27,6 +27,7 @@ import asyncio
 import logging
 import operator
 import numpy
+import math
 from contextlib import closing
 
 import traceback
@@ -165,7 +166,7 @@ class MlatTracker(object):
             altitude = ac.altitude * constants.FTOM
             altitude_dof = 1
 
-        if altitude < config.MIN_ALT or altitude > config.MAX_ALT:
+        if altitude and (altitude < config.MIN_ALT or altitude > config.MAX_ALT):
             altitude = None
             altitude_dof = 0
 
@@ -284,7 +285,7 @@ class MlatTracker(object):
                 dof=dof))
 
         if altitude is None:
-            if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / Math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
+            if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
         else:
             if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
