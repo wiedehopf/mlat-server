@@ -159,16 +159,18 @@ class MlatTracker(object):
         elapsed = group.first_seen - last_result_time
 
         # find altitude
-        if ac.altitude is None:
+        if (
+                ac.altitude is None
+                or ac.altitude < config.MIN_ALT
+                or ac.altitude > config.MAX_ALT
+                or group.first_seen > ac.last_altitude_time + 15
+            ):
             altitude = None
             altitude_dof = 0
         else:
             altitude = ac.altitude * constants.FTOM
             altitude_dof = 1
 
-        if altitude and (altitude < config.MIN_ALT or altitude > config.MAX_ALT):
-            altitude = None
-            altitude_dof = 0
 
         # rate limiting
         if elapsed < 1.5:

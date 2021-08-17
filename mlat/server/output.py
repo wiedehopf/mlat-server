@@ -214,11 +214,12 @@ class BasestationClient(object):
             speed = ''
             heading = ''
             vrate = ''
+            altitude = ''
 
             if self.use_kalman_data:
                 if not kalman_data.valid and dof < 1:
                     if receive_timestamp - ac.last_crappy_output > 60:
-                        # ignore the firest output
+                        # ignore the first crappy output
                         ac.last_crappy_output = receive_timestamp - 1
                         return
                     if receive_timestamp - ac.last_crappy_output > 30 or receive_timestamp == ac.last_crappy_output:
@@ -227,31 +228,30 @@ class BasestationClient(object):
                         return
 
                 if not kalman_data.valid or kalman_data.last_update < receive_timestamp:
-                    if receive_timestamp - ac.last_filtered_pos > 30 or receive_timestamp == ac.last_filtered_pos:
-                        #self.logger.info("{icao:06X} noKalman".format(icao=address))
-                        lat, lon, alt = geodesy.ecef2llh(ecef)
-                        if ac.last_altitude_time is not None and receive_timestamp - ac.last_altitude_time < 30:
-                            alt = ac.altitude
-                    else:
-                        return
+                    lat, lon, alt = geodesy.ecef2llh(ecef)
                 else:
-                    lat, lon, alt = kalman_data.position_llh
+                    # always use non kalman position, only speed, heading, vertical speed are used from kalman
+                    # lat, lon, alt = kalman_data.position_llh
+                    lat, lon, alt = geodesy.ecef2llh(ecef)
                     speed = int(round(kalman_data.ground_speed * constants.MS_TO_KTS))
                     heading = int(round(kalman_data.heading))
                     vrate = int(round(kalman_data.vertical_speed * constants.MS_TO_FPM))
-                ac.last_kalman_output = receive_timestamp
 
-            # as a test: always use non kalman position, only speed, heading, vertical speed are used from kalman
-            #else:
-            lat, lon, alt = geodesy.ecef2llh(ecef)
+            else:
+                lat, lon, alt = geodesy.ecef2llh(ecef)
 
             callsign = ac.callsign
             squawk = ac.squawk
-            altitude = int(round(alt * constants.MTOF))
             send_timestamp = time.time()
 
-            if ac.last_altitude_time is None or receive_timestamp - ac.last_altitude_time > 5:
+            # never use MLAT calculated altitude, most of the time it's so inaccurate that it's useless
+            # better have the altitude be undefined
+            if ac.last_altitude_time is None or receive_timestamp - ac.last_altitude_time > 3:
                 vrate = ''
+                #altitude = int(round(alt * constants.MTOF))
+                altitude = ''
+            else:
+                altitude = ac.altitude
 
             line = self.TEMPLATE.format(mtype=3,
                                         addr=address,
