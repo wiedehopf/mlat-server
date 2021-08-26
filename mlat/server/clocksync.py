@@ -239,7 +239,6 @@ class ClockPairing(object):
             # again.
 
             if peer_ts < self.ts_peer[-1]:
-                #glogger.info("{0}: monotonicity broken, reset".format(self))
                 self.ts_base = []
                 self.ts_peer = []
                 self.var = []
@@ -247,6 +246,15 @@ class ClockPairing(object):
                 self.updateVars()
                 self.cumulative_error = 0
                 self.n = 0
+
+                if not self.jumped:
+                    if self.peer.bad_syncs < 0.1:
+                        self.base.incrementJumps()
+                    if self.base.bad_syncs < 0.1:
+                        self.peer.incrementJumps()
+                        #if self.peer.bad_syncs < 0.1:
+                        #    glogger.warn("{0}: monotonicity broken, reset".format(self))
+                self.jumped = 1
 
         self.n += 1
         self.ts_base.append(base_ts)
@@ -264,8 +272,14 @@ class ClockPairing(object):
         self.outliers = max(0, self.outliers - 1)
 
         if outlier:
+            if not self.jumped:
+                if self.peer.bad_syncs < 0.1:
+                    self.base.incrementJumps()
+                if self.base.bad_syncs < 0.1:
+                    self.peer.incrementJumps()
+                    #if self.peer.bad_syncs < 0.1:
+                    #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             self.jumped = 1
-        #    glogger.info("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
     def predict_peer(self, base_ts):
         """
@@ -345,4 +359,4 @@ class ClockPairing(object):
                 (self.ts_peer[i] - self.ts_peer[i-1]))
 
     def __str__(self):
-        return self.base.uid + ':' + self.peer.uid
+        return self.base.user + ':' + self.peer.user
