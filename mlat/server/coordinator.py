@@ -273,7 +273,7 @@ class Coordinator(object):
                 if state[3] > 0:
                     continue
                 num_peers += 1
-                if state[4] == 1 or (state[0] > 5 and state[1] > 1.5) or state[1] > 4:
+                if (state[0] > 5 and state[1] > 1.5) or state[1] > 4:
                     bad_peers += 1
 
             # If your sync with 5 receivers or more than 10 percent of peers is bad,
