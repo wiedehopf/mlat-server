@@ -42,12 +42,13 @@ class Receiver(object):
     """Represents a particular connected receiver and the associated
     connection that manages it."""
 
-    def __init__(self, uid, user, connection, clock, position_llh, privacy, connection_info, uuid, coordinator):
+    def __init__(self, uid, user, connection, clock, position_llh, privacy, connection_info, uuid, coordinator, clock_tracker):
         self.uid = uid
         self.uuid = uuid
         self.user = user
         self.connection = connection
         self.coordinator = coordinator
+        self.clock_tracker = clock_tracker
         self.clock = clock
         self.last_clock_reset = time.monotonic()
         self.clock_reset_counter = 0
@@ -76,7 +77,8 @@ class Receiver(object):
         self.bad_syncs = 0
         self.sync_range_exceeded = 0
 
-        self.recent_jumps = 0
+        self.recent_pair_jumps = 0
+        self.recent_clock_jumps = 0
 
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
@@ -111,12 +113,22 @@ class Receiver(object):
         self.mlat_interest = new_mlat
 
     def incrementJumps(self):
-        self.recent_jumps += 1
-        if self.recent_jumps / self.sync_peers > 0.2:
-            self.bad_syncs += 0.13 # timeout 20 seconds in case this happens a lot
-            self.coordinator.receiver_clock_reset(receiver=self)
-            self.recent_jumps = 0
+        self.recent_pair_jumps += 1
+        if self.recent_pair_jumps / self.sync_peers > 0.2:
+            now = time.time()
+            self.recent_clock_jumps += 1
+            if self.recent_clock_jumps > 2:
+                self.bad_syncs += 0.4 # timeout 60 seconds
+            self.clock_reset()
             #glogger.warning("Clockjump reset: {r}".format(r=self.user))
+
+    def clock_reset(self):
+        """Reset current clock synchronization for this receiver."""
+        self.clock_tracker.receiver_clock_reset(self)
+        self.last_clock_reset = time.monotonic()
+        self.clock_reset_counter += 1
+        if self.clock_reset_counter < 130 and self.clock_reset_counter % 30 == 5:
+            glogger.warning("Clock reset: {r} count: {c}".format(r=self.user, c=self.clock_reset_counter))
 
     @profile.trackcpu
     def refresh_traffic_requests(self):
@@ -306,7 +318,9 @@ class Coordinator(object):
 
         for r in self.receivers.values():
 
-            r.recent_jumps = 0
+            r.recent_clock_jumps -= 0.5
+            r.recent_clock_jumps = max(0, r.recent_clock_jumps)
+            r.recent_pair_jumps = 0
 
             # fudge positions, set retained precision as a fraction of a degree:
             precision = 20
@@ -421,7 +435,8 @@ class Coordinator(object):
                             privacy=privacy,
                             connection_info=connection_info,
                             uuid=uuid,
-                            coordinator=self)
+                            coordinator=self,
+                            clock_tracker=self.clock_tracker)
 
         if self.authenticator is not None:
             self.authenticator(receiver, auth)  # may raise ValueError if authentication fails
@@ -480,16 +495,6 @@ class Coordinator(object):
         if receiver.last_rate_report is None:
             # not receiving rate reports for this receiver
             self.tracker.update_interest(receiver)
-
-    @profile.trackcpu
-    def receiver_clock_reset(self, receiver):
-        """Reset current clock synchronization for a receiver."""
-        self.clock_tracker.receiver_clock_reset(receiver)
-        receiver.last_clock_reset = time.monotonic()
-        receiver.clock_reset_counter += 1
-        if receiver.clock_reset_counter < 130 and receiver.clock_reset_counter % 30 == 5:
-            glogger.warning("Clock reset: {r} count: {c}".format(r=receiver.user, c=receiver.clock_reset_counter))
-
 
     @profile.trackcpu
     def receiver_rate_report(self, receiver, report):

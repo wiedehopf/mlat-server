@@ -144,8 +144,9 @@ class ClockPairing(object):
             prediction_error = (prediction - peer_ts) / self.peer_clock.freq
 
             if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
-                self.outliers += 1
                 outlier = True
+                self.outliers += 1
+                self.outlier = min(7, self.outliers)
                 if self.outliers < 5:
                     # don't accept this one
                     self.valid = self.check_valid(now)
@@ -212,7 +213,7 @@ class ClockPairing(object):
         if self.drift is None:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
-            self.i_drift = -self.drift / (1.0 + self.drift)
+            self.i_drift = -1 * self.drift / (1.0 + self.drift)
             return True
 
         drift_error = new_drift - self.raw_drift
@@ -223,7 +224,7 @@ class ClockPairing(object):
         # move towards the new value
         self.raw_drift += drift_error * self.KP
         self.drift = self.raw_drift - self.KI * self.cumulative_error
-        self.i_drift = -self.drift / (1.0 + self.drift)
+        self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
     def _update_offset(self, address, base_ts, peer_ts, prediction_error, outlier):
@@ -248,13 +249,13 @@ class ClockPairing(object):
                 self.n = 0
 
                 if not self.jumped:
+                    self.jumped = 1
+                    if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
+                        glogger.warn("{0}: monotonicity broken, reset".format(self))
                     if self.peer.bad_syncs < 0.1:
                         self.base.incrementJumps()
                     if self.base.bad_syncs < 0.1:
                         self.peer.incrementJumps()
-                        #if self.peer.bad_syncs < 0.1:
-                        #    glogger.warn("{0}: monotonicity broken, reset".format(self))
-                self.jumped = 1
 
         self.n += 1
         self.ts_base.append(base_ts)
@@ -265,21 +266,19 @@ class ClockPairing(object):
         self.var_sum += p_var
         self.updateVars()
 
-        # if we are accepting an outlier, do not include it in our integral term
+        # do not include outliers in our integral term
         if not outlier:
             self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
+            self.outliers = max(0, self.outliers - 1)
 
-        self.outliers = max(0, self.outliers - 1)
-
-        if outlier:
-            if not self.jumped:
-                if self.peer.bad_syncs < 0.1:
-                    self.base.incrementJumps()
-                if self.base.bad_syncs < 0.1:
-                    self.peer.incrementJumps()
-                    #if self.peer.bad_syncs < 0.1:
-                    #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+        if outlier and not self.jumped:
             self.jumped = 1
+            if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
+                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            if self.peer.bad_syncs < 0.1:
+                self.base.incrementJumps()
+            if self.base.bad_syncs < 0.1:
+                self.peer.incrementJumps()
 
     def predict_peer(self, base_ts):
         """

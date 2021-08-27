@@ -624,7 +624,7 @@ class JsonClient(connection.Connection):
         elif 'clock_reset' in msg:
             self.process_clock_reset_message(msg['clock_reset'])
         elif 'clock_jump' in msg:
-            self.coordinator.receiver_clock_reset(self.receiver)
+            self.receiver.clock_reset()
             self.logger.info("Clock jump, resetting SYNC!")
         elif 'heartbeat' in msg:
             self.process_heartbeat_message(msg['heartbeat'])
@@ -678,13 +678,14 @@ class JsonClient(connection.Connection):
         self.coordinator.receiver_tracking_remove(self.receiver, lost)
 
     def process_input_connected_message(self, m):
-        self.coordinator.receiver_clock_reset(self.receiver)
+        self.receiver.clock_reset()
+        self.receiver.clock_reset_counter = 0
 
     def process_input_disconnected_message(self, m):
-        self.coordinator.receiver_clock_reset(self.receiver)
+        self.receiver.clock_reset()
 
     def process_clock_reset_message(self, m):
-        self.coordinator.receiver_clock_reset(self.receiver)
+        self.receiver.clock_reset()
 
     def process_heartbeat_message(self, m):
         pass
