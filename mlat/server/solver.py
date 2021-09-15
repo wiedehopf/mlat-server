@@ -79,7 +79,7 @@ def solve(measurements, altitude, altitude_error, initial_guess):
 
     glat, glng, galt = geodesy.ecef2llh(initial_guess)
     if galt < config.MIN_ALT:
-        galt = -galt
+        galt = config.MIN_ALT
         initial_guess = geodesy.llh2ecef([glat, glng, galt])
     if galt > config.MAX_ALT:
         galt = config.MAX_ALT

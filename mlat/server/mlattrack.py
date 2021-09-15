@@ -290,7 +290,9 @@ class MlatTracker(object):
             if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
         else:
-            if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
+            lat, lon, _ = geodesy.ecef2llh(ecef)
+            ecef_observed_alt = geodesy.llh2ecef([lat, lon, altitude])
+            if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef_observed_alt, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
 
         for handler in self.coordinator.output_handlers:
