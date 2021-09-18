@@ -74,6 +74,11 @@ class TrackedAircraft(object):
         self.altitude = None
         # time of last altitude (time.monotonic())
         self.last_altitude_time = None
+        # altitude time tuples
+        self.alt_history = []
+        # dervided vertical rate
+        self.vrate = None
+        self.vrate_time = None
 
         # last multilateration, time (monotonic)
         self.last_result_time = None

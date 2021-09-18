@@ -808,7 +808,11 @@ class JsonClient(connection.Connection):
             heading = kalman_state.heading
             result['nsvel'] = round(math.cos(math.radians(heading)) * speed, 1)
             result['ewvel'] = round(math.sin(math.radians(heading)) * speed, 1)
-            result['vrate'] = round(kalman_state.vertical_speed * constants.MS_TO_FPM, 0)
+
+        ac = self.coordinator.tracker.aircraft[address]
+        if ac.vrate_time and receive_timestamp - ac.vrate_time < 5:
+            result['vrate'] = ac.vrate
+
 
         result['ecef'] = (round(ecef[0], 0),
                 round(ecef[1], 0),

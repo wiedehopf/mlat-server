@@ -131,9 +131,32 @@ class MlatTracker(object):
         # When we've seen a few copies of the same message, it's
         # probably correct. Update the tracker with newly seen
         # altitudes, squawks, callsigns.
-        if decoded.altitude is not None:
-            ac.altitude = decoded.altitude
-            ac.last_altitude_time = group.first_seen
+        if decoded.altitude is not None and decoded.altitude > -1500 and decoded.altitude < 75000:
+            if (not ac.last_altitude_time
+                    or (group.first_seen > ac.last_altitude_time
+                        and (group.first_seen - ac.last_altitude_time > 15 or abs(ac.altitude - decoded.altitude) < 4000)
+                        )
+                    ):
+                ac.altitude = decoded.altitude
+                ac.last_altitude_time = group.first_seen
+
+                new_hist = []
+                for ts, old_alt in ac.alt_history:
+                    if group.first_seen - ts < 20.0:
+                        new_hist.append((ts, old_alt))
+
+                ac.alt_history = new_hist
+                ac.alt_history.append((group.first_seen, decoded.altitude))
+
+                ts_diff = group.first_seen - new_hist[0][0]
+                if ts_diff > 10:
+                    # fpm
+                    new_vrate = (decoded.altitude - new_hist[0][1]) / (ts_diff / 60.0)
+                    if ac.vrate and group.first_seen - ac.vrate_time < 15:
+                        ac.vrate = int(ac.vrate + 0.3 * (new_vrate - ac.vrate))
+                    else:
+                        ac.vrate = int(new_vrate)
+                    ac.vrate_time = group.first_seen
 
         if decoded.squawk is not None:
             ac.squawk = decoded.squawk
@@ -160,7 +183,7 @@ class MlatTracker(object):
                 ac.altitude is None
                 or ac.altitude < config.MIN_ALT
                 or ac.altitude > config.MAX_ALT
-                or group.first_seen > ac.last_altitude_time + 15
+                or group.first_seen > ac.last_altitude_time + 45
             ):
             altitude = None
             altitude_dof = 0
@@ -276,20 +299,19 @@ class MlatTracker(object):
         ac.last_result_time = cluster_utc
         ac.mlat_result_count += 1
 
-        if altitude is None:
-            _, _, solved_alt = geodesy.ecef2llh(ecef)
-            glogger.info("{addr:06x} solved altitude={solved_alt:.0f}ft with dof={dof}".format(
-                addr=decoded.address,
-                solved_alt=solved_alt*constants.MTOF,
-                dof=dof))
-
-        if altitude is None:
-            if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
+        if altitude is not None:
+            lat, lon, _ = geodesy.ecef2llh(ecef)
+            # replace ecef altitude with reported altitude
+            ecef = geodesy.llh2ecef([lat, lon, altitude])
+            if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
         else:
-            lat, lon, _ = geodesy.ecef2llh(ecef)
-            ecef_observed_alt = geodesy.llh2ecef([lat, lon, altitude])
-            if ac.kalman.update(cluster_utc, cluster, altitude, altitude_error, ecef_observed_alt, ecef_cov, distinct, dof):
+            _, _, solved_alt = geodesy.ecef2llh(ecef)
+            #glogger.info("{addr:06x} solved altitude={solved_alt:.0f}ft with dof={dof}".format(
+            #    addr=decoded.address,
+            #    solved_alt=solved_alt*constants.MTOF,
+            #    dof=dof))
+            if ac.kalman.update(cluster_utc, cluster, solved_alt, 4000 / math.sqrt(dof + 1), ecef, ecef_cov, distinct, dof):
                 ac.mlat_kalman_count += 1
 
         for handler in self.coordinator.output_handlers:

@@ -53,8 +53,8 @@ def csv_quote(s):
 class LocalCSVWriter(object):
     """Writes multilateration results to a local CSV file"""
 
-    TEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof}'  # noqa
-    KTEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt:.0f},{err:.0f},{n},{d},{receivers},{dof},{klat:.4f},{klon:.4f},{kalt:.0f},{kheading:.0f},{kspeed:.0f},{kvrate:.0f},{kerr:.0f}'  # noqa
+    TEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt},{err:.0f},{n},{d},{receivers},{dof},{vrate}'  # noqa
+    KTEMPLATE = '{t:.3f},{address:06X},{callsign},{squawk},{lat:.4f},{lon:.4f},{alt},{err:.0f},{n},{d},{receivers},{dof},{klat:.4f},{klon:.4f},{kalt:.0f},{kheading:.0f},{kspeed:.0f},{vrate},{kerr:.0f}'  # noqa
 
     def __init__(self, coordinator, filename):
         self.logger = logging.getLogger("csv")
@@ -94,6 +94,18 @@ class LocalCSVWriter(object):
                     err_est = math.sqrt(var_est)
                 else:
                     err_est = -1
+            # never use MLAT calculated altitude, most of the time it's so inaccurate that it's useless
+            # better have the altitude be undefined
+            if ac.last_altitude_time and receive_timestamp - ac.last_altitude_time < 5:
+                # ft
+                altitude = str(ac.altitude)
+            else:
+                altitude = ''
+            if ac.vrate_time and receive_timestamp - ac.vrate_time < 5:
+                # fpm
+                vrate = str(ac.vrate)
+            else:
+                vrate = ''
 
             if kalman_state.valid and kalman_state.last_update >= receive_timestamp:
                 line = self.KTEMPLATE.format(
@@ -103,7 +115,7 @@ class LocalCSVWriter(object):
                     squawk=csv_quote(squawk),
                     lat=lat,
                     lon=lon,
-                    alt=alt * constants.MTOF,
+                    alt=altitude,
                     err=err_est,
                     n=len(receivers),
                     d=distinct,
@@ -114,7 +126,7 @@ class LocalCSVWriter(object):
                     kalt=kalman_state.position_llh[2] * constants.MTOF,
                     kheading=kalman_state.heading,
                     kspeed=kalman_state.ground_speed * constants.MS_TO_KTS,
-                    kvrate=kalman_state.vertical_speed * constants.MS_TO_FPM,
+                    vrate=vrate,
                     kerr=kalman_state.position_error)
             else:
                 line = self.TEMPLATE.format(
@@ -124,12 +136,14 @@ class LocalCSVWriter(object):
                     squawk=csv_quote(squawk),
                     lat=lat,
                     lon=lon,
-                    alt=alt * constants.MTOF,
+                    alt=altitude,
                     err=err_est,
                     n=len(receivers),
                     d=distinct,
                     dof=dof,
-                    receivers=csv_quote(','.join([receiver.user for receiver in receivers])))
+                    receivers=csv_quote(','.join([receiver.user for receiver in receivers])),
+                    vrate=vrate)
+
 
             self.pos_logger.debug(line)
 
@@ -246,12 +260,16 @@ class BasestationClient(object):
 
             # never use MLAT calculated altitude, most of the time it's so inaccurate that it's useless
             # better have the altitude be undefined
-            if ac.last_altitude_time is None or receive_timestamp - ac.last_altitude_time > 3:
-                vrate = ''
-                #altitude = int(round(alt * constants.MTOF))
-                altitude = ''
-            else:
+            if ac.last_altitude_time and receive_timestamp - ac.last_altitude_time < 5:
+                # ft
                 altitude = ac.altitude
+            else:
+                altitude = ''
+            if ac.vrate_time and receive_timestamp - ac.vrate_time < 5:
+                # fpm
+                vrate = ac.vrate
+            else:
+                vrate = ''
 
             line = self.TEMPLATE.format(mtype=3,
                                         addr=address,
