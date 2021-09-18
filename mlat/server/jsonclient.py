@@ -588,7 +588,7 @@ class JsonClient(connection.Connection):
                 if now - r.last_clock_reset < 45:
                     # help with fast initial / resync
                     self.mrate_limit = 2 * config.MAX_SYNC_RATE
-                elif r.sync_range_exceeded or r.sync_peers < 1 or r.bad_syncs > 2:
+                elif r.sync_range_exceeded or sum(r.sync_peers) < 1 or r.bad_syncs > 2:
                     self.mrate_limit = 5
                 elif r.last_rate_report is None:
                     self.mrate_limit = config.MAX_SYNC_RATE
@@ -610,7 +610,7 @@ class JsonClient(connection.Connection):
 
 
         elif 'mlat' in msg:
-            if self.receiver.bad_syncs < 0.001 and self.receiver.sync_peers > 0:
+            if self.receiver.bad_syncs < 0.001 and sum(self.receiver.sync_peers) > 0:
                 mlat = msg['mlat']
                 #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
                 self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), time.time())

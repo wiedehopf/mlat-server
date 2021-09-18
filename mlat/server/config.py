@@ -37,12 +37,10 @@ MIN_NUC = 6
 # absolute maximum receiver range for sync messages, metres
 MAX_RANGE = 500e3
 
-# soft limit for the number of peers a single receiver will have
-MAX_PEERS = 50
-# if the other peer has less than this many peers, the above oft limit is ignored
-MIN_PEERS = 50
-# if closer than this, always allow sync
-MAX_PEERS_MIN_DISTANCE = 40e3
+# limit for the number of peers a single receiver will have in a distance category
+MAX_PEERS = [24, 12, 12, 12]
+# cate
+DISTANCE_CATEGORY_STEP = 40e3
 
 
 

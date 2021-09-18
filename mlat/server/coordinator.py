@@ -60,7 +60,7 @@ class Receiver(object):
         self.connectedSince = time.monotonic()
 
         self.sync_count = 0
-        self.sync_peers = 0 # number of peers hopefully updated live
+        self.sync_peers = [0, 0, 0, 0] # number of peers per distance category
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()
@@ -114,7 +114,7 @@ class Receiver(object):
 
     def incrementJumps(self):
         self.recent_pair_jumps += 1
-        if self.recent_pair_jumps / self.sync_peers > 0.2:
+        if self.recent_pair_jumps / sum(self.sync_peers) > 0.2:
             now = time.time()
             self.recent_clock_jumps += 1
             if self.recent_clock_jumps > 2:

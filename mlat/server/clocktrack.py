@@ -92,14 +92,14 @@ class ClockTracker(object):
         now = time.monotonic()
         prune = set()
         for k, pairing in self.clock_pairs.items():
-            if pairing.expiry <= now:
-                prune.add(k)
+            if pairing.expiry <= now or k[0].bad_syncs > 2 or k[1].bad_syncs > 2:
+                prune.add((k, pairing))
             else:
                 pairing.valid = pairing.check_valid(now)
 
-        for k in prune:
-            k[0].sync_peers -= 1
-            k[1].sync_peers -= 1
+        for k, pairing in prune:
+            k[0].sync_peers[pairing.cat] -= 1
+            k[1].sync_peers[pairing.cat] -= 1
             del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -111,10 +111,10 @@ class ClockTracker(object):
 
         (This is actually the same work as receiver_disconnect for the moment)
         """
-        for k in list(self.clock_pairs.keys()):
+        for k, pairing in list(self.clock_pairs.items()):
             if k[0] is receiver or k[1] is receiver:
-                k[0].sync_peers -= 1
-                k[1].sync_peers -= 1
+                k[0].sync_peers[pairing.cat] -= 1
+                k[1].sync_peers[pairing.cat] -= 1
                 del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -133,10 +133,10 @@ class ClockTracker(object):
 
         # Clean up clock_pairs immediately.
         # Any membership in a pending sync point is noticed when we try to sync more receivers with it.
-        for k in list(self.clock_pairs.keys()):
+        for k, pairing in list(self.clock_pairs.items()):
             if k[0] is receiver or k[1] is receiver:
-                k[0].sync_peers -= 1
-                k[1].sync_peers -= 1
+                k[0].sync_peers[pairing.cat] -= 1
+                k[1].sync_peers[pairing.cat] -= 1
                 del self.clock_pairs[k]
 
     @profile.trackcpu
@@ -338,24 +338,43 @@ class ClockTracker(object):
 
             pairing = self.clock_pairs.get(k)
             if pairing is None:
-                if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
-                    if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                        if r0.distance[r1.uid] > config.MAX_PEERS_MIN_DISTANCE:
-                            continue
-                r0.sync_peers += 1
-                r1.sync_peers += 1
-                self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
+                receiver_distance = r0.distance[r1.uid]
+                if receiver_distance > 3 * config.DISTANCE_CATEGORY_STEP:
+                    cat = 3
+                elif receiver_distance > 2 * config.DISTANCE_CATEGORY_STEP:
+                    cat = 2
+                elif receiver_distance > config.DISTANCE_CATEGORY_STEP:
+                    cat = 1
+                else:
+                    cat = 0
+
+                p0 = r0.sync_peers[cat]
+                p1 = r1.sync_peers[cat]
+                limit = config.MAX_PEERS[cat]
+
+                if p0 > limit or p1 > limit:
+                    if p0 > limit / 2 and p1 > limit / 2:
+                        continue
+
+                self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
+
+                r0.sync_peers[pairing.cat] += 1
+                r1.sync_peers[pairing.cat] += 1
             else:
                 if pairing.n > 10 and now < pairing.updated + 0.8:
                     continue
 
-                if r0.sync_peers > 1.1 * config.MIN_PEERS and r1.sync_peers > 1.1 * config.MIN_PEERS:
-                    if r0.sync_peers > 1.1 * config.MAX_PEERS or r1.sync_peers > 1.1 * config.MAX_PEERS:
-                        if r0.distance[r1.uid] > config.MAX_PEERS_MIN_DISTANCE:
-                            r0.sync_peers -= 1
-                            r1.sync_peers -= 1
-                            del self.clock_pairs[k]
-                            continue
+                cat = pairing.cat
+                p0 = r0.sync_peers[cat]
+                p1 = r1.sync_peers[cat]
+                limit = config.MAX_PEERS[cat] * 1.2
+
+                if p0 > limit or p1 > limit:
+                    if p0 > limit / 2 and p1 > limit / 2:
+                        r0.sync_peers[pairing.cat] -= 1
+                        r1.sync_peers[pairing.cat] -= 1
+                        del self.clock_pairs[k]
+                        continue
 
             if r0 < r1:
                 if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):

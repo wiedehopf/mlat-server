@@ -69,9 +69,10 @@ class ClockPairing(object):
     KP = 0.05
     KI = 0.01
 
-    def __init__(self, base, peer):
+    def __init__(self, base, peer, cat):
         self.base = base
         self.peer = peer
+        self.cat = cat
         self.base_clock = base.clock
         self.peer_clock = peer.clock
         self.raw_drift = None
@@ -96,7 +97,7 @@ class ClockPairing(object):
         self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         now = time.monotonic()
-        self.expiry = now + 90.0
+        self.expiry = now + 30.0
         self.validity = now + 25.0
         self.updated = now
         self.valid = False
@@ -175,7 +176,7 @@ class ClockPairing(object):
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
 
-        self.expiry = now + 90.0
+        self.expiry = now + 30.0
         self.validity = now + 25.0
         self.updated = now
         self.valid = self.check_valid(now)
