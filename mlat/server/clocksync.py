@@ -101,9 +101,6 @@ class ClockPairing(object):
         self.updated = now
         self.valid = False
 
-    def is_new(self, base_ts):
-        """Returns True if the given base timestamp is in the extrapolation region."""
-        return bool(self.n == 0 or self.ts_base[-1] < base_ts)
 
     def updateVars(self):
         if self.n == 0:
@@ -133,8 +130,12 @@ class ClockPairing(object):
         Returns True if the update was used, False if it was an outlier.
         """
 
+        if self.n != 0 and base_ts <= self.ts_base[-1]:
+            # timestamp is in the past or duplicated, don't use this
+            return False
+
         # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq) or self.outliers >= 5:
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
             self._prune_old_data(base_ts)
 
         outlier = False
@@ -185,9 +186,6 @@ class ClockPairing(object):
 
         if self.n > 20:
             i = self.n - 20
-
-        if self.n > 15 and self.outliers >= 5:
-            i = self.n - 15
 
         while i < self.n and (latest_base_ts - self.ts_base[i]) > 25 * self.base_clock.freq:
             i += 1

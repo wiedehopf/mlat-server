@@ -367,34 +367,29 @@ class ClockTracker(object):
         k = (r0, r1)
         pairing = self.clock_pairs.get(k)
 
-        rejectPairing = False
-        distance = r0.distance[r1.uid]
-        if r0.bad_syncs > 1 or r1.bad_syncs > 1:
-            if r0.sync_peers > 0.5 * config.MIN_PEERS and 0.5 * r1.sync_peers > config.MIN_PEERS:
-                rejectPairing = True
-        if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS and distance > config.MAX_PEERS_MIN_DISTANCE:
-            if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                rejectPairing = True
-
         if pairing is None:
 
-            if rejectPairing:
-                return False
+            if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
+                if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
+                    if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
+                        return False
 
             r0.sync_peers += 1
             r1.sync_peers += 1
             self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
+        else:
+            if pairing.n > 10 and now < pairing.updated + 0.8:
+                return False
 
-        if rejectPairing and r0.sync_peers > 1.25 * config.MIN_PEERS and r1.sync_peers > 1.25 * config.MIN_PEERS:
-            k[0].sync_peers -= 1
-            k[1].sync_peers -= 1
-            del self.clock_pairs[k]
+            if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
+                if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
+                    if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
+                        if r0.sync_peers > 1.25 * config.MIN_PEERS and r1.sync_peers > 1.25 * config.MIN_PEERS:
+                            k[0].sync_peers -= 1
+                            k[1].sync_peers -= 1
+                            del self.clock_pairs[k]
+                            return False
 
-        if pairing.n > 20 and now < pairing.updated + 0.8:
-            return False
-
-        if not pairing.is_new(td0B):
-            return True  # timestamp is in the past or duplicated, don't use this
 
         # do the update
         return pairing.update(address, td0B, td1B, i0, i1, now)

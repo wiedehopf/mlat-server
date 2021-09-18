@@ -612,7 +612,8 @@ class JsonClient(connection.Connection):
         elif 'mlat' in msg:
             if self.receiver.bad_syncs < 0.001 and self.receiver.sync_peers > 0:
                 mlat = msg['mlat']
-                self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+                #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+                self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
         elif 'seen' in msg:
             self.process_seen_message(msg['seen'])
         elif 'lost' in msg:
@@ -639,6 +640,7 @@ class JsonClient(connection.Connection):
         self.coordinator.receiver_sync(self.receiver, et, ot, em, om)
 
     def process_mlat_gps(self, t, m, now):
+        #UNUSED
         # extract UTC receive time from Radarcape timestamps
         start_of_day = now - math.fmod(now, 86400)
         day_seconds = t / self.receiver.clock.freq
@@ -666,6 +668,7 @@ class JsonClient(connection.Connection):
         self.coordinator.receiver_mlat(self.receiver, t, m, utc)
 
     def process_mlat_nongps(self, t, m, now):
+        # used directly for json client
         # we assume the server system clock is close to UTC
         self.coordinator.receiver_mlat(self.receiver, t, m, now)
 
