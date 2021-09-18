@@ -340,7 +340,7 @@ class ClockTracker(object):
             if pairing is None:
                 if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
                     if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                        if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
+                        if r0.distance[r1.uid] > config.MAX_PEERS_MIN_DISTANCE:
                             continue
                 r0.sync_peers += 1
                 r1.sync_peers += 1
@@ -349,14 +349,13 @@ class ClockTracker(object):
                 if pairing.n > 10 and now < pairing.updated + 0.8:
                     continue
 
-                if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
-                    if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                        if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
-                            if r0.sync_peers > 1.25 * config.MIN_PEERS and r1.sync_peers > 1.25 * config.MIN_PEERS:
-                                r0.sync_peers -= 1
-                                r1.sync_peers -= 1
-                                del self.clock_pairs[k]
-                                continue
+                if r0.sync_peers > 1.1 * config.MIN_PEERS and r1.sync_peers > 1.1 * config.MIN_PEERS:
+                    if r0.sync_peers > 1.1 * config.MAX_PEERS or r1.sync_peers > 1.1 * config.MAX_PEERS:
+                        if r0.distance[r1.uid] > config.MAX_PEERS_MIN_DISTANCE:
+                            r0.sync_peers -= 1
+                            r1.sync_peers -= 1
+                            del self.clock_pairs[k]
+                            continue
 
             if r0 < r1:
                 if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
