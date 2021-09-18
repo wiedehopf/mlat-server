@@ -330,14 +330,43 @@ class ClockTracker(object):
                 continue
 
             # order the clockpair so that the receiver that sorts lower is the base clock
+
             if r0 < r1:
-                if self._do_sync(syncpoint.address, now, r0, td0B, i0, r1, td1B, i1):
-                    # sync worked, note it for stats
-                    r0l[3] = r1l[3] = True
+                k = (r0, r1)
             else:
-                if self._do_sync(syncpoint.address, now, r1, td1B, i1, r0, td0B, i0):
-                    # sync worked, note it for stats
-                    r0l[3] = r1l[3] = True
+                k = (r1, r0)
+
+            pairing = self.clock_pairs.get(k)
+            if pairing is None:
+                if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
+                    if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
+                        if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
+                            continue
+                r0.sync_peers += 1
+                r1.sync_peers += 1
+                self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
+            else:
+                if pairing.n > 10 and now < pairing.updated + 0.8:
+                    continue
+
+                if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
+                    if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
+                        if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
+                            if r0.sync_peers > 1.25 * config.MIN_PEERS and r1.sync_peers > 1.25 * config.MIN_PEERS:
+                                r0.sync_peers -= 1
+                                r1.sync_peers -= 1
+                                del self.clock_pairs[k]
+                                continue
+
+            if r0 < r1:
+                if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
+                    continue
+            else:
+                if not pairing.update(syncpoint.address, td1B, td0B, i1, i0, now):
+                    continue
+
+            # sync worked, note it for stats
+            r0l[3] = r1l[3] = True
 
         # update syncpoint with the new receiver and we're done
         syncpoint.receivers.append(r0l)
@@ -361,38 +390,6 @@ class ClockTracker(object):
         for r, _, _, synced in syncpoint.receivers:
             if synced:
                 r.sync_count += 1
-
-    def _do_sync(self, address, now, r0, td0B, i0, r1, td1B, i1):
-        # find or create clock pair
-        k = (r0, r1)
-        pairing = self.clock_pairs.get(k)
-
-        if pairing is None:
-
-            if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
-                if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                    if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
-                        return False
-
-            r0.sync_peers += 1
-            r1.sync_peers += 1
-            self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1)
-        else:
-            if pairing.n > 10 and now < pairing.updated + 0.8:
-                return False
-
-            if r0.sync_peers > config.MIN_PEERS and r1.sync_peers > config.MIN_PEERS:
-                if r0.sync_peers > config.MAX_PEERS or r1.sync_peers > config.MAX_PEERS:
-                    if r0.distance[r1.uid]> config.MAX_PEERS_MIN_DISTANCE:
-                        if r0.sync_peers > 1.25 * config.MIN_PEERS and r1.sync_peers > 1.25 * config.MIN_PEERS:
-                            k[0].sync_peers -= 1
-                            k[1].sync_peers -= 1
-                            del self.clock_pairs[k]
-                            return False
-
-
-        # do the update
-        return pairing.update(address, td0B, td1B, i0, i1, now)
 
     def dump_receiver_state(self):
         state = {}
