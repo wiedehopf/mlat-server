@@ -60,7 +60,7 @@ class Receiver(object):
         self.connectedSince = time.monotonic()
 
         self.sync_count = 0
-        self.sync_peers = [0, 0, 0, 0] # number of peers per distance category
+        self.sync_peers = [0, 0, 0, 0, 0] # number of peers per distance category
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()

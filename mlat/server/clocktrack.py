@@ -27,6 +27,7 @@ import asyncio
 import functools
 import time
 import logging
+import math
 
 import modes.message
 
@@ -339,21 +340,16 @@ class ClockTracker(object):
             pairing = self.clock_pairs.get(k)
             if pairing is None:
                 receiver_distance = r0.distance[r1.uid]
-                if receiver_distance > 3 * config.DISTANCE_CATEGORY_STEP:
-                    cat = 3
-                elif receiver_distance > 2 * config.DISTANCE_CATEGORY_STEP:
-                    cat = 2
-                elif receiver_distance > config.DISTANCE_CATEGORY_STEP:
-                    cat = 1
-                else:
-                    cat = 0
+                cat = math.floor(receiver_distance / config.DISTANCE_CATEGORY_STEP)
+                if cat > 4:
+                    cat = 4
 
                 p0 = r0.sync_peers[cat]
                 p1 = r1.sync_peers[cat]
                 limit = config.MAX_PEERS[cat]
 
                 if p0 > limit or p1 > limit:
-                    if p0 > limit / 2 and p1 > limit / 2:
+                    if p0 > 0.4 * limit and p1 > 0.4 * limit:
                         continue
 
                 self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
@@ -370,7 +366,7 @@ class ClockTracker(object):
                 limit = config.MAX_PEERS[cat] * 1.2
 
                 if p0 > limit or p1 > limit:
-                    if p0 > limit / 2 and p1 > limit / 2:
+                    if p0 > 0.7 * limit and p1 > 0.7 * limit:
                         r0.sync_peers[pairing.cat] -= 1
                         r1.sync_peers[pairing.cat] -= 1
                         del self.clock_pairs[k]

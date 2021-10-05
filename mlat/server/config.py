@@ -38,7 +38,7 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # limit for the number of peers a single receiver will have in a distance category
-MAX_PEERS = [24, 12, 12, 12]
+MAX_PEERS = [20, 10, 10, 10, 10]
 # cate
 DISTANCE_CATEGORY_STEP = 40e3
 
