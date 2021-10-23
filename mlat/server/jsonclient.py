@@ -605,7 +605,7 @@ class JsonClient(connection.Connection):
                         float(sync['ot']),
                         bytes.fromhex(sync['em']),
                         bytes.fromhex(sync['om']))
-            #elif self.receiver.user == 'euerdorf1' and self.message_counter % 20 == 0:
+            #elif self.receiver.user.startswith('euerdorf') and self.message_counter % 200 == 0:
             #    logging.warning("d: %0.0f %0.0f %0.0f %0.0f", self.message_counter, self.mrate_limit * elapsed + 10, self.mrate_limit, elapsed)
 
 

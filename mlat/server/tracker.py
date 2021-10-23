@@ -27,6 +27,9 @@ import time
 from mlat import profile
 from mlat.server import kalman, config
 
+import logging
+glogger = logging.getLogger("tracker")
+
 
 class TrackedAircraft(object):
     """A single tracked aircraft."""
@@ -174,9 +177,7 @@ class Tracker(object):
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking}
             new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300)}
-            if now - receiver.last_clock_reset < 45:
-                new_sync = set(receiver.tracking)
-            elif len(new_sync) > config.MAX_SYNC_AC:
+            if len(new_sync) > config.MAX_SYNC_AC:
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
@@ -192,15 +193,13 @@ class Tracker(object):
         for icao, rate in receiver.last_rate_report.items():
             ac = self.aircraft.get(icao)
             if not ac:
-                self.coordinator.receiver_tracking_add(self.receiver, {int(icao, 16)})
+                self.coordinator.receiver_tracking_add(receiver, {int(icao, 16)})
 
             rate_report_set.add(ac)
+            new_adsb.add(ac)
 
             if rate < 0.25:
                 continue
-
-            if rate > 0.5:
-                new_adsb.add(ac)
 
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
@@ -259,8 +258,13 @@ class Tracker(object):
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
 
-        if now - receiver.last_clock_reset < 45 and len(new_sync) < 10:
-            new_sync = receiver.tracking
+        if now - receiver.connectedSince < 45 and len(new_sync) < int(config.MAX_SYNC_AC / 2):
+            acAvailable = ac_to_ratepair_map.keys()
+            new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), int(config.MAX_SYNC_AC / 2))))
+
+        #if receiver.user.startswith("euerdorf"):
+        #    glogger.warn('new_sync euerdorf:' + str([hex(a.icao) for a in new_sync]))
+
 
         # for multilateration we are interesting in
         # all aircraft that we are tracking but for
