@@ -198,9 +198,6 @@ class Tracker(object):
             rate_report_set.add(ac)
             new_adsb.add(ac)
 
-            if rate < 0.25:
-                continue
-
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
                 if receiver is r1:
@@ -261,6 +258,11 @@ class Tracker(object):
         if now - receiver.connectedSince < 45 and len(new_sync) < int(config.MAX_SYNC_AC / 2):
             acAvailable = ac_to_ratepair_map.keys()
             new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), int(config.MAX_SYNC_AC / 2))))
+
+        addSome = int(config.MAX_SYNC_AC / 4) - len(new_sync)
+        if addSome > 0:
+            acAvailable = set(ac_to_ratepair_map.keys()).difference(new_sync)
+            new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), addSome)))
 
         #if receiver.user.startswith("euerdorf"):
         #    glogger.warn('new_sync euerdorf:' + str([hex(a.icao) for a in new_sync]))
