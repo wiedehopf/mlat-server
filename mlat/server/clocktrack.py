@@ -263,7 +263,11 @@ class ClockTracker(object):
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
-            ac.last_syncpoint_time = time.monotonic()
+            now = time.monotonic()
+            ac.last_syncpoint_time = now
+            ac.last_altitude_time = now
+            ac.altitude = even_message.altitude
+
 
         # valid. Create a new sync point.
         if even_time < odd_time:

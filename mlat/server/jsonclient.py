@@ -221,7 +221,6 @@ class JsonClient(connection.Connection):
         if not self.transport:
             return  # already closed
 
-        self.logger.warning("Disconnected: ({conn_info})".format(conn_info=self.receiver.connection_info))
         self.send = self.discard  # suppress all output from hereon in
         self.handle_messages = self.discard # suppress inputs
 
@@ -231,6 +230,7 @@ class JsonClient(connection.Connection):
         # tell the coordinator, this might cause traffic to be suppressed
         # from other receivers
         if self.receiver is not None:
+            self.logger.warning("Disconnected: ({conn_info})".format(conn_info=self.receiver.connection_info))
             self.coordinator.receiver_disconnect(self.receiver)
 
         if self._read_task is not None:

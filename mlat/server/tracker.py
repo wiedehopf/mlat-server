@@ -198,6 +198,11 @@ class Tracker(object):
             rate_report_set.add(ac)
             new_adsb.add(ac)
 
+            altFactor = None
+            if ac.altitude is not None and ac.altitude > 0:
+                altFactor = (1 + (ac.altitude / 20000)**1.5)
+                #if receiver.user.startswith("euerdorf"):
+                #    glogger.warn('altFactor:' + str(altFactor) + ' alt: ' + str(ac.altitude))
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
                 if receiver is r1:
@@ -210,7 +215,10 @@ class Tracker(object):
                     rate1 = r1.last_rate_report.get(icao, 0.0)
 
                 rp = rate * rate1 / 2.25
-                if rp < 0.10:
+                # favor higher flying aircraft
+                if altFactor is not None:
+                    rp = rp * altFactor
+                if rp < 0.01:
                     continue
 
                 ratepair = (rp, r1, ac, rate)
