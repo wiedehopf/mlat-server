@@ -273,7 +273,7 @@ class Coordinator(object):
                 t=len(self.tracker.aircraft)))
 
         sync = {}
-        locations = {}
+        clients = {}
 
         receiver_states = self.clock_tracker.dump_receiver_state()
 
@@ -343,44 +343,42 @@ class Coordinator(object):
 
             r.peer_count = len(sync[r.user]['peers'])
 
-            locations[r.user] = {
+            clients[r.user] = {
                 'user': r.user,
                 'lat': r.position_llh[0],
                 'lon': r.position_llh[1],
                 'alt': r.position_llh[2],
                 'privacy': r.privacy,
-                'connection': r.connection_info
+                'connection': r.connection_info,
+                'uuid': r.uuid
             }
 
         # The sync matrix json can be large.  This means it might take a little time to write out.
         # This therefore means someone could start reading it before it has completed writing...
-        # So, write out to a temp file first, and then call os.rename(), which is ATOMIC, to overwrite the real file.
+        # So, write out to a temp file first, and then call os.replace(), which is ATOMIC, to overwrite the real file.
         # (Do this for each file, because why not?)
         syncfile = self.work_dir + '/sync.json'
-        locationsfile = self.work_dir + '/locations.json'
+        clientsfile = self.work_dir + '/clients.json'
         aircraftfile = self.work_dir + '/aircraft.json'
 
-        # This random bit can be used for each file
-        tmprand = str(int(time.time()))
-
         # sync.json
-        tmpfile = syncfile + '.tmp.' + tmprand
+        tmpfile = syncfile + '.tmp'
         with closing(open(tmpfile, 'w')) as f:
             ujson.dump(sync, f)
         # We should probably check for errors here, but let's fire-and-forget, instead...
-        os.rename(tmpfile, syncfile)
+        os.replace(tmpfile, syncfile)
 
-        # locations.json
-        tmpfile = locationsfile + '.tmp.' + tmprand
+        # clients.json
+        tmpfile = clientsfile + '.tmp'
         with closing(open(tmpfile, 'w')) as f:
-            ujson.dump(locations, f)
-        os.rename(tmpfile, locationsfile)
+            ujson.dump(clients, f)
+        os.replace(tmpfile, clientsfile)
 
         # aircraft.json
-        tmpfile = aircraftfile + '.tmp.' + tmprand
+        tmpfile = aircraftfile + '.tmp'
         with closing(open(tmpfile, 'w')) as f:
             ujson.dump(aircraft_state, f)
-        os.rename(tmpfile, aircraftfile)
+        os.replace(tmpfile, aircraftfile)
 
 
     @asyncio.coroutine

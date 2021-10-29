@@ -118,6 +118,9 @@ class MlatTracker(object):
 
         decoded = modes.message.decode(group.message)
 
+        if not decoded or not decoded.address:
+            return
+
         ac = self.tracker.aircraft.get(decoded.address)
         if not ac:
             return

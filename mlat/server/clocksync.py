@@ -136,7 +136,7 @@ class ClockPairing(object):
             return False
 
         # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 35 * self.base_clock.freq):
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 55 * self.base_clock.freq):
             self._prune_old_data(base_ts)
 
         outlier = False
@@ -176,8 +176,8 @@ class ClockPairing(object):
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
 
-        self.expiry = now + 30.0
-        self.validity = now + 25.0
+        self.expiry = now + 45.0
+        self.validity = now + 30.0
         self.updated = now
         self.valid = self.check_valid(now)
         return True
@@ -188,7 +188,7 @@ class ClockPairing(object):
         if self.n > 20:
             i = self.n - 20
 
-        while i < self.n and (latest_base_ts - self.ts_base[i]) > 25 * self.base_clock.freq:
+        while i < self.n and (latest_base_ts - self.ts_base[i]) > 45 * self.base_clock.freq:
             i += 1
 
         if i > 0:
@@ -251,6 +251,9 @@ class ClockPairing(object):
                     self.jumped = 1
                     if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
                         glogger.warn("{0}: monotonicity broken, reset".format(self))
+                    #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
+                    #    glogger.warn("{0}: monotonicity broken, reset".format(self))
+
                     if self.peer.bad_syncs < 0.1:
                         self.base.incrementJumps()
                     if self.base.bad_syncs < 0.1:
@@ -274,6 +277,8 @@ class ClockPairing(object):
             self.jumped = 1
             if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
                 glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
+            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             if self.peer.bad_syncs < 0.1:
                 self.base.incrementJumps()
             if self.base.bad_syncs < 0.1:
