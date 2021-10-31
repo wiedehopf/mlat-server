@@ -194,6 +194,8 @@ class MlatTracker(object):
             altitude = ac.altitude * constants.FTOM
             altitude_dof = 1
 
+        if elapsed < -1:
+            elapsed = 10
 
         # rate limiting
         if elapsed < 1.5:

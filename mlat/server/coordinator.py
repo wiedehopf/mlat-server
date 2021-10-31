@@ -240,14 +240,15 @@ class Coordinator(object):
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count
 
-            if ac.last_result_time is not None and ac.kalman.valid:
+            if ac.last_result_time is not None:
                 s['last_result'] = round(now - ac.last_result_time, 1)
-                lat, lon, alt = ac.kalman.position_llh
-                s['lat'] = round(lat, 3)
-                s['lon'] = round(lon, 3)
-                s['alt'] = round(alt * constants.MTOF, 0)
-                s['heading'] = round(ac.kalman.heading, 0)
-                s['speed'] = round(ac.kalman.ground_speed, 0)
+                lat, lon, alt = geodesy.ecef2llh(ac.last_result_position)
+                s['lat'] = round(lat, 4)
+                s['lon'] = round(lon, 4)
+                s['alt'] = round(ac.altitude)
+                if ac.kalman.valid:
+                    s['heading'] = round(ac.kalman.heading, 0)
+                    s['speed'] = round(ac.kalman.ground_speed, 0)
 
             if ac.interesting:
                 if ac.sync_interest:
