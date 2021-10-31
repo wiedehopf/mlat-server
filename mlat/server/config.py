@@ -38,7 +38,7 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # limit for the number of peers a single receiver will have in a distance category
-MAX_PEERS = [30, 30, 20, 10]
+MAX_PEERS = [30, 20, 10, 10]
 # cate
 DISTANCE_CATEGORY_STEP = 50e3
 
@@ -47,7 +47,7 @@ DISTANCE_CATEGORY_STEP = 50e3
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 20
 # max sync rate
-MAX_SYNC_RATE = 15
+MAX_SYNC_RATE = 12
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3

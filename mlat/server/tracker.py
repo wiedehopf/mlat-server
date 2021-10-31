@@ -227,13 +227,17 @@ class Tracker(object):
                 ratepair_list.append(ratepair)
 
         ratepair_list.sort(reverse=True)
+        splitIndex = int(len(ratepair_list) / 2)
+        firstHalf = ratepair_list[:splitIndex]
+        #secondHalf = ratepair_list[splitIndex:]
+        random.shuffle(firstHalf)
 
         ntotal = {}
         new_sync = set()
         total_rate = 0
 
         # select SYNC aircraft round1
-        for rp, r1, ac, rate in ratepair_list:
+        for rp, r1, ac, rate in firstHalf:
             if ac in new_sync:
                 continue  # already added
 
