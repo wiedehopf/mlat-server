@@ -356,8 +356,8 @@ class ClockTracker(object):
                 p1 = r1.sync_peers[cat]
                 limit = config.MAX_PEERS[cat]
 
-                if p0 > 0.5 * limit or p1 > 0.5 * limit:
-                    if p0 > 0.25 * limit and p1 > 0.25 * limit:
+                if p0 > 0.7 * limit or p1 > 0.7 * limit:
+                    if p0 > 0.4 * limit and p1 > 0.4 * limit:
                         #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
                         #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                         continue
@@ -375,14 +375,13 @@ class ClockTracker(object):
                 p1 = r1.sync_peers[cat]
                 limit = config.MAX_PEERS[cat] * 1.2
 
-                if p0 > limit or p1 > limit:
-                    if p0 > 0.75 * limit and p1 > 0.75 * limit:
-                        if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
-                            logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
-                        r0.sync_peers[pairing.cat] -= 1
-                        r1.sync_peers[pairing.cat] -= 1
-                        del self.clock_pairs[k]
-                        continue
+                if p0 > limit and p1 > limit:
+                    if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                        logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                    r0.sync_peers[pairing.cat] -= 1
+                    r1.sync_peers[pairing.cat] -= 1
+                    del self.clock_pairs[k]
+                    continue
 
             if r0 < r1:
                 if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
