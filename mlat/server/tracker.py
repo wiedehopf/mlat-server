@@ -239,7 +239,7 @@ class Tracker(object):
             if total_rate > config.MAX_SYNC_RATE:
                 break
 
-            if ntotal.get(r1, 0.0) < 1.0:
+            if ntotal.get(r1, 0.0) < 0.3:
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
@@ -255,7 +255,7 @@ class Tracker(object):
             if total_rate > config.MAX_SYNC_RATE:
                 break
 
-            if ntotal.get(r1, 0.0) < 2.5:
+            if ntotal.get(r1, 0.0) < 3.5:
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
