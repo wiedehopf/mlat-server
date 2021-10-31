@@ -97,8 +97,6 @@ class ClockPairing(object):
         self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         now = time.monotonic()
-        self.expiry = now + 30.0
-        self.validity = now + 25.0
         self.updated = now
         self.valid = False
 
@@ -117,7 +115,7 @@ class ClockPairing(object):
     def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
         return (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
-                    self.outliers < 3 and self.validity > now)
+                    self.outliers < 3 and now - self.updated < 35)
 
     def update(self, address, base_ts, peer_ts, base_interval, peer_interval, now):
         """Update the relative drift and offset of this pairing given:
@@ -176,8 +174,6 @@ class ClockPairing(object):
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
 
-        self.expiry = now + 45.0
-        self.validity = now + 30.0
         self.updated = now
         self.valid = self.check_valid(now)
         return True

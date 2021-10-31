@@ -93,10 +93,13 @@ class ClockTracker(object):
         now = time.monotonic()
         prune = set()
         for k, pairing in self.clock_pairs.items():
-            if pairing.expiry <= now or k[0].bad_syncs > 2 or k[1].bad_syncs > 2:
+            pairing.valid = pairing.check_valid(now)
+            if now - pairing.updated > 60:
                 prune.add((k, pairing))
-            else:
-                pairing.valid = pairing.check_valid(now)
+            if not pairing.valid and now - pairing.updated > 15:
+                prune.add((k, pairing))
+            if k[0].bad_syncs > 2 or k[1].bad_syncs > 2:
+                prune.add((k, pairing))
 
         for k, pairing in prune:
             k[0].sync_peers[pairing.cat] -= 1
@@ -352,7 +355,7 @@ class ClockTracker(object):
                 p1 = r1.sync_peers[cat]
                 limit = config.MAX_PEERS[cat]
 
-                if p0 > limit or p1 > limit:
+                if p0 > 0.7 * limit or p1 > 0.7 * limit:
                     if p0 > 0.4 * limit and p1 > 0.4 * limit:
                         #if r0.user.startswith("euerdorf") or r1.user.startswith("euerdorf"):
                         if r0.user.startswith("Kirby") or r1.user.startswith("Kirby"):
