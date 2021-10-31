@@ -171,7 +171,8 @@ class JsonClient(connection.Connection):
         self.coordinator = coordinator
         self.motd = motd
 
-        self.message_counter = 0
+        self.sync_accepted = 0
+        self.sync_rejected = 0
         self.mc_start = time.monotonic()
         self.mrate_limit = 80
 
@@ -575,38 +576,33 @@ class JsonClient(connection.Connection):
 
             now = time.monotonic()
             elapsed = now - self.mc_start
-            self.message_counter += 1
 
             # test code to do MLAT on sync messages
             # self.process_mlat(float(sync['et']), bytes.fromhex(sync['em']), time.time())
 
             # reset counter every 15 seconds
             if elapsed > 15:
-                self.message_counter = 0
+                if self.receiver.user.startswith(config.DEBUG_FOCUS):
+                    logging.warning("sync rate limiting accepted: %0.0f rejected: %0.0f", self.sync_accepted, self.sync_rejected)
+                self.sync_accepted = 0
+                self.sync_rejected = 0
                 self.mc_start = now
                 r = self.receiver
-                if now - r.last_clock_reset < 45:
-                    # help with fast initial / resync
-                    self.mrate_limit = 2 * config.MAX_SYNC_RATE
-                elif r.sync_range_exceeded or r.bad_syncs > 2:
+                if r.sync_range_exceeded or r.bad_syncs > 2:
                     self.mrate_limit = 5
-                elif r.last_rate_report is None:
-                    self.mrate_limit = config.MAX_SYNC_RATE
                 else:
                     # very rough limit in case interest_set based limiting in tracker.py doesn't work.
                     self.mrate_limit = 2 * config.MAX_SYNC_RATE
 
-                #if self.receiver.user == 'euerdorf1':
-                #    logging.warning("mrate_limit = 3")
-
-            if self.message_counter < self.mrate_limit * elapsed + 10:
+            if self.sync_accepted < self.mrate_limit * elapsed + 10:
+                self.sync_accepted += 1
                 self.coordinator.receiver_sync(self.receiver,
                         float(sync['et']),
                         float(sync['ot']),
                         bytes.fromhex(sync['em']),
                         bytes.fromhex(sync['om']))
-            #elif self.receiver.user.startswith('euerdorf') and self.message_counter % 200 == 0:
-            #    logging.warning("d: %0.0f %0.0f %0.0f %0.0f", self.message_counter, self.mrate_limit * elapsed + 10, self.mrate_limit, elapsed)
+            else:
+                self.sync_rejected += 1
 
 
         elif 'mlat' in msg:

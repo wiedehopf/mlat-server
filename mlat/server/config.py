@@ -38,7 +38,7 @@ MIN_NUC = 6
 MAX_RANGE = 500e3
 
 # limit for the number of peers a single receiver will have in a distance category
-MAX_PEERS = [20, 10, 10, 10, 10]
+MAX_PEERS = [24, 12, 12, 12, 12]
 # cate
 DISTANCE_CATEGORY_STEP = 40e3
 
@@ -47,7 +47,7 @@ DISTANCE_CATEGORY_STEP = 40e3
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 20
 # max sync rate
-MAX_SYNC_RATE = 20
+MAX_SYNC_RATE = 15
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3
@@ -65,6 +65,8 @@ SOLVER_MAXFEV = 165
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
 MAX_GROUP = 25
+
+DEBUG_FOCUS='euerdorf'
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')

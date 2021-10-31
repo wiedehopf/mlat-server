@@ -348,18 +348,18 @@ class ClockTracker(object):
             if pairing is None:
                 receiver_distance = r0.distance[r1.uid]
                 cat = math.floor(receiver_distance / config.DISTANCE_CATEGORY_STEP)
-                if cat > 4:
-                    cat = 4
+                cat_max_index = len(config.MAX_PEERS) - 1
+                if cat > cat_max_index:
+                    cat = cat_max_index
 
                 p0 = r0.sync_peers[cat]
                 p1 = r1.sync_peers[cat]
                 limit = config.MAX_PEERS[cat]
 
-                if p0 > 0.7 * limit or p1 > 0.7 * limit:
-                    if p0 > 0.4 * limit and p1 > 0.4 * limit:
-                        #if r0.user.startswith("euerdorf") or r1.user.startswith("euerdorf"):
-                        if r0.user.startswith("Kirby") or r1.user.startswith("Kirby"):
-                            logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                if p0 > 0.5 * limit or p1 > 0.5 * limit:
+                    if p0 > 0.25 * limit and p1 > 0.25 * limit:
+                        #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                        #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                         continue
 
                 self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
@@ -376,9 +376,8 @@ class ClockTracker(object):
                 limit = config.MAX_PEERS[cat] * 1.2
 
                 if p0 > limit or p1 > limit:
-                    if p0 > 0.7 * limit and p1 > 0.7 * limit:
-                        #if r0.user.startswith("euerdorf") or r1.user.startswith("euerdorf"):
-                        if r0.user.startswith("Kirby") or r1.user.startswith("Kirby"):
+                    if p0 > 0.75 * limit and p1 > 0.75 * limit:
+                        if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
                             logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                         r0.sync_peers[pairing.cat] -= 1
                         r1.sync_peers[pairing.cat] -= 1

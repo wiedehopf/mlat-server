@@ -24,6 +24,7 @@ import math
 import time
 import bisect
 import logging
+from mlat.server import config
 
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
 
@@ -245,7 +246,7 @@ class ClockPairing(object):
 
                 if not self.jumped:
                     self.jumped = 1
-                    if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
+                    if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
                         glogger.warn("{0}: monotonicity broken, reset".format(self))
                     #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
                     #    glogger.warn("{0}: monotonicity broken, reset".format(self))
@@ -271,7 +272,7 @@ class ClockPairing(object):
 
         if outlier and not self.jumped:
             self.jumped = 1
-            if self.peer.user.startswith("euerdorf") or self.base.user.startswith("euerdorf"):
+            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
                 glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))

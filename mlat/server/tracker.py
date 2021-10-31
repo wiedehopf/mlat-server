@@ -173,10 +173,11 @@ class Tracker(object):
         new_adsb = set()
         now = time.monotonic()
 
+
+        new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 3}
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking}
-            new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300)}
             if len(new_sync) > config.MAX_SYNC_AC:
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
@@ -201,7 +202,7 @@ class Tracker(object):
             altFactor = None
             if ac.altitude is not None and ac.altitude > 0:
                 altFactor = (1 + (ac.altitude / 20000)**1.5)
-                #if receiver.user.startswith("euerdorf"):
+                #if receiver.user.startswith(config.DEBUG_FOCUS):
                 #    glogger.warn('altFactor:' + str(altFactor) + ' alt: ' + str(ac.altitude))
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
@@ -225,7 +226,7 @@ class Tracker(object):
                 l.append(ratepair)
                 ratepair_list.append(ratepair)
 
-        ratepair_list.sort()
+        ratepair_list.sort(reverse=True)
 
         ntotal = {}
         new_sync = set()
@@ -243,6 +244,8 @@ class Tracker(object):
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
+                #if receiver.user.startswith(config.DEBUG_FOCUS):
+                #    glogger.warn('1st round: ' + str(rate))
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
@@ -259,6 +262,8 @@ class Tracker(object):
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
+                #if receiver.user.startswith(config.DEBUG_FOCUS):
+                #    glogger.warn('2nd round: ' + str(rate))
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
@@ -272,19 +277,8 @@ class Tracker(object):
             acAvailable = set(ac_to_ratepair_map.keys()).difference(new_sync)
             new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), addSome)))
 
-        #if receiver.user.startswith("euerdorf"):
-        #    glogger.warn('new_sync euerdorf:' + str([hex(a.icao) for a in new_sync]))
-
-
-        # for multilateration we are interesting in
-        # all aircraft that we are tracking but for
-        # which we have no ADS-B rate (i.e. are not
-        # transmitting positions)
-        new_mlat = set()
-
-        for ac in receiver.tracking:
-            if ac.allow_mlat and (len(ac.adsb_seen) < 3 or ac.last_syncpoint_time < now - 300):
-                new_mlat.add(ac)
+        #if receiver.user.startswith(config.DEBUG_FOCUS):
+        #    glogger.warn('new_sync:' + str([format(a.icao, '06x') for a in new_sync]))
 
         receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
         asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
