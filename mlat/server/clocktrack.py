@@ -355,7 +355,8 @@ class ClockTracker(object):
                 if p0 > limit or p1 > limit:
                     if p0 > 0.4 * limit and p1 > 0.4 * limit:
                         #if r0.user.startswith("euerdorf") or r1.user.startswith("euerdorf"):
-                        #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                        if r0.user.startswith("Kirby") or r1.user.startswith("Kirby"):
+                            logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                         continue
 
                 self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
@@ -374,7 +375,8 @@ class ClockTracker(object):
                 if p0 > limit or p1 > limit:
                     if p0 > 0.7 * limit and p1 > 0.7 * limit:
                         #if r0.user.startswith("euerdorf") or r1.user.startswith("euerdorf"):
-                        #    logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                        if r0.user.startswith("Kirby") or r1.user.startswith("Kirby"):
+                            logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                         r0.sync_peers[pairing.cat] -= 1
                         r1.sync_peers[pairing.cat] -= 1
                         del self.clock_pairs[k]
