@@ -350,7 +350,9 @@ class Coordinator(object):
                 'alt': r.position_llh[2],
                 'privacy': r.privacy,
                 'connection': r.connection_info,
-                'uuid': r.uuid
+                'uuid': r.uuid,
+                'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
+                'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
             }
 
         # The sync matrix json can be large.  This means it might take a little time to write out.
