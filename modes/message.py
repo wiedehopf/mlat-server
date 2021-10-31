@@ -394,3 +394,5 @@ def decode(frombuf):
         return message_types[df](frombuf)
     except KeyError:
         return None
+    except IndexError:
+        return None
