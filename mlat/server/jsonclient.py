@@ -588,7 +588,7 @@ class JsonClient(connection.Connection):
                 if now - r.last_clock_reset < 45:
                     # help with fast initial / resync
                     self.mrate_limit = 2 * config.MAX_SYNC_RATE
-                elif r.sync_range_exceeded or sum(r.sync_peers) < 1 or r.bad_syncs > 2:
+                elif r.sync_range_exceeded or r.bad_syncs > 2:
                     self.mrate_limit = 5
                 elif r.last_rate_report is None:
                     self.mrate_limit = config.MAX_SYNC_RATE
