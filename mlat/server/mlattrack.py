@@ -268,17 +268,23 @@ class MlatTracker(object):
                 altitude_error = None
 
             cluster.sort(key=operator.itemgetter(1))  # sort by increasing timestamp (todo: just assume descending..)
-            r = solver.solve(cluster, altitude, altitude_error,
-                             last_result_position if last_result_position else cluster[0][0].position)
+
+
+            if elapsed < 30:
+                initial_guess = last_result_position
+            else:
+                initial_guess = cluster[0][0].position
+            r = solver.solve(cluster, altitude, altitude_error, initial_guess)
             if r:
                 # estimate the error
                 ecef, ecef_cov = r
-                max_error = 10e3 # 10 km
+                max_error = 20e3 # 20 km
                 if ecef_cov is not None:
                     var_est = numpy.trace(ecef_cov)
                 else:
                     # this result is suspect
                     var_est = max_error * max_error
+                    #glogger.warn('{a:06X} {e:7.3f} '.format(a=decoded.address, e=999.999) + str([line[0].user for line in cluster]))
                     continue
 
                 error = math.sqrt(abs(var_est))
@@ -288,11 +294,16 @@ class MlatTracker(object):
                 if dof == 1:
                     error += 100
 
+                if False and elapsed > 30 and error < 1e9:
+                    lat, lon, alt = geodesy.ecef2llh(ecef)
+                    ecef, ecef_cov = r
+                    glogger.warn('{a:06X} {e:8.1f} {lat:7.3f},{lon:7.3f},{alt:5.0f} '.format(a=decoded.address, e=error/1000, lat=lat, lon=lon, alt=alt) + str([line[0].user for line in cluster]))
+
                 if error > max_error:
                     continue
 
                 # the higher the accuracy, the higher the freqency of positions that is output
-                if elapsed / 15 < error / max_error:
+                if elapsed / 20 < error / max_error:
                     continue
 
                 #if elapsed < 10.0 and var_est > last_result_var * 2.25:
