@@ -90,7 +90,7 @@ class ClockTracker(object):
 
         asyncio.get_event_loop().call_later(5.0, self._cleanup)
 
-        now = time.monotonic()
+        now = time.time()
         prune = set()
         for k, pairing in self.clock_pairs.items():
             pairing.valid = pairing.check_valid(now)
@@ -206,7 +206,7 @@ class ClockTracker(object):
                 and even_message.estype == modes.message.ESType.surface_position
                 and odd_message.estype == modes.message.ESType.surface_position
                 ):
-            now = time.monotonic()
+            now = time.time()
             ac.last_adsb_time = now
 
         if ((not even_message or
@@ -276,7 +276,7 @@ class ClockTracker(object):
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
-            now = time.monotonic()
+            now = time.time()
             ac.last_adsb_time = now
             ac.last_altitude_time = now
             ac.altitude = even_message.altitude
@@ -335,7 +335,7 @@ class ClockTracker(object):
 
         r0l = [r0, td0B, i0, False]
 
-        now = time.monotonic()
+        now = time.time()
 
         # try to sync the new receiver with all receivers that previously
         # saw the same pair

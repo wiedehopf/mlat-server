@@ -184,7 +184,7 @@ class MlatTracker(object):
         if elapsed < -1:
             elapsed = 10
         # rate limit a bit
-        if elapsed < 1:
+        if elapsed < 1.5:
             return
 
         # find altitude
@@ -205,8 +205,6 @@ class MlatTracker(object):
 
         if max_dof < 0:
             return
-        if elapsed < 3 and max_dof < last_result_dof - 1:
-            return
 
         # construct a map of receiver -> list of timestamps
         timestamp_map = {}
@@ -217,8 +215,6 @@ class MlatTracker(object):
         dof = len(timestamp_map) + altitude_dof - 4
 
         if dof < 0:
-            return
-        if elapsed < 3 and dof < last_result_dof - 2:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;

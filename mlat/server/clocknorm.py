@@ -193,7 +193,7 @@ def normalize(clocktracker, timestamp_map):
     # also build a map of predictor objects corresponding to the
     # edges for later use
 
-    now = time.monotonic()
+    now = time.time()
 
     predictor_map = {}
     for si in timestamp_map.keys():
@@ -312,7 +312,7 @@ def normalize2(clocktracker, timestamp_map):
     # also build a map of predictor objects corresponding to the
     # edges for later use
 
-    now = time.monotonic()
+    now = time.time()
 
     reclen = len(receivers)
     predictor_count = 0

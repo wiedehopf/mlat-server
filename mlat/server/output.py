@@ -169,7 +169,7 @@ class BasestationClient(object):
         self.coordinator = coordinator
         self.use_kalman_data = use_kalman_data
         self.heartbeat_interval = heartbeat_interval
-        self.last_output = time.monotonic()
+        self.last_output = time.time()
         self.heartbeat_task = asyncio.ensure_future(self.send_heartbeats())
         self.reader_task = asyncio.ensure_future(self.read_until_eof())
 
@@ -208,7 +208,7 @@ class BasestationClient(object):
     def send_heartbeats(self):
         try:
             while True:
-                now = time.monotonic()
+                now = time.time()
                 delay = self.last_output + self.heartbeat_interval - now
                 if delay > 0.1:
                     yield from asyncio.sleep(delay)
@@ -290,7 +290,7 @@ class BasestationClient(object):
                                         ident='',
                                         aog='')
             self.writer.write(line.encode('ascii'))
-            self.last_output = time.monotonic()
+            self.last_output = time.time()
 
         except Exception:
             self.logger.exception("Failed to write result")

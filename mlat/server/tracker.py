@@ -74,7 +74,7 @@ class TrackedAircraft(object):
 
         # last reported altitude (for multilaterated aircraft)
         self.altitude = None
-        # time of last altitude (time.monotonic())
+        # time of last altitude (time.time())
         self.last_altitude_time = None
         # altitude time tuples
         self.alt_history = []
@@ -170,7 +170,7 @@ class Tracker(object):
         latest tracking and rate report data."""
 
         new_adsb = set()
-        now = time.monotonic()
+        now = time.time()
 
 
         new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and now - ac.last_adsb_time > 30}

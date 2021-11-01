@@ -173,7 +173,7 @@ class JsonClient(connection.Connection):
 
         self.sync_accepted = 0
         self.sync_rejected = 0
-        self.mc_start = time.monotonic()
+        self.mc_start = time.time()
         self.mrate_limit = 80
 
         self.transport = writer.transport
@@ -267,7 +267,7 @@ class JsonClient(connection.Connection):
 
             # if we have seen no activity recently, declare the
             # connection dead and close it down
-            if (time.monotonic() - self._last_message_time) > self.read_heartbeat_interval:
+            if (time.time() - self._last_message_time) > self.read_heartbeat_interval:
                 self.logger.warn("No recent messages seen, closing connection")
                 self.close()
                 return
@@ -295,7 +295,7 @@ class JsonClient(connection.Connection):
                 return
 
             # start heartbeat handling now that the handshake is done
-            self._last_message_time = time.monotonic()
+            self._last_message_time = time.time()
             self._heartbeat_task = asyncio.ensure_future(self.handle_heartbeats())
 
             yield from self.handle_messages()
@@ -517,7 +517,7 @@ class JsonClient(connection.Connection):
             line = yield from self.r.readline()
             if not line:
                 return
-            self._last_message_time = time.monotonic()
+            self._last_message_time = time.time()
             self.process_message(line.decode('ascii'))
 
     @asyncio.coroutine
@@ -534,7 +534,7 @@ class JsonClient(connection.Connection):
             packet = (yield from self.r.readexactly(hlen))
             packet += b'\x00\x00\xff\xff'
 
-            self._last_message_time = time.monotonic()
+            self._last_message_time = time.time()
 
             linebuf = ''
             decompression_done = False
@@ -574,7 +574,7 @@ class JsonClient(connection.Connection):
         if 'sync' in msg:
             sync = msg['sync']
 
-            now = time.monotonic()
+            now = time.time()
             elapsed = now - self.mc_start
 
             # test code to do MLAT on sync messages

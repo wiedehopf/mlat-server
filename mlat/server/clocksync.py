@@ -97,7 +97,7 @@ class ClockPairing(object):
         self.drift_max_delta = self.drift_max / 10.0
         self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
-        now = time.monotonic()
+        now = time.time()
         self.updated = now
         self.valid = False
 

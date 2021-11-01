@@ -50,14 +50,14 @@ class Receiver(object):
         self.coordinator = coordinator
         self.clock_tracker = clock_tracker
         self.clock = clock
-        self.last_clock_reset = time.monotonic()
+        self.last_clock_reset = time.time()
         self.clock_reset_counter = 0
         self.position_llh = position_llh
         self.position = geodesy.llh2ecef(position_llh)
         self.privacy = privacy
         self.connection_info = connection_info
         self.dead = False
-        self.connectedSince = time.monotonic()
+        self.connectedSince = time.time()
 
         self.sync_count = 0
         self.sync_peers = [0, 0, 0, 0, 0] # number of peers per distance category
@@ -125,7 +125,7 @@ class Receiver(object):
     def clock_reset(self):
         """Reset current clock synchronization for this receiver."""
         self.clock_tracker.receiver_clock_reset(self)
-        self.last_clock_reset = time.monotonic()
+        self.last_clock_reset = time.time()
         self.clock_reset_counter += 1
         if self.clock_reset_counter < 130 and self.clock_reset_counter % 30 == 5:
             glogger.warning("Clock reset: {r} count: {c}".format(r=self.user, c=self.clock_reset_counter))
