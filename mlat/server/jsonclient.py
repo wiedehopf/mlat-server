@@ -592,7 +592,7 @@ class JsonClient(connection.Connection):
                     self.mrate_limit = 5
                 else:
                     # very rough limit in case interest_set based limiting in tracker.py doesn't work.
-                    self.mrate_limit = 2 * config.MAX_SYNC_RATE
+                    self.mrate_limit = 3 * config.MAX_SYNC_RATE
 
             if self.sync_accepted < self.mrate_limit * elapsed + 10:
                 self.sync_accepted += 1

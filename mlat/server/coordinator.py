@@ -82,12 +82,11 @@ class Receiver(object):
 
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
-        if self.bad_syncs > 2 and len(new_sync) > config.MAX_SYNC_AC / 4:
-            new_sync = set(random.sample(new_sync, k=round(config.MAX_SYNC_AC / 4)))
+        if self.bad_syncs > 3 and len(new_sync) > 3:
+            new_sync = set(random.sample(new_sync, k=3))
 
         if self.bad_syncs > 0:
             new_mlat = set()
-
 
         for added in new_adsb.difference(self.adsb_seen):
             added.adsb_seen.add(self)
@@ -245,7 +244,9 @@ class Coordinator(object):
                 lat, lon, alt = geodesy.ecef2llh(ac.last_result_position)
                 s['lat'] = round(lat, 4)
                 s['lon'] = round(lon, 4)
-                s['alt'] = round(ac.altitude)
+                alt = ac.altitude
+                if alt is not None:
+                    s['alt'] = round(alt)
                 if ac.kalman.valid:
                     s['heading'] = round(ac.kalman.heading, 0)
                     s['speed'] = round(ac.kalman.ground_speed, 0)

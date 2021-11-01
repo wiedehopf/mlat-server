@@ -197,11 +197,11 @@ class MlatTracker(object):
         if elapsed < -1:
             elapsed = 10
 
-        # rate limiting
-        if elapsed < 1.5:
-            return
         len_copies = len(group.copies)
-        if elapsed < 3 and len_copies + altitude_dof < last_result_dof and len_copies < 8:
+        max_dof = len_copies + altitude_dof - 4
+
+        # rate limiting
+        if elapsed < 2 and max_dof < last_result_dof:
             return
 
         # construct a map of receiver -> list of timestamps
@@ -215,11 +215,8 @@ class MlatTracker(object):
         if dof < 0:
             return
 
-        # basic ratelimit before we do more work
-
-        if elapsed < 3 and dof < last_result_dof and dof < 5:
+        if elapsed < 2 and dof < last_result_dof:
             return
-
 
         # normalize timestamps. This returns a list of timestamp maps;
         # within each map, the timestamp values are comparable to each other.
@@ -252,7 +249,7 @@ class MlatTracker(object):
             elapsed = cluster_utc - last_result_time
             dof = distinct + altitude_dof - 4
 
-            if elapsed < 3 and dof < last_result_dof and dof < 5:
+            if elapsed < 2 and dof < last_result_dof:
                 return
 
             # assume 250ft accuracy at the time it is reported
@@ -283,7 +280,7 @@ class MlatTracker(object):
                     # more than 10km, too inaccurate
                     continue
 
-                if elapsed < 8 and var_est > last_result_var + elapsed * 4e6:
+                if elapsed < 6 and var_est > last_result_var + elapsed * 5e6:
                     # less accurate than a recent position
                     continue
 

@@ -354,13 +354,12 @@ class ClockTracker(object):
 
                 p0 = r0.sync_peers[cat]
                 p1 = r1.sync_peers[cat]
-                limit = config.MAX_PEERS[cat]
+                limit = config.MAX_PEERS[cat] * 0.7
 
-                if p0 > 0.7 * limit or p1 > 0.7 * limit:
-                    if p0 > 0.4 * limit and p1 > 0.4 * limit:
-                        #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
-                        #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
-                        continue
+                if p0 > limit and p1 > limit:
+                    #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                    #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                    continue
 
                 self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
 
