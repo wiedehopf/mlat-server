@@ -184,7 +184,7 @@ class MlatTracker(object):
         if elapsed < -1:
             elapsed = 10
         # rate limit a bit
-        if elapsed < 1.5:
+        if elapsed < 1:
             return
 
         # find altitude
@@ -205,6 +205,8 @@ class MlatTracker(object):
 
         if max_dof < 0:
             return
+        if elapsed < 2 and max_dof < last_result_dof - elapsed + 0.5:
+            return
 
         # construct a map of receiver -> list of timestamps
         timestamp_map = {}
@@ -215,6 +217,8 @@ class MlatTracker(object):
         dof = len(timestamp_map) + altitude_dof - 4
 
         if dof < 0:
+            return
+        if elapsed < 2 and dof < last_result_dof - elapsed + 0.5:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;
@@ -248,6 +252,9 @@ class MlatTracker(object):
             elapsed = cluster_utc - last_result_time
             dof = distinct + altitude_dof - 4
 
+            if elapsed < 2 and dof < last_result_dof - elapsed + 0.5:
+                return
+
             # assume 250ft accuracy at the time it is reported
             # (this bundles up both the measurement error, and
             # that we don't adjust for local pressure)
@@ -266,21 +273,26 @@ class MlatTracker(object):
             if r:
                 # estimate the error
                 ecef, ecef_cov = r
-                max_err = 10e3 # 10 km
+                max_error = 10e3 # 10 km
                 if ecef_cov is not None:
                     var_est = numpy.trace(ecef_cov)
                 else:
                     # this result is suspect
-                    var_est = max_err * max_err
+                    var_est = max_error * max_error
                     continue
 
                 error = math.sqrt(abs(var_est))
 
-                if error > max_err:
+                if dof == 0:
+                    error += 500
+                if dof == 1:
+                    error += 100
+
+                if error > max_error:
                     continue
 
                 # the higher the accuracy, the higher the freqency of positions that is output
-                if elapsed * max_err < 20 * error:
+                if elapsed / 15 < error / max_error:
                     continue
 
                 #if elapsed < 10.0 and var_est > last_result_var * 2.25:
