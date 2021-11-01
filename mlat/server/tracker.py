@@ -53,9 +53,8 @@ class TrackedAircraft(object):
         # set of receivers who have seen ADS-B from this aircraft
         self.adsb_seen = set()
 
-        # timestamp of when the last sync point was created using this aircraft
-        # set this to 3 min in the past, hacky
-        self.last_syncpoint_time = time.monotonic() - 180
+        # timestamp of when the we last received a somewhat valid ADS-B position from that aircraft
+        self.last_adsb_time = 0
 
         # set of receivers who want to use this aircraft for multilateration.
         # this aircraft is interesting if this set is non-empty.
@@ -174,7 +173,7 @@ class Tracker(object):
         now = time.monotonic()
 
 
-        new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and len(ac.adsb_seen) < 3}
+        new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and now - ac.last_adsb_time > 30}
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking}

@@ -199,6 +199,16 @@ class ClockTracker(object):
 
         # basic validity
         even_message = modes.message.decode(even_message)
+        odd_message = modes.message.decode(odd_message)
+
+        ac = self.coordinator.tracker.aircraft.get(even_message.address)
+        if (ac
+                and even_message.estype == modes.message.ESType.surface_position
+                and odd_message.estype == modes.message.ESType.surface_position
+                ):
+            now = time.monotonic()
+            ac.last_adsb_time = now
+
         if ((not even_message or
              even_message.DF != 17 or
              not even_message.crc_ok or
@@ -206,7 +216,6 @@ class ClockTracker(object):
              even_message.F)):
             return
 
-        odd_message = modes.message.decode(odd_message)
         if ((not odd_message or
              odd_message.DF != 17 or
              not odd_message.crc_ok or
@@ -217,16 +226,6 @@ class ClockTracker(object):
         if even_message.address != odd_message.address:
             return
 
-        # quality checks
-        if even_message.nuc < 6 or even_message.altitude is None:
-            return
-
-        if odd_message.nuc < 6 or odd_message.altitude is None:
-            return
-
-        if abs(even_message.altitude - odd_message.altitude) > 5000:
-            return
-
         # find global positions
         try:
             even_lat, even_lon, odd_lat, odd_lon = modes.cpr.decode(even_message.LAT,
@@ -235,6 +234,19 @@ class ClockTracker(object):
                                                                     odd_message.LON)
         except ValueError:
             # CPR failed
+            return
+
+        # quality checks
+        if even_message.altitude is None or odd_message.altitude is None:
+            return
+
+        if abs(even_message.altitude - odd_message.altitude) > 5000:
+            return
+
+        # sort out some bad transponders / strange positions
+        if even_lat > 85 or even_lat < -85:
+            return
+        if even_lat == 0 or even_lon == 0:
             return
 
         # convert to ECEF, do range checks
@@ -265,10 +277,13 @@ class ClockTracker(object):
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
             now = time.monotonic()
-            ac.last_syncpoint_time = now
+            ac.last_adsb_time = now
             ac.last_altitude_time = now
             ac.altitude = even_message.altitude
 
+        # more quality checking
+        if even_message.nuc < 6 or odd_message.nuc < 6:
+            return
 
         # valid. Create a new sync point.
         if even_time < odd_time:
