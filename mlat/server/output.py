@@ -78,7 +78,7 @@ class LocalCSVWriter(object):
     def wait_closed(self):
         return util.completed_future
 
-    def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state):
+    def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state, error):
         try:
             lat, lon, alt = geodesy.ecef2llh(ecef)
 
@@ -221,7 +221,7 @@ class BasestationClient(object):
             self.close()
             return
 
-    def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_data):
+    def write_result(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_data, error):
         try:
             ac = self.coordinator.tracker.aircraft[address]
 
@@ -286,7 +286,7 @@ class BasestationClient(object):
                                         heading=heading,
                                         vrate=vrate,
                                         fs=len(receivers),
-                                        emerg='',
+                                        emerg=(error if error is not None else ''),
                                         ident='',
                                         aog='')
             self.writer.write(line.encode('ascii'))

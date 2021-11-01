@@ -242,6 +242,7 @@ class MlatTracker(object):
 
         # start from the most recent, largest, cluster
         result = None
+        error = None
         clusters.sort(key=lambda x: (x[0], x[1]))
         while clusters and not result:
             distinct, cluster_utc, cluster = clusters.pop()
@@ -287,7 +288,7 @@ class MlatTracker(object):
                     #glogger.warn('{a:06X} {e:7.3f} '.format(a=decoded.address, e=999.999) + str([line[0].user for line in cluster]))
                     continue
 
-                error = math.sqrt(abs(var_est))
+                error = int(math.sqrt(abs(var_est)))
 
                 if dof == 0:
                     error += 500
@@ -342,13 +343,13 @@ class MlatTracker(object):
             handler(cluster_utc, decoded.address,
                     ecef, ecef_cov,
                     [receiver for receiver, timestamp, error in cluster], distinct, dof,
-                    ac.kalman)
+                    ac.kalman, error)
 
         # forward result to all receivers that received the raw message the result is based on
         self.coordinator.forward_results(cluster_utc, decoded.address,
                 ecef, ecef_cov,
                 list(group.receivers), distinct, dof,
-                ac.kalman)
+                ac.kalman, error)
 
         if self.pseudorange_file:
             cluster_state = []

@@ -506,7 +506,7 @@ class Coordinator(object):
         self.tracker.update_interest(receiver)
 
     @profile.trackcpu
-    def forward_results(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state):
+    def forward_results(self, receive_timestamp, address, ecef, ecef_cov, receivers, distinct, dof, kalman_state, error):
 
         # don't forward if kalman hasn't locked on and it's only 3 receivers
         if not kalman_state.valid and dof < 1:
