@@ -270,12 +270,16 @@ class MlatTracker(object):
 
             cluster.sort(key=operator.itemgetter(1))  # sort by increasing timestamp (todo: just assume descending..)
 
+            if elapsed > 30 and dof == 0:
+                continue
 
-            if elapsed < 30:
+            if elapsed < 60:
                 initial_guess = last_result_position
             else:
                 initial_guess = cluster[0][0].position
+
             r = solver.solve(cluster, altitude, altitude_error, initial_guess)
+
             if r:
                 # estimate the error
                 ecef, ecef_cov = r
@@ -286,6 +290,7 @@ class MlatTracker(object):
                     # this result is suspect
                     var_est = max_error * max_error
                     #glogger.warn('{a:06X} {e:7.3f} '.format(a=decoded.address, e=999.999) + str([line[0].user for line in cluster]))
+                    # don't use this
                     continue
 
                 error = int(math.sqrt(abs(var_est)))
