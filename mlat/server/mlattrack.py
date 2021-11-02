@@ -279,7 +279,7 @@ class MlatTracker(object):
             if r:
                 # estimate the error
                 ecef, ecef_cov = r
-                max_error = 20e3 # 20 km
+                max_error = 10e3 # 10 km
                 if ecef_cov is not None:
                     var_est = numpy.trace(ecef_cov)
                 else:
@@ -289,11 +289,6 @@ class MlatTracker(object):
                     continue
 
                 error = int(math.sqrt(abs(var_est)))
-
-                if dof == 0:
-                    error += 500
-                if dof == 1:
-                    error += 100
 
                 if False and elapsed > 30 and error < 1e9:
                     lat, lon, alt = geodesy.ecef2llh(ecef)
