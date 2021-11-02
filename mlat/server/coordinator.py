@@ -347,12 +347,16 @@ class Coordinator(object):
 
             clients[r.user] = {
                 'user': r.user,
+                'uuid': r.uuid,
                 'lat': r.position_llh[0],
                 'lon': r.position_llh[1],
                 'alt': r.position_llh[2],
                 'privacy': r.privacy,
                 'connection': r.connection_info,
-                'uuid': r.uuid,
+                'source_ip': r.connection.source_ip,
+                'source_port': r.connection.source_port,
+                'peer_count': sum(r.sync_peers),
+                'bad_sync_timeout': (r.bad_syncs * 15 / 0.1),
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
             }

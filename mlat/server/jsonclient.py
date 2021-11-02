@@ -181,6 +181,9 @@ class JsonClient(connection.Connection):
         self.host = peer[0]
         self.port = peer[1]
 
+        self.source_ip = peer[0]
+        self.source_port = str(peer[1])
+
         self.udp_protocol = udp_protocol
         self.udp_host = udp_host
         self.udp_port = udp_port
@@ -290,9 +293,7 @@ class JsonClient(connection.Connection):
         #self.logger.info("Accepted new client connection")
 
         try:
-            hs = yield from asyncio.wait_for(self.r.readline(), timeout=30.0)
-            if not self.process_handshake(hs):
-                return
+            yield from self.process_handshake()
 
             # start heartbeat handling now that the handshake is done
             self._last_message_time = time.time()
@@ -316,16 +317,25 @@ class JsonClient(connection.Connection):
         finally:
             self.close()
 
-    def process_handshake(self, line):
+    @asyncio.coroutine
+    def process_handshake(self):
         deny = None
 
+        rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
+        line = rawline.decode('ascii')
+        if line.startswith('PROXY '):
+            proxyLine = line.split(' ')
+            self.source_ip = proxyLine[2]
+            self.source_port = proxyLine[4]
+            rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
+            line = rawline.decode('ascii')
         try:
-            hs = ujson.loads(line.decode('ascii'))
+            hs = ujson.loads(line)
         except ValueError as e:
             deny = 'Badly formatted handshake: ' + str(e)
         else:
             try:
-                self.coordinator.handshake_logger.debug(line.decode('ascii'))
+                self.coordinator.handshake_logger.debug(line)
 
                 if hs['version'] != 2 and hs['version'] != 3:
                     raise ValueError('Unsupported version in handshake')
