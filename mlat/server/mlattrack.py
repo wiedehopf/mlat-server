@@ -26,6 +26,7 @@ import ujson
 import asyncio
 import logging
 import operator
+import time
 import numpy
 import math
 from contextlib import closing
@@ -91,7 +92,7 @@ class MlatTracker(object):
         # use message as key
         group = self.pending.get(message)
         if not group:
-            group = self.pending[message] = MessageGroup(message, utc)
+            group = self.pending[message] = MessageGroup(message=message, first_seen=utc)
             group.handle = asyncio.get_event_loop().call_later(
                 config.MLAT_DELAY,
                 self._resolve,
@@ -106,7 +107,6 @@ class MlatTracker(object):
             return
 
         group.copies.append((receiver, timestamp, utc))
-        group.first_seen = min(group.first_seen, utc)
 
     @profile.trackcpu
     def _resolve(self, group):
@@ -167,6 +167,11 @@ class MlatTracker(object):
         if decoded.callsign is not None:
             ac.callsign = decoded.callsign
 
+        now = time.time()
+        if now - ac.last_resolve_attempt < config.RESOLVE_INTERVAL:
+            return
+        ac.last_resolve_attemp = now
+
         # find old result, if present
         if ac.last_result_position is None or (group.first_seen - ac.last_result_time) > 120:
             last_result_position = None
@@ -181,10 +186,10 @@ class MlatTracker(object):
 
         elapsed = group.first_seen - last_result_time
 
-        if elapsed < -1:
-            elapsed = 10
-        # rate limit a bit
-        if elapsed < 1:
+        if elapsed < 0:
+            elapsed = 0
+
+        if elapsed < config.RESOLVE_BACKOFF:
             return
 
         # find altitude
@@ -205,7 +210,7 @@ class MlatTracker(object):
 
         if max_dof < 0:
             return
-        if elapsed < 2 and max_dof < last_result_dof - elapsed + 0.5:
+        if elapsed < 2 * config.RESOLVE_BACKOFF and max_dof < last_result_dof - elapsed + 0.5:
             return
 
         # construct a map of receiver -> list of timestamps
@@ -218,7 +223,7 @@ class MlatTracker(object):
 
         if dof < 0:
             return
-        if elapsed < 2 and dof < last_result_dof - elapsed + 0.5:
+        if elapsed < 2 * config.RESOLVE_BACKOFF and dof < last_result_dof - elapsed + 0.5:
             return
 
         # normalize timestamps. This returns a list of timestamp maps;

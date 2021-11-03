@@ -379,7 +379,7 @@ class ClockTracker(object):
                 r0.sync_peers[pairing.cat] += 1
                 r1.sync_peers[pairing.cat] += 1
             else:
-                if pairing.n > 10 and now < pairing.updated + 0.8:
+                if now - pairing.updated < config.SYNC_INTERVAL:
                     continue
 
                 cat = pairing.cat

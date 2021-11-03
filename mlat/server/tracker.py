@@ -95,6 +95,8 @@ class TrackedAircraft(object):
 
         self.last_crappy_output = 0
 
+        self.last_resolve_attempt = 0
+
         self.callsign = None
         self.squawk = None
 
