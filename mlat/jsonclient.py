@@ -419,10 +419,10 @@ class JsonClient(connection.Connection):
                                                               connection_info=conn_info)
 
                 # disabled until I get to the bottom of the odd timestamps
-                if False and self.receiver.clock.gps_midnight:
-                    self.process_mlat = self.process_mlat_gps
-                else:
-                    self.process_mlat = self.process_mlat_nongps
+                #if False and self.receiver.clock.epoch == 'gps_midnight':
+                #    self.process_mlat = self.process_mlat_gps
+                #else:
+                self.process_mlat = self.process_mlat_nongps
 
             except KeyError as e:
                 deny = 'Missing field in handshake: ' + str(e)
@@ -578,8 +578,10 @@ class JsonClient(connection.Connection):
                 raise ValueError('Client sent a packet that was not newline terminated')
 
     def process_message(self, line):
-        #logging.info("%s >> %s", self.receiver.user, line)
-        msg = ujson.loads(line)
+        try:
+            msg = ujson.loads(line)
+        except ValueError:
+            logging.warn("process_message json ValueError: %s >> %s", self.receiver.user, line)
 
         if 'sync' in msg:
             sync = msg['sync']

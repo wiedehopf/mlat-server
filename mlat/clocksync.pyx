@@ -31,20 +31,22 @@ __all__ = ('Clock', 'ClockPairing', 'make_clock')
 glogger = logging.getLogger("clocksync")
 
 
-class Clock(object):
+cdef class Clock(object):
     """A particular clock. Stores characteristics of a clock,
     and acts as part of the key in the clock pairing map.
     """
 
-    def __init__(self, gps_midnight, freq, max_freq_error, jitter):
+    cdef public double freq
+    cdef public double max_freq_error
+    cdef public double jitter
+
+    def __init__(self, freq, max_freq_error, jitter):
         """Create a new clock representation.
 
-        gps_midnight: indicate if epoch is gps_midnight or not
         freq: the clock frequency in Hz (float)
         max_freq_error: the maximum expected relative frequency error (i.e. 1e-6 is 1PPM) (float)
         jitter: the expected jitter of a typical reading, in seconds, standard deviation  (float)
         """
-        self.gps_midnight = gps_midnight
         self.freq = freq
         self.max_freq_error = max_freq_error
         self.jitter = jitter
@@ -54,13 +56,13 @@ def make_clock(clock_type):
     """Return a new Clock instance for the given clock type."""
 
     if clock_type == 'radarcape_gps':
-        return Clock(gps_midnight=1, freq=1e9, max_freq_error=1e-6, jitter=15e-9)
+        return Clock(freq=1e9, max_freq_error=1e-6, jitter=15e-9)
     if clock_type == 'beast' or clock_type == 'radarcape_12mhz':
-        return Clock(gps_midnight=0, freq=12e6, max_freq_error=5e-6, jitter=83e-9)
+        return Clock(freq=12e6, max_freq_error=5e-6, jitter=83e-9)
     if clock_type == 'sbs':
-        return Clock(gps_midnight=0, freq=20e6, max_freq_error=100e-6, jitter=500e-9)
+        return Clock(freq=20e6, max_freq_error=100e-6, jitter=500e-9)
     if clock_type == 'dump1090' or clock_type == 'unknown':
-        return Clock(gps_midnight=0, freq=12e6, max_freq_error=100e-6, jitter=500e-9)
+        return Clock(freq=12e6, max_freq_error=100e-6, jitter=500e-9)
     raise NotImplementedError("{ct}".format(ct=clock_type))
 
 

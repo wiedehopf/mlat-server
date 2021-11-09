@@ -42,14 +42,17 @@ class Receiver(object):
     """Represents a particular connected receiver and the associated
     connection that manages it."""
 
-    def __init__(self, uid, user, connection, clock, position_llh, privacy, connection_info, uuid, coordinator, clock_tracker):
+    def __init__(self, uid, user, connection, clock_type, position_llh, privacy, connection_info, uuid, coordinator, clock_tracker):
         self.uid = uid
         self.uuid = uuid
         self.user = user
         self.connection = connection
         self.coordinator = coordinator
         self.clock_tracker = clock_tracker
-        self.clock = clock
+        self.clock = clocksync.make_clock(clock_type)
+        self.epoch = None
+        if clock_type == 'radarcape_gps':
+            self.epoch = 'gps_midnight'
         self.last_clock_reset = time.time()
         self.clock_reset_counter = 0
         self.position_llh = position_llh
@@ -436,8 +439,7 @@ class Coordinator(object):
             self.uidCounter += 1
             uid = self.uidCounter
 
-        clock = clocksync.make_clock(clock_type)
-        receiver = Receiver(uid, user, connection, clock,
+        receiver = Receiver(uid, user, connection, clock_type,
                             position_llh=position_llh,
                             privacy=privacy,
                             connection_info=connection_info,
