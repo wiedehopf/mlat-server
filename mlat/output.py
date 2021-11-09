@@ -26,7 +26,7 @@ import socket
 import numpy
 
 from mlat import constants, geodesy
-from mlat.server import util, net
+from mlat import util, net
 
 """
 Various output methods for multilateration results.

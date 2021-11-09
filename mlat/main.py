@@ -28,7 +28,7 @@ import logging
 import signal
 import argparse
 
-from mlat.server import jsonclient, output, coordinator
+from mlat import jsonclient, output, coordinator
 
 def hostport(s):
     parts = s.split(':')
@@ -219,7 +219,7 @@ class MlatServer(object):
         subtasks = []
 
         if args.check_leaks:
-            from mlat.server import leakcheck
+            from mlat import leakcheck
             import tracemalloc
             tracemalloc.start()
             subtasks.append(leakcheck.LeakChecker())

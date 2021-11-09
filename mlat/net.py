@@ -24,7 +24,7 @@ import asyncio
 import logging
 import socket
 
-from mlat.server import util
+from mlat import util
 
 
 glogger = logging.getLogger("net")

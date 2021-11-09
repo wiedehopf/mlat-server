@@ -21,7 +21,6 @@ Manages the clock synchronization pairs between all receivers based on
 DF17 position messages received by more than one receiver.
 """
 
-__all__ = ('SyncPoint', 'ClockTracker')
 
 import asyncio
 import functools
@@ -32,7 +31,9 @@ import math
 import modes.message
 
 from mlat import geodesy, constants, profile
-from mlat.server import clocksync, config
+from mlat import clocksync, config
+
+__all__ = ('SyncPoint', 'ClockTracker')
 
 
 class SyncPoint(object):

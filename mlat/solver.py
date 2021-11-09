@@ -27,7 +27,7 @@ import math
 import scipy.optimize
 
 from mlat import geodesy, constants, profile
-from mlat.server import config
+from mlat import config
 
 # The core of it all. Not very big, is it?
 # (Admittedly the entire least-squares solver is hidden within scipy..)

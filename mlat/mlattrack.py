@@ -35,7 +35,7 @@ import traceback
 
 import modes.message
 from mlat import geodesy, constants, profile
-from mlat.server import clocknorm, solver, config
+from mlat import clocknorm, solver, config
 
 glogger = logging.getLogger("mlattrack")
 

@@ -25,7 +25,7 @@ import random
 import asyncio
 import time
 from mlat import profile
-from mlat.server import kalman, config
+from mlat import kalman, config
 
 import logging
 glogger = logging.getLogger("tracker")

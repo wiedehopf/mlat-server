@@ -57,10 +57,10 @@ def _make_predictors(clocktracker, station0, station1, now):
     if station0.bad_syncs > 0 or station1.bad_syncs > 0:
         return None
 
-    if station0.clock.epoch is not None and station0.clock.epoch == station1.clock.epoch:
-        # Assume clocks are closely synchronized to the epoch (and therefore to each other)
-        predictor = _Predictor(_identity_predict, station0.clock.jitter ** 2 + station1.clock.jitter ** 2)
-        return (predictor, predictor)
+    #if station0.clock.epoch is not None and station0.clock.epoch == station1.clock.epoch:
+    #    # Assume clocks are closely synchronized to the epoch (and therefore to each other)
+    #    predictor = _Predictor(_identity_predict, station0.clock.jitter ** 2 + station1.clock.jitter ** 2)
+    #    return (predictor, predictor)
 
     pairing = None
 
@@ -76,11 +76,11 @@ def _make_predictors(clocktracker, station0, station1, now):
     stale = now - pairing.updated
 
     # increase variance for stale pairings
-    variance *= 1 + stale / 12
+    variance *= 1 + stale / 60
 
     # increase variance for pairing with fewer sync points
     if pairing.n < 10:
-        variance *= 1 + (10 - pairing.n) / 10
+        variance *= 1 + (10 - pairing.n) / 20
 
     if station0 < station1:
         return (_Predictor(pairing.predict_peer, variance),

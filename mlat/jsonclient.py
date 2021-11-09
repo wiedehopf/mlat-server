@@ -34,7 +34,7 @@ import math
 import re
 
 from mlat import constants, geodesy
-from mlat.server import net, util, connection, config
+from mlat import net, util, connection, config
 
 
 glogger = logging.getLogger("client")
@@ -419,7 +419,7 @@ class JsonClient(connection.Connection):
                                                               connection_info=conn_info)
 
                 # disabled until I get to the bottom of the odd timestamps
-                if False and self.receiver.clock.epoch == 'gps_midnight':
+                if False and self.receiver.clock.gps_midnight:
                     self.process_mlat = self.process_mlat_gps
                 else:
                     self.process_mlat = self.process_mlat_nongps

@@ -49,7 +49,7 @@ import gc
 import logging
 import operator
 
-from mlat.server import util
+from mlat import util
 
 import tracemalloc
 

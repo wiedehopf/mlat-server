@@ -24,7 +24,7 @@ import math
 import time
 import bisect
 import logging
-from mlat.server import config
+from mlat import config
 
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
 
@@ -36,15 +36,15 @@ class Clock(object):
     and acts as part of the key in the clock pairing map.
     """
 
-    def __init__(self, epoch, freq, max_freq_error, jitter):
+    def __init__(self, gps_midnight, freq, max_freq_error, jitter):
         """Create a new clock representation.
 
-        epoch: a string indicating a fixed epoch, or None if freerunning
+        gps_midnight: indicate if epoch is gps_midnight or not
         freq: the clock frequency in Hz (float)
         max_freq_error: the maximum expected relative frequency error (i.e. 1e-6 is 1PPM) (float)
         jitter: the expected jitter of a typical reading, in seconds, standard deviation  (float)
         """
-        self.epoch = epoch
+        self.gps_midnight = gps_midnight
         self.freq = freq
         self.max_freq_error = max_freq_error
         self.jitter = jitter
@@ -54,23 +54,22 @@ def make_clock(clock_type):
     """Return a new Clock instance for the given clock type."""
 
     if clock_type == 'radarcape_gps':
-        return Clock(epoch='gps_midnight', freq=1e9, max_freq_error=1e-6, jitter=15e-9)
+        return Clock(gps_midnight=1, freq=1e9, max_freq_error=1e-6, jitter=15e-9)
     if clock_type == 'beast' or clock_type == 'radarcape_12mhz':
-        return Clock(epoch=None, freq=12e6, max_freq_error=5e-6, jitter=83e-9)
+        return Clock(gps_midnight=0, freq=12e6, max_freq_error=5e-6, jitter=83e-9)
     if clock_type == 'sbs':
-        return Clock(epoch=None, freq=20e6, max_freq_error=100e-6, jitter=500e-9)
+        return Clock(gps_midnight=0, freq=20e6, max_freq_error=100e-6, jitter=500e-9)
     if clock_type == 'dump1090' or clock_type == 'unknown':
-        return Clock(epoch=None, freq=12e6, max_freq_error=100e-6, jitter=500e-9)
+        return Clock(gps_midnight=0, freq=12e6, max_freq_error=100e-6, jitter=500e-9)
     raise NotImplementedError("{ct}".format(ct=clock_type))
 
 
 class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
 
-    KP = 0.05
-    KI = 0.01
-
     def __init__(self, base, peer, cat):
+        self.KP = 0.05
+        self.KI = 0.01
         self.base = base
         self.peer = peer
         self.cat = cat
@@ -97,8 +96,7 @@ class ClockPairing(object):
         self.drift_max_delta = self.drift_max / 10.0
         self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
-        now = time.time()
-        self.updated = now
+        self.updated = 0
         self.valid = False
 
 
@@ -116,10 +114,10 @@ class ClockPairing(object):
     def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
         return (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
-                    self.outliers < 3 and now - self.updated < 35 and
+                    self.outliers < 3 and now - self.updated < 35.0 and
                     self.base.bad_syncs < 0.1 and self.peer.bad_syncs < 0.1)
 
-    def update(self, address, base_ts, peer_ts, base_interval, peer_interval, now):
+    def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
         """Update the relative drift and offset of this pairing given:
 
         address: the ICAO address of the sync aircraft, for logging purposes
@@ -282,7 +280,7 @@ class ClockPairing(object):
             if self.base.bad_syncs < 0.1:
                 self.peer.incrementJumps()
 
-    def predict_peer(self, base_ts):
+    def predict_peer(self, double base_ts):
         """
         Given a time from the base clock, predict the time of the peer clock.
         """
@@ -311,7 +309,7 @@ class ClockPairing(object):
             result += (self.ts_peer[-2] +
                     elapsed * self.relative_freq +
                     elapsed * self.relative_freq * self.drift)
-            return result / 2
+            return result * 0.5
 
         i = bisect.bisect_left(self.ts_base, base_ts)
         # interpolate between two points
@@ -320,7 +318,7 @@ class ClockPairing(object):
                 (base_ts - self.ts_base[i-1]) /
                 (self.ts_base[i] - self.ts_base[i-1]))
 
-    def predict_base(self, peer_ts):
+    def predict_base(self, double peer_ts):
         """
         Given a time from the peer clock, predict the time of the base
         clock.

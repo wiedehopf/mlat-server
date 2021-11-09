@@ -32,7 +32,7 @@ import os
 from contextlib import closing
 
 from mlat import geodesy, profile, constants
-from mlat.server import tracker, clocksync, clocktrack, mlattrack, util, config
+from mlat import tracker, clocksync, clocktrack, mlattrack, util, config
 
 glogger = logging.getLogger("coordinator")
 random.seed()

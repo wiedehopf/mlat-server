@@ -67,13 +67,13 @@ users, and they may redistribute it further if they wish.
 ## Example of how to make it run with virtualenv:
 
 ```
-apt install python3-pip python3 python3-virtualenv
+apt install python3-pip python3 python3-venv
 VENV=/opt/mlat-python-venv
 rm -rf $VENV
 python3 -m venv $VENV
 source $VENV/bin/activate
 pip3 install -U pip
-pip3 install numpy scipy pykalman python-graph-core uvloop
+pip3 install numpy scipy pykalman python-graph-core uvloop ujson
 ```
 
 Starting mlat server:
