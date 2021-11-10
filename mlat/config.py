@@ -39,7 +39,8 @@ MAX_RANGE = 500e3
 
 # limit for the number of peers a single receiver will have in a distance category
 MAX_PEERS = [30, 16, 6, 6]
-# cate
+MAX_PEERS_BINS = len(MAX_PEERS) - 1
+# category step
 DISTANCE_CATEGORY_STEP = 50e3
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):

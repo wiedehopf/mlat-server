@@ -144,7 +144,7 @@ class ClockTracker(object):
 
     @profile.trackcpu
     def receiver_sync(self, receiver,
-                      even_time, odd_time,
+                      double even_time, double odd_time,
                       even_message, odd_message):
         """
         Called by the coordinator to handle a sync message from a receiver.
@@ -169,6 +169,7 @@ class ClockTracker(object):
             return
 
         # compute key and interval
+        cdef double tA, tB
         if even_time < odd_time:
             tA = even_time
             tB = odd_time
@@ -178,7 +179,8 @@ class ClockTracker(object):
             tB = even_time
             key = (odd_message, even_message)
 
-        interval = (tB - tA) / receiver.clock.freq
+        cdef double freq = receiver.clock.freq
+        cdef double interval = (tB - tA) / freq
 
         # Messages must be within 5 seconds of each other.
         if interval > 5.0:
@@ -307,7 +309,7 @@ class ClockTracker(object):
                               key=key,
                               syncpoint=syncpoint))
 
-    def _add_to_existing_syncpoint(self, syncpoint, r0, t0A, t0B):
+    def _add_to_existing_syncpoint(self, syncpoint, r0, double t0A, double t0B):
         # add a new receiver and timestamps to an existing syncpoint
 
         # new state for the syncpoint: receiver, timestamp A, timestamp B,
@@ -328,18 +330,21 @@ class ClockTracker(object):
         delay0A = receiverDistA * r0.clock.freq / constants.Cair
         delay0B = receiverDistB * r0.clock.freq / constants.Cair
 
-        td0A = t0A - delay0A
-        td0B = t0B - delay0B
+        cdef double td0A = t0A - delay0A
+        cdef double td0B = t0B - delay0B
 
         # compute interval, adjusted for transmitter motion
-        i0 = td0B - td0A
+        cdef double i0 = td0B - td0A
 
         r0l = [r0, td0B, i0, False]
 
-        now = time.time()
+        cdef double now = time.time()
 
         # try to sync the new receiver with all receivers that previously
         # saw the same pair
+        cdef double td1B, i1
+        cdef int cat, cat_max_index
+        cdef double p0, p1, limit
         for r1l in syncpoint.receivers:
             r1, td1B, i1, r1sync = r1l
 
@@ -360,9 +365,8 @@ class ClockTracker(object):
 
             pairing = self.clock_pairs.get(k)
             if pairing is None:
-                receiver_distance = r0.distance[r1.uid]
-                cat = math.floor(receiver_distance / config.DISTANCE_CATEGORY_STEP)
-                cat_max_index = len(config.MAX_PEERS) - 1
+                cat = r0.distance[r1.uid] / config.DISTANCE_CATEGORY_STEP
+                cat_max_index = config.MAX_PEERS_BINS
                 if cat > cat_max_index:
                     cat = cat_max_index
 
