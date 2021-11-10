@@ -94,7 +94,7 @@ class ClockTracker(object):
         now = time.time()
         prune = set()
         for k, pairing in self.clock_pairs.items():
-            pairing.valid = pairing.check_valid(now)
+            pairing.check_valid(now)
             if now - pairing.updated > 45:
                 prune.add((k, pairing))
             if not pairing.valid and now - pairing.updated > 30:

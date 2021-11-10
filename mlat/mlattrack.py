@@ -233,6 +233,7 @@ class MlatTracker(object):
                                              timestamp_map=timestamp_map)
         except Exception as e:
             traceback.print_exc()
+            return
 
         # cluster timestamps into clusters that are probably copies of the
         # same transmission.

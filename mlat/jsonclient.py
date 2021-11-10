@@ -322,14 +322,15 @@ class JsonClient(connection.Connection):
         deny = None
 
         rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
-        line = rawline.decode('ascii')
-        if line.startswith('PROXY '):
-            proxyLine = line.split(' ')
-            self.source_ip = proxyLine[2]
-            self.source_port = proxyLine[4]
-            rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
-            line = rawline.decode('ascii')
         try:
+            line = rawline.decode('ascii')
+            if line.startswith('PROXY '):
+                proxyLine = line.split(' ')
+                self.source_ip = proxyLine[2]
+                self.source_port = proxyLine[4]
+                rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
+                line = rawline.decode('ascii')
+
             hs = ujson.loads(line)
         except ValueError as e:
             deny = 'Badly formatted handshake: ' + str(e)

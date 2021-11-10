@@ -36,9 +36,9 @@ cdef class Clock(object):
     and acts as part of the key in the clock pairing map.
     """
 
-    cdef public double freq
-    cdef public double max_freq_error
-    cdef public double jitter
+    cdef readonly double freq
+    cdef readonly double max_freq_error
+    cdef readonly double jitter
 
     def __init__(self, freq, max_freq_error, jitter):
         """Create a new clock representation.
@@ -66,8 +66,39 @@ def make_clock(clock_type):
     raise NotImplementedError("{ct}".format(ct=clock_type))
 
 
-class ClockPairing(object):
+cdef class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
+
+    cdef double KP
+    cdef double KI
+    cdef base
+    cdef peer
+    cdef public int cat
+    cdef base_clock
+    cdef peer_clock
+    cdef readonly double raw_drift
+    cdef readonly double drift
+    cdef readonly double i_drift
+    cdef readonly int n
+    cdef list ts_base
+    cdef list ts_peer
+    cdef list var
+    cdef double var_sum
+    cdef readonly int outliers
+    cdef double cumulative_error
+    cdef readonly double error
+    cdef readonly double variance
+
+    cdef public int jumped
+
+    cdef double relative_freq
+    cdef double i_relative_freq
+    cdef double drift_max
+    cdef double drift_max_delta
+    cdef double outlier_threshold
+
+    cdef readonly double updated
+    cdef readonly bint valid
 
     def __init__(self, base, peer, cat):
         self.KP = 0.05
@@ -77,9 +108,9 @@ class ClockPairing(object):
         self.cat = cat
         self.base_clock = base.clock
         self.peer_clock = peer.clock
-        self.raw_drift = None
-        self.drift = None
-        self.i_drift = None
+        self.raw_drift = 1e99
+        self.drift = 1e99
+        self.i_drift = 1e99
         self.n = 0
         self.ts_base = []
         self.ts_peer = []
@@ -87,8 +118,8 @@ class ClockPairing(object):
         self.var_sum = 0.0
         self.outliers = 0
         self.cumulative_error = 0.0
-        self.error = None
-        self.variance = None
+        self.error = 1e99
+        self.variance = 1e99
 
         self.jumped = 0
 
@@ -102,10 +133,10 @@ class ClockPairing(object):
         self.valid = False
 
 
-    def updateVars(self):
+    cdef void updateVars(self):
         if self.n == 0:
-            self.variance = None
-            self.error = None
+            self.variance = 1e99
+            self.error = 1e99
         else:
             """Variance of recent predictions of the sync point versus the actual sync point."""
             self.variance = self.var_sum / self.n
@@ -115,9 +146,10 @@ class ClockPairing(object):
 
     def check_valid(self, now):
         """True if this pairing is usable for clock syncronization."""
-        return (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
+        self.valid = (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
                     self.outliers < 3 and now - self.updated < 35.0 and
                     self.base.bad_syncs < 0.1 and self.peer.bad_syncs < 0.1)
+        return self.valid
 
     def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
         """Update the relative drift and offset of this pairing given:
@@ -133,13 +165,15 @@ class ClockPairing(object):
 
         if self.n != 0 and base_ts <= self.ts_base[-1]:
             # timestamp is in the past or duplicated, don't use this
+            #glogger.warn("{0}: timestamp in past or duplicated".format(self))
             return False
 
         # clean old data
         if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 45 * self.base_clock.freq):
             self._prune_old_data(base_ts)
 
-        outlier = False
+        cdef bint outlier = False
+        cdef double prection, prediction_error
         # predict from existing data, compare to actual value
         if self.n > 0:
             prediction = self.predict_peer(base_ts)
@@ -148,10 +182,10 @@ class ClockPairing(object):
             if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
                 outlier = True
                 self.outliers += 1
-                self.outlier = min(7, self.outliers)
+                self.outliers = min(7, self.outliers)
                 if self.outliers < 5:
                     # don't accept this one
-                    self.valid = self.check_valid(now)
+                    self.check_valid(now)
                     return False
             else:
                 # wiedehopf: add hacky sync averaging
@@ -170,14 +204,14 @@ class ClockPairing(object):
         # update clock drift based on interval ratio
         # this might reject the update
         if not self._update_drift(address, base_interval, peer_interval):
-            self.valid = self.check_valid(now)
+            self.check_valid(now)
             return False
 
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
 
         self.updated = now
-        self.valid = self.check_valid(now)
+        self.check_valid(now)
         return True
 
     def _prune_old_data(self, latest_base_ts):
@@ -197,25 +231,27 @@ class ClockPairing(object):
             self.var_sum = sum(self.var)
             self.updateVars()
 
-    def _update_drift(self, address, base_interval, peer_interval):
+    cdef bint _update_drift(self, address, double base_interval, double peer_interval):
         # try to reduce the effects of catastropic cancellation here:
         #new_drift = (peer_interval / base_interval) / self.relative_freq - 1.0
-        adjusted_base_interval = base_interval * self.relative_freq
-        new_drift = (peer_interval - adjusted_base_interval) / adjusted_base_interval
+        cdef double adjusted_base_interval = base_interval * self.relative_freq
+        cdef double new_drift = (peer_interval - adjusted_base_interval) / adjusted_base_interval
 
         if abs(new_drift) > self.drift_max:
             # Bad data, ignore entirely
+            #glogger.warn("{0}: drift_max".format(self))
             return False
 
-        if self.drift is None:
+        if self.drift == 1e99:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
             self.i_drift = -1 * self.drift / (1.0 + self.drift)
             return True
 
-        drift_error = new_drift - self.raw_drift
+        cdef double drift_error = new_drift - self.raw_drift
         if abs(drift_error) > self.drift_max_delta:
             # Too far away from the value we expect, discard
+            #glogger.warn("{0}: drift_max_delta".format(self))
             return False
 
         # move towards the new value
@@ -224,7 +260,7 @@ class ClockPairing(object):
         self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
-    def _update_offset(self, address, base_ts, peer_ts, prediction_error, outlier):
+    cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, double outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
         if self.n != 0:
             assert base_ts > self.ts_base[-1]
@@ -261,7 +297,7 @@ class ClockPairing(object):
         self.ts_base.append(base_ts)
         self.ts_peer.append(peer_ts)
 
-        p_var = prediction_error ** 2
+        cdef double p_var = prediction_error ** 2
         self.var.append(p_var)
         self.var_sum += p_var
         self.updateVars()
