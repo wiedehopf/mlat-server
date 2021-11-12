@@ -480,7 +480,7 @@ class JsonClient(connection.Connection):
         #logging.info("%s <<Z %s", self.receiver.user, line)
         self._writebuf.append(line + '\n')
         if self._pending_flush is None:
-            self._pending_flush = asyncio.get_event_loop().call_soon(self._flush_zlib)
+            self._pending_flush = asyncio.get_event_loop().call_later(1.0, self._flush_zlib)
 
     def discard(self, **kwargs):
         #line = ujson.dumps(kwargs)
@@ -549,7 +549,7 @@ class JsonClient(connection.Connection):
 
             linebuf = ''
             decompression_done = False
-            while not decompression_done:
+            while True:
                 # limit decompression to 64k at a time
                 if packet:
                     decompressed = decompressor.decompress(packet, 65536)
@@ -557,8 +557,7 @@ class JsonClient(connection.Connection):
                         raise ValueError('Decompressor made no progress')
                     packet = decompressor.unconsumed_tail
                 else:
-                    decompressed = decompressor.flush()
-                    decompression_done = True
+                    break
 
                 linebuf += decompressed.decode('ascii')
                 lines = linebuf.split('\n')
@@ -760,8 +759,6 @@ class JsonClient(connection.Connection):
                                  receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
                                  dof, kalman_state, result_new_old):
         # old client, use the old format (somewhat incomplete)
-        if receiver.bad_syncs > 0:
-            return
         if result_new_old[1]:
             self.send(result=result_new_old[1])
             return
@@ -790,8 +787,6 @@ class JsonClient(connection.Connection):
                                   receive_timestamp, address, ecef, ecef_cov, receivers, distinct,
                                   dof, kalman_state, result_new_old):
         # newer client
-        if receiver.bad_syncs > 0:
-            return
         if result_new_old[0]:
             self.send(result=result_new_old[0])
             return
