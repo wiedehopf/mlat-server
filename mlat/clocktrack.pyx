@@ -416,7 +416,6 @@ class ClockTracker(object):
         _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
         self.sync_points[key] = [ syncpoint ]
-        #logging.warn("len(sync_points): {a}".format(a=len(self.sync_points)))
 
 
 
@@ -428,8 +427,12 @@ class ClockTracker(object):
         key: the key of the syncpoint
         """
 
-        if key in self.sync_points:
+        try:
             del self.sync_points[key]
+        except KeyError:
+            # something is not right, reset the dict
+            logging.warn("len(sync_points): {a}".format(a=len(self.sync_points)))
+            self.sync_points.clear()
 
     def dump_receiver_state(self):
         state = {}
