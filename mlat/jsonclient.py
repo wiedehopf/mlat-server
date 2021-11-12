@@ -571,50 +571,30 @@ class JsonClient(connection.Connection):
                 raise ValueError('Client sent a packet that was not newline terminated')
 
     def process_message(self, line):
+        if self.receiver.bad_syncs > 3:
+            return
+
         try:
             msg = ujson.loads(line)
         except ValueError:
             logging.warn("process_message json ValueError: %s >> %s", self.receiver.user, line)
 
+
         if 'sync' in msg:
             sync = msg['sync']
 
-            now = time.time()
-            elapsed = now - self.mc_start
-
-            # test code to do MLAT on sync messages
-            # self.process_mlat(float(sync['et']), bytes.fromhex(sync['em']), time.time())
-
-            # reset counter every 15 seconds
-            if elapsed > 15:
-                if self.receiver.user.startswith(config.DEBUG_FOCUS):
-                    logging.warning("sync rate limiting accepted: %0.0f rejected: %0.0f", self.sync_accepted, self.sync_rejected)
-                self.sync_accepted = 0
-                self.sync_rejected = 0
-                self.mc_start = now
-                r = self.receiver
-                if r.sync_range_exceeded or r.bad_syncs > 2:
-                    self.mrate_limit = 5
-                else:
-                    # very rough limit in case interest_set based limiting in tracker.py doesn't work.
-                    self.mrate_limit = 3 * config.MAX_SYNC_RATE
-
-            if self.sync_accepted < self.mrate_limit * elapsed + 10:
-                self.sync_accepted += 1
-                self.coordinator.receiver_sync(self.receiver,
-                        float(sync['et']),
-                        float(sync['ot']),
-                        bytes.fromhex(sync['em']),
-                        bytes.fromhex(sync['om']))
-            else:
-                self.sync_rejected += 1
-
+            self.coordinator.receiver_sync(self.receiver,
+                    float(sync['et']),
+                    float(sync['ot']),
+                    bytes.fromhex(sync['em']),
+                    bytes.fromhex(sync['om']))
 
         elif 'mlat' in msg:
-            if self.receiver.bad_syncs < 0.001 and sum(self.receiver.sync_peers) > 0:
-                mlat = msg['mlat']
-                #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
-                self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+            if self.receiver.bad_syncs > 0 or sum(self.receiver.sync_peers) < 1:
+                return
+            mlat = msg['mlat']
+            #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+            self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
         elif 'seen' in msg:
             self.process_seen_message(msg['seen'])
         elif 'lost' in msg:

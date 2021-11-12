@@ -279,9 +279,6 @@ class ClockTracker(object):
 
         # Do sanity checks.
 
-        if receiver.bad_syncs > 2:
-            return
-
         # compute key and interval
         cdef double tA, tB
         if even_time < odd_time:
