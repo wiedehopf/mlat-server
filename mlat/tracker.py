@@ -195,7 +195,10 @@ class Tracker(object):
         for icao, rate in receiver.last_rate_report.items():
             ac = self.aircraft.get(icao)
             if not ac:
-                self.coordinator.receiver_tracking_add(receiver, {int(icao, 16)})
+                self.add(receiver, {icao})
+                ac = self.aircraft.get(icao)
+                if not ac:
+                    continue
 
             rate_report_set.add(ac)
             new_adsb.add(ac)
