@@ -37,19 +37,10 @@ MIN_NUC = 6
 # absolute maximum receiver range for sync messages, metres
 MAX_RANGE = 500e3
 
-# limit for the number of peers a single receiver will have in a distance category
-MAX_PEERS = [30, 16, 6, 6]
-MAX_PEERS_BINS = len(MAX_PEERS) - 1
-# category step
-DISTANCE_CATEGORY_STEP = 50e3
-
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 18
 # max sync rate
 MAX_SYNC_RATE = 12
-
-# clock sync pairs are not updated more often than every sync_interval seconds
-SYNC_INTERVAL = 0.7
 
 # minimum interval between trying to get an MLAT position
 RESOLVE_INTERVAL = 0.1
@@ -74,7 +65,7 @@ SOLVER_MAXFEV = 165
 # first pruning step before clock normalization
 MAX_GROUP = 15
 
-DEBUG_FOCUS='asddddddddddsadsfsdfasdf'
+DEBUG_FOCUS='euerdorf'
 
 if 'AGPL_SERVER_CODE_URL' not in globals():
     raise RuntimeError('Please update AGPL_SERVER_CODE_URL in mlat/server/config.py')

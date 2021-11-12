@@ -73,6 +73,17 @@ cdef double ecef_distance(tuple p0, tuple p1):
     """Returns the straight-line distance in metres between two ECEF points."""
     return sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2 + (p0[2] - p1[2])**2)
 
+
+cdef get_limit(int cat):
+    if cat == 0:
+        return 30
+    if cat == 1:
+        return 16
+    if cat == 2:
+        return 6
+    if cat == 3:
+        return 6
+
 cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t0B):
     # add a new receiver and timestamps to an existing syncpoint
 
@@ -106,15 +117,10 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     # try to sync the new receiver with all receivers that previously
     # saw the same pair
     cdef double td1B, i1
-    cdef int cat, cat_max_index
+    cdef int cat
     cdef double p0, p1, limit
     for r1l in syncpoint.receivers:
         r1, td1B, i1 = r1l
-
-        if r1.dead or r0 is r1:
-            # receiver went away before we started resolving this
-            # odd, but could happen
-            continue
 
         # order the clockpair so that the receiver that sorts lower is the base clock
 
@@ -124,15 +130,20 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
             k = (r1, r0)
 
         pairing = clock_pairs.get(k)
-        if pairing is None:
-            cat = r0.distance[r1.uid] / config.DISTANCE_CATEGORY_STEP
-            cat_max_index = config.MAX_PEERS_BINS
-            if cat > cat_max_index:
-                cat = cat_max_index
 
+        if pairing is None:
+            if r1.dead or r0 is r1:
+                # receiver went away before we started resolving this
+                # odd, but could happen
+                continue
+
+            cat = r0.distance[r1.uid] / 50e3
+            if cat > 3:
+                cat = 3
+
+            limit = 0.7 * get_limit(cat)
             p0 = r0.sync_peers[cat]
             p1 = r1.sync_peers[cat]
-            limit = config.MAX_PEERS[cat] * 0.7
 
             if p0 > limit and p1 > limit:
                 #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
@@ -140,23 +151,24 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
                 continue
 
             clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
+            r0.sync_peers[cat] += 1
+            r1.sync_peers[cat] += 1
 
-            r0.sync_peers[pairing.cat] += 1
-            r1.sync_peers[pairing.cat] += 1
         else:
-            if now - pairing.updated < config.SYNC_INTERVAL:
+            if now - pairing.updated < 0.7:
                 continue
-
             cat = pairing.cat
+
+            limit = 1.2 * get_limit(cat)
             p0 = r0.sync_peers[cat]
             p1 = r1.sync_peers[cat]
-            limit = config.MAX_PEERS[cat] * 1.2
+
 
             if p0 > limit and p1 > limit:
-                if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
-                    logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
-                r0.sync_peers[pairing.cat] -= 1
-                r1.sync_peers[pairing.cat] -= 1
+                #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                #    logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                r0.sync_peers[cat] -= 1
+                r1.sync_peers[cat] -= 1
                 del clock_pairs[k]
                 continue
 

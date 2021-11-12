@@ -69,6 +69,9 @@ def make_clock(clock_type):
 cdef class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
 
+    cdef readonly bint valid
+    cdef readonly double updated
+    cdef readonly double variance
     cdef double KP
     cdef double KI
     cdef base
@@ -87,7 +90,6 @@ cdef class ClockPairing(object):
     cdef readonly int outliers
     cdef double cumulative_error
     cdef readonly double error
-    cdef readonly double variance
 
     cdef public int jumped
 
@@ -97,8 +99,6 @@ cdef class ClockPairing(object):
     cdef double drift_max_delta
     cdef double outlier_threshold
 
-    cdef readonly double updated
-    cdef readonly bint valid
 
     def __init__(self, base, peer, cat):
         self.KP = 0.05

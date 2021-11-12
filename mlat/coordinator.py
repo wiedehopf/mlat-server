@@ -30,6 +30,7 @@ import logging.handlers
 import time
 import os
 from contextlib import closing
+import array
 
 from mlat import geodesy, profile, constants
 from mlat import tracker, clocksync, clocktrack, mlattrack, util, config
@@ -62,7 +63,7 @@ class Receiver(object):
         self.dead = False
         self.connectedSince = time.time()
 
-        self.sync_peers = [0, 0, 0, 0, 0] # number of peers per distance category
+        self.sync_peers = array.array('i', [0, 0, 0, 0, 0]) # number of peers per distance category
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
         self.tracking = set()
