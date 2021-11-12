@@ -23,14 +23,24 @@ Random utilities that don't fit elsewhere.
 import random
 import asyncio
 import logging
+import uvloop
 
+def loop_handle_exception(loop, context):
+    exception = context.get("exception")
+    if exception:
+        logging.exception("asyncio loop exception")
+    else:
+        msg = context["message"]
+        logging.warn(f"Caught exception: {msg}")
+
+mainLoop = uvloop.new_event_loop()
+mainLoop.set_exception_handler(loop_handle_exception)
+
+completed_future = mainLoop.create_future()
+completed_future.set_result(True)
 
 def fuzzy(t):
     return round(random.uniform(0.9*t, 1.1*t), 0)
-
-completed_future = asyncio.get_running_loop().create_future()
-completed_future.set_result(True)
-
 
 def safe_wait(coros_or_futures, **kwargs):
     """Return a future that waits for all coroutines/futures in the given

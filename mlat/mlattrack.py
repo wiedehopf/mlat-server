@@ -52,6 +52,7 @@ class MessageGroup:
 class MlatTracker(object):
     def __init__(self, coordinator, blacklist_filename=None, pseudorange_filename=None):
         self.pending = {}
+        self.loop = coordinator.loop
         self.coordinator = coordinator
         self.tracker = coordinator.tracker
         self.clock_tracker = coordinator.clock_tracker
@@ -93,7 +94,7 @@ class MlatTracker(object):
         group = self.pending.get(message)
         if not group:
             group = self.pending[message] = MessageGroup(message=message, first_seen=utc)
-            group.handle = asyncio.get_running_loop().call_later(
+            group.handle = self.loop.call_later(
                 config.MLAT_DELAY,
                 self._resolve,
                 group)

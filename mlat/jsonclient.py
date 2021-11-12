@@ -45,6 +45,7 @@ class JsonClientListener(net.MonitoringListener):
     def __init__(self, host, tcp_port, udp_port, motd, coordinator):
         super().__init__(host, tcp_port, None, logger=glogger, description='JSON client handler')
         self.coordinator = coordinator
+        self.loop = coordinator.loop
         self.udp_port = udp_port
         self.motd = motd
 
@@ -57,7 +58,7 @@ class JsonClientListener(net.MonitoringListener):
             # asyncio's UDP binding is a bit strange (and different to TCP):
             # a host of None will bind to 127.0.0.1, not the wildcard address.
             bind_address = self.host if self.host else '0.0.0.0'
-            dgram_coro = asyncio.get_running_loop().create_datagram_endpoint(protocol_factory=PackedMlatServerProtocol,
+            dgram_coro = self.loop.create_datagram_endpoint(protocol_factory=PackedMlatServerProtocol,
                                                                            family=socket.AF_INET,
                                                                            local_addr=(bind_address, self.udp_port))
             self.udp_transport, self.udp_protocol = (await dgram_coro)
@@ -168,6 +169,7 @@ class JsonClient(connection.Connection):
         self.r = reader
         self.w = writer
         self.coordinator = coordinator
+        self.loop = coordinator.loop
         self.motd = motd
 
         self.sync_accepted = 0
@@ -475,7 +477,7 @@ class JsonClient(connection.Connection):
         #logging.info("%s <<Z %s", self.receiver.user, line)
         self._writebuf.append(line + '\n')
         if self._pending_flush is None:
-            self._pending_flush = asyncio.get_running_loop().call_later(1.0, self._flush_zlib)
+            self._pending_flush = self.loop.call_later(1.0, self._flush_zlib)
 
     def discard(self, **kwargs):
         #line = ujson.dumps(kwargs)
@@ -706,7 +708,7 @@ class JsonClient(connection.Connection):
 
         self._wanted_traffic = icao_set
         if self._pending_traffic_update is None:
-            self._pending_traffic_update = asyncio.get_running_loop().call_soon(self.send_traffic_updates)
+            self._pending_traffic_update = self.loop.call_soon(self.send_traffic_updates)
 
     def send_traffic_updates(self):
         self._pending_traffic_update = None

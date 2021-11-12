@@ -113,11 +113,12 @@ class Tracker(object):
     """Tracks which receivers can see which aircraft, and asks receivers to
     forward traffic accordingly."""
 
-    def __init__(self, coordinator, partition):
+    def __init__(self, coordinator, partition, loop):
         self.aircraft = {}
         self.partition_id = partition[0] - 1
         self.partition_count = partition[1]
         self.coordinator = coordinator
+        self.loop = loop
 
     def in_local_partition(self, icao):
         if self.partition_count == 1:
@@ -183,7 +184,7 @@ class Tracker(object):
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
-            asyncio.get_running_loop().call_soon(receiver.refresh_traffic_requests)
+            self.loop.call_soon(receiver.refresh_traffic_requests)
             return
 
 
@@ -289,4 +290,4 @@ class Tracker(object):
         #    glogger.warn('new_sync:' + str([format(a.icao, '06x') for a in new_sync]))
 
         receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
-        asyncio.get_running_loop().call_soon(receiver.refresh_traffic_requests)
+        self.loop.call_soon(receiver.refresh_traffic_requests)

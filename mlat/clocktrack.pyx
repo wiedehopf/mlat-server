@@ -174,7 +174,7 @@ class ClockTracker(object):
     """Maintains clock pairings between receivers, and matches up incoming sync messages
     from receivers to update the parameters of the pairings."""
 
-    def __init__(self, coordinator):
+    def __init__(self, coordinator, loop):
         # map of (sync key) -> list of sync points
         #
         # sync key is a pair of bytearrays: (msgA, msgB)
@@ -189,14 +189,15 @@ class ClockTracker(object):
         self.clock_pairs = {}
 
         self.coordinator = coordinator
+        self.loop = loop
 
         # schedule periodic cleanup
-        asyncio.get_running_loop().call_later(1.0, self._cleanup)
+        self.loop.call_later(1.0, self._cleanup)
 
     def _cleanup(self):
         """Called periodically to clean up clock pairings that have expired and update pairing.valid"""
 
-        asyncio.get_running_loop().call_later(5.0, self._cleanup)
+        self.loop.call_later(5.0, self._cleanup)
 
         now = time.time()
         prune = set()
@@ -314,7 +315,7 @@ class ClockTracker(object):
         self.sync_points[key] = 'invalid'
         # schedule cleanup of the syncpoint after 3 seconds -
         # we should have seen all copies of those messages by then.
-        asyncio.get_running_loop().call_later(
+        self.loop.call_later(
             3.0,
             functools.partial(self._cleanup_syncpointlist,key=key))
 

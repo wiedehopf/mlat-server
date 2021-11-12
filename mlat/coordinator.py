@@ -154,7 +154,7 @@ class Coordinator(object):
     """Master coordinator. Receives all messages from receivers and dispatches
     them to clock sync / multilateration / tracking as needed."""
 
-    def __init__(self, work_dir, partition=(1, 1), tag="mlat", authenticator=None, pseudorange_filename=None):
+    def __init__(self, work_dir, loop, partition=(1, 1), tag="mlat", authenticator=None, pseudorange_filename=None):
         """If authenticator is not None, it should be a callable that takes two arguments:
         the newly created Receiver, plus the 'auth' argument provided by the connection.
         The authenticator may modify the receiver if needed. The authenticator should either
@@ -163,6 +163,7 @@ class Coordinator(object):
         """
 
         self.work_dir = work_dir
+        self.loop = loop
 
         self.uidCounter = 0
         # receivers:
@@ -173,8 +174,8 @@ class Coordinator(object):
         self.authenticator = authenticator
         self.partition = partition
         self.tag = tag
-        self.tracker = tracker.Tracker(self, partition)
-        self.clock_tracker = clocktrack.ClockTracker(self)
+        self.tracker = tracker.Tracker(self, partition, loop)
+        self.clock_tracker = clocktrack.ClockTracker(self, loop)
         self.mlat_tracker = mlattrack.MlatTracker(self,
                                                   blacklist_filename=work_dir + '/blacklist.txt',
                                                   pseudorange_filename=pseudorange_filename)
@@ -211,13 +212,13 @@ class Coordinator(object):
     # multiple handlers per signal. so wire up a multiple-handler here.
     def add_sighup_handler(self, handler):
         if not self.sighup_handlers:
-            asyncio.get_running_loop().add_signal_handler(signal.SIGHUP, self.sighup)
+            self.loop.add_signal_handler(signal.SIGHUP, self.sighup)
         self.sighup_handlers.append(handler)
 
     def remove_sighup_handler(self, handler):
         self.sighup_handlers.remove(handler)
         if not self.sighup_handlers:
-            asyncio.get_running_loop().remove_signal_handler(signal.SIGHUP)
+            self.loop.remove_signal_handler(signal.SIGHUP)
 
     def sighup(self):
         for handler in self.sighup_handlers[:]:

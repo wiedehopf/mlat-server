@@ -21,12 +21,15 @@ Top level server object, arg parsing, etc.
 """
 
 import asyncio
-import uvloop
-asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
 import logging
 import signal
 import argparse
+import uvloop
+asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
+from mlat import util
+asyncio.set_event_loop(util.mainLoop)
 
 from mlat import jsonclient, output, coordinator
 
@@ -91,7 +94,7 @@ class MlatServer(object):
     """
 
     def __init__(self):
-        self.loop = asyncio.get_running_loop()
+        self.loop = util.mainLoop
         self.coordinator = None
 
     def add_client_args(self, parser):
@@ -164,12 +167,6 @@ class MlatServer(object):
 
         return parser
 
-    def make_subtasks(self, args):
-        return ([self.coordinator] +
-                self.make_util_subtasks(args) +
-                self.make_output_subtasks(args) +
-                self.make_client_subtasks(args))
-
     def make_client_subtasks(self, args):
         subtasks = []
 
@@ -232,24 +229,21 @@ class MlatServer(object):
 
     def run(self):
         args = self.make_arg_parser().parse_args()
-
-        def loop_handle_exception(loop, context):
-            exception = context.get("exception")
-            if exception:
-                logging.exception("asyncio loop exception")
-            else:
-                msg = context["message"]
-                logging.warn(f"Caught exception: {msg}")
+        asyncio.set_event_loop(self.loop)
 
         self.coordinator = coordinator.Coordinator(work_dir=args.work_dir,
+                                                   loop=self.loop,
                                                    pseudorange_filename=args.dump_pseudorange,
                                                    partition=args.partition,
                                                    tag=args.tag)
 
-        subtasks = self.make_subtasks(args)
+        subtasks = ([self.coordinator] +
+                self.make_util_subtasks(args) +
+                self.make_output_subtasks(args) +
+                self.make_client_subtasks(args))
+
 
         # Start everything
-        self.loop.set_exception_handler(loop_handle_exception)
         startup = asyncio.gather(*[x.start() for x in subtasks])
         self.loop.run_until_complete(startup)
         startup.result()  # provoke exceptions if something failed
