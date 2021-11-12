@@ -183,7 +183,7 @@ class Tracker(object):
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
             receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
-            asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
+            asyncio.get_running_loop().call_soon(receiver.refresh_traffic_requests)
             return
 
 
@@ -289,4 +289,4 @@ class Tracker(object):
         #    glogger.warn('new_sync:' + str([format(a.icao, '06x') for a in new_sync]))
 
         receiver.update_interest_sets(new_sync, new_mlat, new_adsb)
-        asyncio.get_event_loop().call_soon(receiver.refresh_traffic_requests)
+        asyncio.get_running_loop().call_soon(receiver.refresh_traffic_requests)

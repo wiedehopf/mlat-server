@@ -191,12 +191,12 @@ class ClockTracker(object):
         self.coordinator = coordinator
 
         # schedule periodic cleanup
-        asyncio.get_event_loop().call_later(1.0, self._cleanup)
+        asyncio.get_running_loop().call_later(1.0, self._cleanup)
 
     def _cleanup(self):
         """Called periodically to clean up clock pairings that have expired and update pairing.valid"""
 
-        asyncio.get_event_loop().call_later(5.0, self._cleanup)
+        asyncio.get_running_loop().call_later(5.0, self._cleanup)
 
         now = time.time()
         prune = set()
@@ -314,7 +314,7 @@ class ClockTracker(object):
         self.sync_points[key] = 'invalid'
         # schedule cleanup of the syncpoint after 3 seconds -
         # we should have seen all copies of those messages by then.
-        asyncio.get_event_loop().call_later(
+        asyncio.get_running_loop().call_later(
             3.0,
             functools.partial(self._cleanup_syncpointlist,key=key))
 

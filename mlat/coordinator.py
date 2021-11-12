@@ -211,13 +211,13 @@ class Coordinator(object):
     # multiple handlers per signal. so wire up a multiple-handler here.
     def add_sighup_handler(self, handler):
         if not self.sighup_handlers:
-            asyncio.get_event_loop().add_signal_handler(signal.SIGHUP, self.sighup)
+            asyncio.get_running_loop().add_signal_handler(signal.SIGHUP, self.sighup)
         self.sighup_handlers.append(handler)
 
     def remove_sighup_handler(self, handler):
         self.sighup_handlers.remove(handler)
         if not self.sighup_handlers:
-            asyncio.get_event_loop().remove_signal_handler(signal.SIGHUP)
+            asyncio.get_running_loop().remove_signal_handler(signal.SIGHUP)
 
     def sighup(self):
         for handler in self.sighup_handlers[:]:

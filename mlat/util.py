@@ -28,7 +28,7 @@ import logging
 def fuzzy(t):
     return round(random.uniform(0.9*t, 1.1*t), 0)
 
-completed_future = asyncio.get_event_loop().create_future()
+completed_future = asyncio.get_running_loop().create_future()
 completed_future.set_result(True)
 
 

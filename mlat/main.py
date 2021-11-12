@@ -91,7 +91,7 @@ class MlatServer(object):
     """
 
     def __init__(self):
-        self.loop = asyncio.get_event_loop()
+        self.loop = asyncio.get_running_loop()
         self.coordinator = None
 
     def add_client_args(self, parser):
