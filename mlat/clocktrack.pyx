@@ -416,6 +416,7 @@ class ClockTracker(object):
         _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
         self.sync_points[key] = [ syncpoint ]
+        #logging.warn("len(sync_points): {a}".format(a=len(self.sync_points)))
 
 
 
