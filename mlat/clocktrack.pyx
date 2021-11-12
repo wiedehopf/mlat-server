@@ -49,7 +49,7 @@ cdef class SyncPoint(object):
     cdef public double interval
     cdef public list receivers
 
-    def __init__(self, address, posA, posB, interval):
+    def __init__(self, message_details, interval):
         """Construct a new sync point.
 
         address: the ICAO address of the sync aircraft
@@ -61,6 +61,7 @@ cdef class SyncPoint(object):
           to distinguish cases where the same message is
           transmitted more than once.
         """
+        address, posA, posB = message_details
 
         self.address = address
         self.posA = posA
@@ -285,7 +286,7 @@ class ClockTracker(object):
             key = (odd_message, even_message)
 
         # do we have a suitable existing match?
-        syncpointlist = self.sync_points.get(key)
+        message_details, syncpointlist = self.sync_points.get(key, (None, None))
 
         # check if sync point is invalid
         if syncpointlist == 'invalid':
@@ -298,12 +299,20 @@ class ClockTracker(object):
         if interval > 5.0:
             return
 
-        if syncpointlist:
+        if isinstance(syncpointlist, list):
             for candidate in syncpointlist:
                 if abs(candidate.interval - interval) < 1e-3:
                     # interval matches within 1ms, close enough.
                     _add_to_existing_syncpoint(self.clock_pairs, candidate, receiver, tA, tB)
                     return
+            # no matching syncpoint in syncpointlist, add one
+            syncpoint = SyncPoint(message_details, interval)
+
+            syncpointlist.append(syncpoint)
+
+            _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
+
+            return
 
         now = time.time()
 
@@ -311,13 +320,15 @@ class ClockTracker(object):
         if now - receiver.sync_range_exceeded < 15.0:
             return
 
-        # No existing match. Create an invalid sync point, if it pans out, replace it.
-        self.sync_points[key] = 'invalid'
-        # schedule cleanup of the syncpoint after 3 seconds -
-        # we should have seen all copies of those messages by then.
-        self.loop.call_later(
-            3.0,
-            functools.partial(self._cleanup_syncpointlist,key=key))
+        message_details = (None, None, None)
+        if syncpointlist is None:
+            # No existing match. Create an invalid sync point, if it pans out, replace it.
+            self.sync_points[key] = (message_details, 'invalid')
+            # schedule cleanup of the syncpoint after 3 seconds -
+            # we should have seen all copies of those messages by then.
+            self.loop.call_later(
+                3.0,
+                functools.partial(self._cleanup_syncpointlist,key=key))
 
         # Validate the messages and maybe create a real sync point list
 
@@ -376,11 +387,7 @@ class ClockTracker(object):
         even_ecef = geodesy.llh2ecef((even_lat,
                                       even_lon,
                                       even_message.altitude * constants.FTOM))
-        if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
-            # suppress this spam, can't help if ppl give a wrong location
-            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
-            receiver.sync_range_exceeded = now
-            return
+
 
         odd_ecef = geodesy.llh2ecef((odd_lat,
                                      odd_lon,
@@ -395,9 +402,7 @@ class ClockTracker(object):
             #logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
-        #valid, do some extra bookkeeping before sync stuff
-
-        ac = self.coordinator.tracker.aircraft.get(even_message.address)
+        #do some extra bookkeeping now we know this message is legit
         if ac:
             ac.last_adsb_time = now
             ac.last_altitude_time = now
@@ -407,16 +412,26 @@ class ClockTracker(object):
         if even_message.nuc < 6 or odd_message.nuc < 6:
             return
 
+        # valid message, set the message details for use by the SyncPoint
+        if even_time < odd_time:
+            message_details = (even_message.address, even_ecef, odd_ecef)
+        else:
+            message_details = (even_message.address, odd_ecef, even_ecef)
+
+        if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
+            # suppress this spam, can't help if ppl give a wrong location
+            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
+            receiver.sync_range_exceeded = now
+            self.sync_points[key] = (message_details, 'dummy')
+            return
+
         # valid. Create a new Sync point, add to it and creat the sync point list
 
-        if even_time < odd_time:
-            syncpoint = SyncPoint(even_message.address, even_ecef, odd_ecef, interval)
-        else:
-            syncpoint = SyncPoint(even_message.address, odd_ecef, even_ecef, interval)
+        syncpoint = SyncPoint(message_details, interval)
 
         _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
-        self.sync_points[key] = [ syncpoint ]
+        self.sync_points[key] = (message_details, [ syncpoint ])
 
 
 
