@@ -52,8 +52,7 @@ class JsonClientListener(net.MonitoringListener):
         self.udp_protocol = None
         self.clients = []
 
-    @asyncio.coroutine
-    def _start(self):
+    async def _start(self):
         if self.udp_port:
             # asyncio's UDP binding is a bit strange (and different to TCP):
             # a host of None will bind to 127.0.0.1, not the wildcard address.
@@ -61,13 +60,13 @@ class JsonClientListener(net.MonitoringListener):
             dgram_coro = asyncio.get_event_loop().create_datagram_endpoint(protocol_factory=PackedMlatServerProtocol,
                                                                            family=socket.AF_INET,
                                                                            local_addr=(bind_address, self.udp_port))
-            self.udp_transport, self.udp_protocol = (yield from dgram_coro)
+            self.udp_transport, self.udp_protocol = (await dgram_coro)
             name = self.udp_transport.get_extra_info('sockname')
             self.logger.warning("{what} listening on {host}:{port} (UDP)".format(host=name[0],
                                                                               port=name[1],
                                                                               what=self.description))
 
-        yield from super()._start()
+        await super()._start()
 
     def _new_client(self, r, w):
         return JsonClient(r, w,
@@ -249,12 +248,10 @@ class JsonClient(connection.Connection):
         self.transport.close()
         self.transport = None
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait([self._read_task, self._heartbeat_task])
+    async def wait_closed(self):
+        await util.safe_wait([self._read_task, self._heartbeat_task])
 
-    @asyncio.coroutine
-    def handle_heartbeats(self):
+    async def handle_heartbeats(self):
         """A coroutine that:
 
         * Periodicallys write heartbeat messages to the client.
@@ -266,7 +263,7 @@ class JsonClient(connection.Connection):
 
         while True:
             # wait a while..
-            yield from asyncio.sleep(self.write_heartbeat_interval)
+            await asyncio.sleep(self.write_heartbeat_interval)
 
             # if we have seen no activity recently, declare the
             # connection dead and close it down
@@ -278,8 +275,7 @@ class JsonClient(connection.Connection):
             # write a heartbeat message
             self.send(heartbeat={'server_time': round(time.time(), 3)})
 
-    @asyncio.coroutine
-    def handle_connection(self):
+    async def handle_connection(self):
         """A coroutine that handle reading from the client and processing messages.
 
         This does the initial handshake, then reads and processes messages
@@ -293,13 +289,13 @@ class JsonClient(connection.Connection):
         #self.logger.info("Accepted new client connection")
 
         try:
-            yield from self.process_handshake()
+            await self.process_handshake()
 
             # start heartbeat handling now that the handshake is done
             self._last_message_time = time.time()
             self._heartbeat_task = asyncio.ensure_future(self.handle_heartbeats())
 
-            yield from self.handle_messages()
+            await self.handle_messages()
 
         except asyncio.IncompleteReadError:
             self.logger.info('Client EOF')
@@ -317,18 +313,17 @@ class JsonClient(connection.Connection):
         finally:
             self.close()
 
-    @asyncio.coroutine
-    def process_handshake(self):
+    async def process_handshake(self):
         deny = None
 
-        rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
+        rawline = await asyncio.wait_for(self.r.readline(), timeout=15.0)
         try:
             line = rawline.decode('ascii')
             if line.startswith('PROXY '):
                 proxyLine = line.split(' ')
                 self.source_ip = proxyLine[2]
                 self.source_port = proxyLine[4]
-                rawline = yield from asyncio.wait_for(self.r.readline(), timeout=15.0)
+                rawline = await asyncio.wait_for(self.r.readline(), timeout=15.0)
                 line = rawline.decode('ascii')
 
             hs = ujson.loads(line)
@@ -522,27 +517,25 @@ class JsonClient(connection.Connection):
 
         self._writebuf = []
 
-    @asyncio.coroutine
-    def handle_line_messages(self):
+    async def handle_line_messages(self):
         while not self.r.at_eof():
-            line = yield from self.r.readline()
+            line = await self.r.readline()
             if not line:
                 return
             self._last_message_time = time.time()
             self.process_message(line.decode('ascii'))
 
-    @asyncio.coroutine
-    def handle_zlib_messages(self):
+    async def handle_zlib_messages(self):
         if self._decompressor is None:
             self._decompressor = zlib.decompressobj()
 
         decompressor = self._decompressor
 
         while not self.r.at_eof():
-            header = (yield from self.r.readexactly(2))
+            header = (await self.r.readexactly(2))
             hlen, = struct.unpack('!H', header)
 
-            packet = (yield from self.r.readexactly(hlen))
+            packet = (await self.r.readexactly(hlen))
             packet += b'\x00\x00\xff\xff'
 
             self._last_message_time = time.time()
@@ -570,7 +563,7 @@ class JsonClient(connection.Connection):
 
                 if packet:
                     # try to mitigate DoS attacks that send highly compressible data
-                    yield from asyncio.sleep(0.1)
+                    await asyncio.sleep(0.1)
 
             if decompressor.unused_data:
                 raise ValueError('Client sent a packet that had trailing uncompressed data')

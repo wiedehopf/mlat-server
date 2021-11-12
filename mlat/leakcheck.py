@@ -77,20 +77,18 @@ class LeakChecker(object):
         if self._task:
             self._task.cancel()
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait([self._task])
+    async def wait_closed(self):
+        await util.safe_wait([self._task])
 
-    @asyncio.coroutine
-    def checker(self):
-        yield from asyncio.sleep(120.0)  # let startup settle
+    async def checker(self):
+        await asyncio.sleep(120.0)  # let startup settle
 
         self.logger.warning("Leak checker started.")
         gc.collect()
         self.check_leaks(suppress=True)
 
         while True:
-            yield from asyncio.sleep(1800.0)
+            await asyncio.sleep(1800.0)
 
             gc.collect()
 

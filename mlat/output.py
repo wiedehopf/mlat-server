@@ -186,15 +186,13 @@ class BasestationClient(object):
         self.writer.close()
         self.writer = None
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait([self.heartbeat_task, self.reader_task])
+    async def wait_closed(self):
+        await util.safe_wait([self.heartbeat_task, self.reader_task])
 
-    @asyncio.coroutine
-    def read_until_eof(self):
+    async def read_until_eof(self):
         try:
             while True:
-                r = yield from self.reader.read(1024)
+                r = await self.reader.read(1024)
                 if len(r) == 0:
                     self.logger.info("Client EOF")
                     # EOF
@@ -204,14 +202,13 @@ class BasestationClient(object):
             self.close()
             return
 
-    @asyncio.coroutine
-    def send_heartbeats(self):
+    async def send_heartbeats(self):
         try:
             while True:
                 now = time.time()
                 delay = self.last_output + self.heartbeat_interval - now
                 if delay > 0.1:
-                    yield from asyncio.sleep(delay)
+                    await asyncio.sleep(delay)
                     continue
 
                 self.writer.write(b'\n')

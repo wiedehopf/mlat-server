@@ -392,20 +392,18 @@ class Coordinator(object):
         os.replace(tmpfile, aircraftfile)
 
 
-    @asyncio.coroutine
-    def write_state(self):
+    async def write_state(self):
         while True:
             try:
                 self._really_write_state()
             except Exception:
                 glogger.exception("Failed to write state files")
 
-            yield from asyncio.sleep(15.0)
+            await asyncio.sleep(15.0)
 
-    @asyncio.coroutine
-    def write_profile(self):
+    async def write_profile(self):
         while True:
-            yield from asyncio.sleep(60.0)
+            await asyncio.sleep(60.0)
 
             try:
                 with closing(open(self.work_dir + '/cpuprofile.txt', 'w')) as f:
@@ -418,9 +416,8 @@ class Coordinator(object):
         if self._write_profile_task:
             self._write_profile_task.cancel()
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait([self._write_state_task, self._write_profile_task])
+    async def wait_closed(self):
+        await util.safe_wait([self._write_state_task, self._write_profile_task])
 
     @profile.trackcpu
     def new_receiver(self, connection, uuid, user, auth, position_llh, clock_type, privacy, connection_info):

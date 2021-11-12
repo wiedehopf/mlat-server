@@ -45,19 +45,17 @@ class MonitoringListener(object):
         self.clients = []
         self.monitoring = []
 
-    @asyncio.coroutine
-    def start(self):
+    async def start(self):
         if not self.started:
-            yield from self._start()
+            await self._start()
             self.started = True
 
         return self
 
     # override as needed:
 
-    @asyncio.coroutine
-    def _start(self):
-        self.tcp_server = yield from asyncio.start_server(self.start_client,
+    async def _start(self):
+        self.tcp_server = await asyncio.start_server(self.start_client,
                                                           host=self.host,
                                                           port=self.port)
         for s in self.tcp_server.sockets:
@@ -87,10 +85,9 @@ class MonitoringListener(object):
             self.logger.exception('Exception handling client')
 
 
-    @asyncio.coroutine
-    def monitor_client(self, client):
+    async def monitor_client(self, client):
         try:
-            yield from client.wait_closed()
+            await client.wait_closed()
             if client in self.clients:
                 self.clients.remove(client)
             task = asyncio.current_task()
@@ -110,11 +107,10 @@ class MonitoringListener(object):
             m.cancel()
         self.monitoring.clear()
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait(self.monitoring)
+    async def wait_closed(self):
+        await util.safe_wait(self.monitoring)
         if self.tcp_server:
-            yield from self.tcp_server.wait_closed()
+            await self.tcp_server.wait_closed()
 
 
 class MonitoringConnector(object):
@@ -134,19 +130,18 @@ class MonitoringConnector(object):
 
         return util.completed_future
 
-    @asyncio.coroutine
-    def reconnect(self):
+    async def reconnect(self):
         while True:
             try:
-                reader, writer = yield from asyncio.open_connection(self.host, self.port)
+                reader, writer = await asyncio.open_connection(self.host, self.port)
             except socket.error:
-                yield from asyncio.sleep(self.reconnect_interval)
+                await asyncio.sleep(self.reconnect_interval)
                 continue
 
             self.client = self.factory(reader, writer)
-            yield from self.client.wait_closed()
+            await self.client.wait_closed()
             self.client = None
-            yield from asyncio.sleep(self.reconnect_interval)
+            await asyncio.sleep(self.reconnect_interval)
 
     def close(self):
         if not self.started:
@@ -157,8 +152,7 @@ class MonitoringConnector(object):
         if self.client:
             self.client.close()
 
-    @asyncio.coroutine
-    def wait_closed(self):
-        yield from util.safe_wait([self.reconnect_task])
+    async def wait_closed(self):
+        await util.safe_wait([self.reconnect_task])
         if self.client:
-            yield from self.client.wait_closed()
+            await self.client.wait_closed()
