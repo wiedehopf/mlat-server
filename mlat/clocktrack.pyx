@@ -36,12 +36,17 @@ from mlat import clocksync, config
 __all__ = ('SyncPoint', 'ClockTracker')
 
 
-class SyncPoint(object):
+cdef class SyncPoint(object):
     """A potential clock synchronization point.
     Clock synchronization points are a pair of DF17 messages,
     and associated timing info from all receivers that see
     that pair.
     """
+    cdef public int address
+    cdef public tuple posA
+    cdef public tuple posB
+    cdef public double interval
+    cdef public list receivers
 
     def __init__(self, address, posA, posB, interval):
         """Construct a new sync point.

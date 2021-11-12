@@ -110,12 +110,13 @@ def solve(measurements, altitude, altitude_error, initial_guess):
             # implausible range offset to closest receiver
             return None
 
-        for receiver, timestamp, variance in measurements:
-            d = geodesy.ecef_distance(receiver.position, position_est)
-            if d > config.MAX_RANGE:
-                # too far from this receiver
-                #glogger.info("solver: bad range: {0}".format(d))
-                return None
+        # disable this check for performance, shoudln't be necessary
+        #for receiver, timestamp, variance in measurements:
+        #    d = geodesy.ecef_distance(receiver.position, position_est)
+        #    if d > config.MAX_RANGE:
+        #        # too far from this receiver
+        #        #glogger.info("solver: bad range: {0}".format(d))
+        #        return None
 
         if cov_x is None:
             return position_est, None

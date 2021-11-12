@@ -31,18 +31,22 @@ import numpy as np
 from mlat import profile
 
 
-class _Predictor(object):
+cdef class _Predictor(object):
     """Simple object for holding prediction state"""
-    def __init__(self, predict, variance):
+
+    cdef public predict
+    cdef public double variance
+
+    def __init__(self, predict, double variance):
         self.predict = predict
         self.variance = variance
 
 
-def _identity_predict(x):
-    return x
+#cdef _identity_predict(x):
+#    return x
 
 
-def _make_predictors(clocktracker, station0, station1, now):
+cdef _make_predictors(clock_pairs, station0, station1, double now):
     """Return a tuple of predictors (p_01, p_10) where:
 
     p_01 will predict a station1 timestamp given a station0 timestamp
@@ -51,11 +55,6 @@ def _make_predictors(clocktracker, station0, station1, now):
     Returns None if no suitable clock sync model is available for
     this pair of stations.
     """
-    if station0 is station1:
-        return None
-
-    if station0.bad_syncs > 0 or station1.bad_syncs > 0:
-        return None
 
     #if station0.epoch is not None and station0.epoch == station1.epoch:
     #    # Assume clocks are closely synchronized to the epoch (and therefore to each other)
@@ -63,22 +62,22 @@ def _make_predictors(clocktracker, station0, station1, now):
     #    return (predictor, predictor)
 
     if station0 < station1:
-        pairing = clocktracker.clock_pairs.get((station0, station1))
+        pairing = clock_pairs.get((station0, station1))
     else:
-        pairing = clocktracker.clock_pairs.get((station1, station0))
+        pairing = clock_pairs.get((station1, station0))
 
     if pairing is None or not pairing.valid:
         return None
 
-    variance = pairing.variance
-    stale = now - pairing.updated
+    cdef double variance = pairing.variance
+    cdef double stale = now - pairing.updated
 
     # increase variance for stale pairings
-    variance *= 1 + stale / 60
+    variance *= 1.0 + stale / 60.0
 
     # increase variance for pairing with fewer sync points
     if pairing.n < 10:
-        variance *= 1 + (10 - pairing.n) / 20
+        variance *= 1 + (10 - pairing.n) * 0.05
 
     if station0 < station1:
         return (_Predictor(pairing.predict_peer, variance),
@@ -88,7 +87,7 @@ def _make_predictors(clocktracker, station0, station1, now):
                 _Predictor(pairing.predict_peer, variance))
 
 
-def _label_heights(g, node, heights):
+cdef _label_heights(g, node, heights):
     """Label each node in the tree with a root of 'node'
     with its height, filling the map 'heights' which
     should be initially empty."""
@@ -103,7 +102,7 @@ def _label_heights(g, node, heights):
                 heights[node] = mn
 
 
-def _tallest_branch(g, node, heights, ignore=None):
+cdef _tallest_branch(g, node, heights, ignore=None):
     """Find the edge in the tree rooted at 'node' that is part of
     the tallest branch. If ignore is not None, ignore that neighbour.
     Returns (pathlen,node)"""
@@ -120,7 +119,7 @@ def _tallest_branch(g, node, heights, ignore=None):
     return tallest
 
 
-def _convert_timestamps(g, timestamp_map, predictor_map, node, results, conversion_chain, variance):
+cdef _convert_timestamps(g, timestamp_map, predictor_map, node, results, conversion_chain, variance):
     """Rewrite node and all unvisited nodes reachable from node using the
     chain of clocksync objects in conversion_chain, populating the results dict.
 
@@ -197,7 +196,7 @@ def normalize(clocktracker, timestamp_map):
     for si in timestamp_map.keys():
         for sj in timestamp_map.keys():
             if si < sj:
-                predictors = _make_predictors(clocktracker, si, sj, now)
+                predictors = _make_predictors(clocktracker.clock_pairs, si, sj, now)
                 if predictors:
                     predictor_map[(si, sj)] = predictors[0]
                     predictor_map[(sj, si)] = predictors[1]
@@ -310,7 +309,7 @@ def normalize2(clocktracker, timestamp_map):
     # also build a map of predictor objects corresponding to the
     # edges for later use
 
-    now = time.time()
+    cdef double now = time.time()
 
     reclen = len(receivers)
     predictor_count = 0
@@ -324,7 +323,7 @@ def normalize2(clocktracker, timestamp_map):
         ci = 0
         for sj in receivers:
             if si < sj:
-                predictors = _make_predictors(clocktracker, si, sj, now)
+                predictors = _make_predictors(clocktracker.clock_pairs, si, sj, now)
                 if predictors:
                     predictor_map[(si, sj)] = predictors[0]
                     predictor_map[(sj, si)] = predictors[1]

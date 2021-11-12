@@ -3,6 +3,7 @@ from Cython.Build import cythonize
 
 extensions = [
     Extension("mlat.clocksync", ["mlat/clocksync.pyx"]),
+    Extension("mlat.clocknorm", ["mlat/clocknorm.pyx"]),
     Extension("mlat.clocktrack", ["mlat/clocktrack.pyx"])
 ]
 setup(
