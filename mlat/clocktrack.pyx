@@ -111,11 +111,8 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     for r1l in syncpoint.receivers:
         r1, td1B, i1 = r1l
 
-        if r1.dead:
+        if r1.dead or r0 is r1:
             # receiver went away before we started resolving this
-            continue
-
-        if r0 is r1:
             # odd, but could happen
             continue
 
