@@ -32,6 +32,7 @@ import modes.message
 
 from mlat import geodesy, constants, profile
 from mlat import clocksync, config
+from libc.math cimport sqrt
 
 __all__ = ('SyncPoint', 'ClockTracker')
 
@@ -67,6 +68,114 @@ cdef class SyncPoint(object):
         self.interval = interval
         self.receivers = []  # a list of (receiver, timestampA, timestampB) values
 
+cdef double ecef_distance(tuple p0, tuple p1):
+    """Returns the straight-line distance in metres between two ECEF points."""
+    return sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2 + (p0[2] - p1[2])**2)
+
+cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t0B):
+    # add a new receiver and timestamps to an existing syncpoint
+
+    # new state for the syncpoint: receiver, timestamp A, timestamp B,
+    # and a flag indicating if this receiver actually managed to sync
+    # with another receiver using this syncpoint (used for stats)
+
+    cdef double receiverDistA = ecef_distance(syncpoint.posA, r0.position)
+    cdef double receiverDistB = ecef_distance(syncpoint.posB, r0.position)
+
+    # add receiver distance check here
+    if receiverDistA > config.MAX_RANGE or receiverDistB > config.MAX_RANGE:
+        r0.sync_range_exceeded = 1
+        return
+
+    r0.sync_range_exceeded = 0
+
+    # propagation delays, in clock units
+    cdef double delayFactor = r0.clock.freq / constants.Cair
+    delay0A = receiverDistA * delayFactor
+    delay0B = receiverDistB * delayFactor
+
+    cdef double td0A = t0A - delay0A
+    cdef double td0B = t0B - delay0B
+
+    # compute interval, adjusted for transmitter motion
+    cdef double i0 = td0B - td0A
+
+    r0l = [r0, td0B, i0, False]
+
+    cdef double now = time.time()
+
+    # try to sync the new receiver with all receivers that previously
+    # saw the same pair
+    cdef double td1B, i1
+    cdef int cat, cat_max_index
+    cdef double p0, p1, limit
+    for r1l in syncpoint.receivers:
+        r1, td1B, i1, r1sync = r1l
+
+        if r1.dead:
+            # receiver went away before we started resolving this
+            continue
+
+        if r0 is r1:
+            # odd, but could happen
+            continue
+
+        # order the clockpair so that the receiver that sorts lower is the base clock
+
+        if r0 < r1:
+            k = (r0, r1)
+        else:
+            k = (r1, r0)
+
+        pairing = clock_pairs.get(k)
+        if pairing is None:
+            cat = r0.distance[r1.uid] / config.DISTANCE_CATEGORY_STEP
+            cat_max_index = config.MAX_PEERS_BINS
+            if cat > cat_max_index:
+                cat = cat_max_index
+
+            p0 = r0.sync_peers[cat]
+            p1 = r1.sync_peers[cat]
+            limit = config.MAX_PEERS[cat] * 0.7
+
+            if p0 > limit and p1 > limit:
+                #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                continue
+
+            clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
+
+            r0.sync_peers[pairing.cat] += 1
+            r1.sync_peers[pairing.cat] += 1
+        else:
+            if now - pairing.updated < config.SYNC_INTERVAL:
+                continue
+
+            cat = pairing.cat
+            p0 = r0.sync_peers[cat]
+            p1 = r1.sync_peers[cat]
+            limit = config.MAX_PEERS[cat] * 1.2
+
+            if p0 > limit and p1 > limit:
+                if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                    logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
+                r0.sync_peers[pairing.cat] -= 1
+                r1.sync_peers[pairing.cat] -= 1
+                del clock_pairs[k]
+                continue
+
+        if r0 < r1:
+            if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
+                continue
+        else:
+            if not pairing.update(syncpoint.address, td1B, td0B, i1, i0, now):
+                continue
+
+        # sync worked, note it for stats
+        r0l[3] = r1l[3] = True
+
+    # update syncpoint with the new receiver and we're done
+    syncpoint.receivers.append(r0l)
 
 class ClockTracker(object):
     """Maintains clock pairings between receivers, and matches up incoming sync messages
@@ -197,7 +306,7 @@ class ClockTracker(object):
             for candidate in syncpointlist:
                 if abs(candidate.interval - interval) < 1e-3:
                     # interval matches within 1ms, close enough.
-                    self._add_to_existing_syncpoint(candidate, receiver, tA, tB)
+                    _add_to_existing_syncpoint(self.clock_pairs, candidate, receiver, tA, tB)
                     return
 
         # No existing match. Validate the messages and maybe create a new sync point
@@ -299,7 +408,7 @@ class ClockTracker(object):
         else:
             syncpoint = SyncPoint(even_message.address, odd_ecef, even_ecef, interval)
 
-        self._add_to_existing_syncpoint(syncpoint, receiver, tA, tB)
+        _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
         if not syncpointlist:
             syncpointlist = self.sync_points[key] = []
@@ -313,110 +422,6 @@ class ClockTracker(object):
             functools.partial(self._cleanup_syncpoint,
                               key=key,
                               syncpoint=syncpoint))
-
-    def _add_to_existing_syncpoint(self, syncpoint, r0, double t0A, double t0B):
-        # add a new receiver and timestamps to an existing syncpoint
-
-        # new state for the syncpoint: receiver, timestamp A, timestamp B,
-        # and a flag indicating if this receiver actually managed to sync
-        # with another receiver using this syncpoint (used for stats)
-
-        receiverDistA = geodesy.ecef_distance(syncpoint.posA, r0.position)
-        receiverDistB = geodesy.ecef_distance(syncpoint.posB, r0.position)
-
-        # add receiver distance check here
-        if receiverDistA > config.MAX_RANGE or receiverDistB > config.MAX_RANGE:
-            r0.sync_range_exceeded = 1
-            return
-
-        r0.sync_range_exceeded = 0
-
-        # propagation delays, in clock units
-        delay0A = receiverDistA * r0.clock.freq / constants.Cair
-        delay0B = receiverDistB * r0.clock.freq / constants.Cair
-
-        cdef double td0A = t0A - delay0A
-        cdef double td0B = t0B - delay0B
-
-        # compute interval, adjusted for transmitter motion
-        cdef double i0 = td0B - td0A
-
-        r0l = [r0, td0B, i0, False]
-
-        cdef double now = time.time()
-
-        # try to sync the new receiver with all receivers that previously
-        # saw the same pair
-        cdef double td1B, i1
-        cdef int cat, cat_max_index
-        cdef double p0, p1, limit
-        for r1l in syncpoint.receivers:
-            r1, td1B, i1, r1sync = r1l
-
-            if r1.dead:
-                # receiver went away before we started resolving this
-                continue
-
-            if r0 is r1:
-                # odd, but could happen
-                continue
-
-            # order the clockpair so that the receiver that sorts lower is the base clock
-
-            if r0 < r1:
-                k = (r0, r1)
-            else:
-                k = (r1, r0)
-
-            pairing = self.clock_pairs.get(k)
-            if pairing is None:
-                cat = r0.distance[r1.uid] / config.DISTANCE_CATEGORY_STEP
-                cat_max_index = config.MAX_PEERS_BINS
-                if cat > cat_max_index:
-                    cat = cat_max_index
-
-                p0 = r0.sync_peers[cat]
-                p1 = r1.sync_peers[cat]
-                limit = config.MAX_PEERS[cat] * 0.7
-
-                if p0 > limit and p1 > limit:
-                    #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
-                    #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
-                    continue
-
-                self.clock_pairs[k] = pairing = clocksync.ClockPairing(r0, r1, cat)
-
-                r0.sync_peers[pairing.cat] += 1
-                r1.sync_peers[pairing.cat] += 1
-            else:
-                if now - pairing.updated < config.SYNC_INTERVAL:
-                    continue
-
-                cat = pairing.cat
-                p0 = r0.sync_peers[cat]
-                p1 = r1.sync_peers[cat]
-                limit = config.MAX_PEERS[cat] * 1.2
-
-                if p0 > limit and p1 > limit:
-                    if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
-                        logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
-                    r0.sync_peers[pairing.cat] -= 1
-                    r1.sync_peers[pairing.cat] -= 1
-                    del self.clock_pairs[k]
-                    continue
-
-            if r0 < r1:
-                if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
-                    continue
-            else:
-                if not pairing.update(syncpoint.address, td1B, td0B, i1, i0, now):
-                    continue
-
-            # sync worked, note it for stats
-            r0l[3] = r1l[3] = True
-
-        # update syncpoint with the new receiver and we're done
-        syncpoint.receivers.append(r0l)
 
     @profile.trackcpu
     def _cleanup_syncpoint(self, key, syncpoint):
