@@ -82,12 +82,12 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     cdef double receiverDistA = ecef_distance(syncpoint.posA, r0.position)
     cdef double receiverDistB = ecef_distance(syncpoint.posB, r0.position)
 
+    cdef double now = time.time()
+
     # add receiver distance check here
     if receiverDistA > config.MAX_RANGE or receiverDistB > config.MAX_RANGE:
-        r0.sync_range_exceeded = 1
+        r0.sync_range_exceeded = now
         return
-
-    r0.sync_range_exceeded = 0
 
     # propagation delays, in clock units
     cdef double delayFactor = r0.clock.freq / constants.Cair
@@ -100,9 +100,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     # compute interval, adjusted for transmitter motion
     cdef double i0 = td0B - td0A
 
-    r0l = [r0, td0B, i0, False]
-
-    cdef double now = time.time()
+    r0l = (r0, td0B, i0)
 
     # try to sync the new receiver with all receivers that previously
     # saw the same pair
@@ -110,7 +108,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     cdef int cat, cat_max_index
     cdef double p0, p1, limit
     for r1l in syncpoint.receivers:
-        r1, td1B, i1, r1sync = r1l
+        r1, td1B, i1 = r1l
 
         if r1.dead:
             # receiver went away before we started resolving this
@@ -165,14 +163,9 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
                 continue
 
         if r0 < r1:
-            if not pairing.update(syncpoint.address, td0B, td1B, i0, i1, now):
-                continue
+            pairing.update(syncpoint.address, td0B, td1B, i0, i1, now)
         else:
-            if not pairing.update(syncpoint.address, td1B, td0B, i1, i0, now):
-                continue
-
-        # sync worked, note it for stats
-        r0l[3] = r1l[3] = True
+            pairing.update(syncpoint.address, td1B, td0B, i1, i0, now)
 
     # update syncpoint with the new receiver and we're done
     syncpoint.receivers.append(r0l)
@@ -290,6 +283,13 @@ class ClockTracker(object):
             tB = even_time
             key = (odd_message, even_message)
 
+        # do we have a suitable existing match?
+        syncpointlist = self.sync_points.get(key)
+
+        # check if sync point is invalid
+        if syncpointlist == 'invalid':
+            return
+
         cdef double freq = receiver.clock.freq
         cdef double interval = (tB - tA) / freq
 
@@ -297,8 +297,6 @@ class ClockTracker(object):
         if interval > 5.0:
             return
 
-        # do we have a suitable existing match?
-        syncpointlist = self.sync_points.get(key)
         if syncpointlist:
             for candidate in syncpointlist:
                 if abs(candidate.interval - interval) < 1e-3:
@@ -306,10 +304,21 @@ class ClockTracker(object):
                     _add_to_existing_syncpoint(self.clock_pairs, candidate, receiver, tA, tB)
                     return
 
-        # No existing match. Validate the messages and maybe create a new sync point
+        now = time.time()
 
-        if receiver.sync_range_exceeded:
+        # this receiver isn't allowed to create new sync points due to exceeding the range
+        if now - receiver.sync_range_exceeded < 15.0:
             return
+
+        # No existing match. Create an invalid sync point, if it pans out, replace it.
+        self.sync_points[key] = 'invalid'
+        # schedule cleanup of the syncpoint after 3 seconds -
+        # we should have seen all copies of those messages by then.
+        asyncio.get_event_loop().call_later(
+            3.0,
+            functools.partial(self._cleanup_syncpointlist,key=key))
+
+        # Validate the messages and maybe create a real sync point list
 
         # basic validity
         even_message = modes.message.decode(even_message)
@@ -320,7 +329,6 @@ class ClockTracker(object):
                 and even_message.estype == modes.message.ESType.surface_position
                 and odd_message.estype == modes.message.ESType.surface_position
                 ):
-            now = time.time()
             ac.last_adsb_time = now
 
         if ((not even_message or
@@ -370,7 +378,7 @@ class ClockTracker(object):
         if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
             # suppress this spam, can't help if ppl give a wrong location
             # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
-            receiver.sync_range_exceeded = 1
+            receiver.sync_range_exceeded = now
             return
 
         odd_ecef = geodesy.llh2ecef((odd_lat,
@@ -390,7 +398,6 @@ class ClockTracker(object):
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
-            now = time.time()
             ac.last_adsb_time = now
             ac.last_altitude_time = now
             ac.altitude = even_message.altitude
@@ -399,7 +406,8 @@ class ClockTracker(object):
         if even_message.nuc < 6 or odd_message.nuc < 6:
             return
 
-        # valid. Create a new sync point.
+        # valid. Create a new Sync point, add to it and creat the sync point list
+
         if even_time < odd_time:
             syncpoint = SyncPoint(even_message.address, even_ecef, odd_ecef, interval)
         else:
@@ -407,38 +415,20 @@ class ClockTracker(object):
 
         _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
-        if not syncpointlist:
-            syncpointlist = self.sync_points[key] = []
-        syncpointlist.append(syncpoint)
+        self.sync_points[key] = [ syncpoint ]
 
-        # schedule cleanup of the syncpoint after 2 seconds -
-        # we should have seen all copies of those messages by
-        # then.
-        asyncio.get_event_loop().call_later(
-            2.0,
-            functools.partial(self._cleanup_syncpoint,
-                              key=key,
-                              syncpoint=syncpoint))
+
 
     @profile.trackcpu
-    def _cleanup_syncpoint(self, key, syncpoint):
-        """Expire a syncpoint. This happens ~2 seconds after the first copy
+    def _cleanup_syncpointlist(self, key):
+        """Expire a syncpoint list. This happens ~3 seconds after the first copy
         of a message pair is received.
 
         key: the key of the syncpoint
-        syncpoint: the syncpoint itself
         """
 
-        # remove syncpoint from self.sync_points, clean up empty entries
-        l = self.sync_points[key]
-        l.remove(syncpoint)
-        if not l:
+        if key in self.sync_points:
             del self.sync_points[key]
-
-        # stats update
-        for r, _, _, synced in syncpoint.receivers:
-            if synced:
-                r.sync_count += 1
 
     def dump_receiver_state(self):
         state = {}
