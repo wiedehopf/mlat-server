@@ -333,24 +333,18 @@ cdef class ClockPairing(object):
         if base_ts < self.ts_base[0] or self.n == 1:
             # extrapolate before first point or if we only have one point
             elapsed = base_ts - self.ts_base[0]
-            return (self.ts_peer[0] +
-                    elapsed * self.relative_freq +
-                    elapsed * self.relative_freq * self.drift)
+            return self.ts_peer[0] + elapsed * self.relative_freq * (1 + self.drift)
 
         if base_ts > self.ts_base[-2]:
             # extrapolate after or before the last point
             elapsed = base_ts - self.ts_base[-1]
-            result = (self.ts_peer[-1] +
-                    elapsed * self.relative_freq +
-                    elapsed * self.relative_freq * self.drift)
+            result = self.ts_peer[-1] + elapsed * self.relative_freq * (1 + self.drift)
 
             if self.ts_base[-1] - self.ts_base[-2] > 10 * self.base_clock.freq and base_ts > self.ts_base[-1]:
                 return result
 
             elapsed = base_ts - self.ts_base[-2]
-            result += (self.ts_peer[-2] +
-                    elapsed * self.relative_freq +
-                    elapsed * self.relative_freq * self.drift)
+            result += self.ts_peer[-2] + elapsed * self.relative_freq * (1 + self.drift)
             return result * 0.5
 
         i = bisect.bisect_left(self.ts_base, base_ts)
@@ -372,25 +366,19 @@ cdef class ClockPairing(object):
         if peer_ts < self.ts_peer[0] or self.n == 1:
             # extrapolate before first point or if we only have one point
             elapsed = peer_ts - self.ts_peer[0]
-            return (self.ts_base[0] +
-                    elapsed * self.i_relative_freq +
-                    elapsed * self.i_relative_freq * self.i_drift)
+            return self.ts_base[0] + elapsed * self.i_relative_freq * (1 + self.i_drift)
 
         if peer_ts > self.ts_peer[-2]:
             # extrapolate after or before the last point
             elapsed = peer_ts - self.ts_peer[-1]
-            result = (self.ts_base[-1] +
-                    elapsed * self.i_relative_freq +
-                    elapsed * self.i_relative_freq * self.i_drift)
+            result = self.ts_base[-1] + elapsed * self.i_relative_freq * (1 + self.i_drift)
 
             if self.ts_peer[-1] - self.ts_peer[-2] > 10 * self.peer_clock.freq and peer_ts > self.ts_peer[-1]:
                 return result
 
             elapsed = peer_ts - self.ts_peer[-2]
-            result += (self.ts_base[-2] +
-                    elapsed * self.i_relative_freq +
-                    elapsed * self.i_relative_freq * self.i_drift)
-            return result / 2
+            result += self.ts_base[-2] + elapsed * self.i_relative_freq * (1 + self.i_drift)
+            return result * 0.5
 
         i = bisect.bisect_left(self.ts_peer, peer_ts)
         # interpolate between two points
