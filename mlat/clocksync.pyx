@@ -28,6 +28,8 @@ import logging
 from cpython cimport array
 import array
 
+from libc.math cimport sqrt
+
 from mlat import config
 
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
@@ -131,7 +133,7 @@ cdef class ClockPairing(object):
         self.i_relative_freq = base.clock.freq / peer.clock.freq
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
         self.drift_max_delta = self.drift_max / 10.0
-        self.outlier_threshold = 5 * math.sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
+        self.outlier_threshold = 5 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         self.updated = 0
         self.valid = False
@@ -146,9 +148,9 @@ cdef class ClockPairing(object):
             self.variance = self.var_sum / self.n
 
             """Standard error of recent predictions."""
-            self.error = math.sqrt(self.variance)
+            self.error = sqrt(self.variance)
 
-    def check_valid(self, now):
+    def check_valid(self, double now):
         """True if this pairing is usable for clock syncronization."""
         self.valid = (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
                     self.outliers < 3 and now - self.updated < 35.0 and
@@ -173,8 +175,8 @@ cdef class ClockPairing(object):
             return False
 
         # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 45 * self.base_clock.freq):
-            self._prune_old_data(base_ts)
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 50.0 * self.base_clock.freq):
+            self._prune_old_data()
 
         cdef bint outlier = False
         cdef double prection, prediction_error
@@ -200,8 +202,8 @@ cdef class ClockPairing(object):
                 # note that using weight 1/2 so the exact geometric mean seems to be unstable
                 # weights 1/4 and 1/3 seem to work well though
                 prediction_base = self.predict_base(peer_ts)
-                peer_ts += (prediction - peer_ts) / 3
-                base_ts += (prediction_base - base_ts) / 3
+                peer_ts += (prediction - peer_ts) * 0.4
+                base_ts += (prediction_base - base_ts) * 0.4
         else:
             prediction_error = 0  # first sync point, no error
 
@@ -218,13 +220,15 @@ cdef class ClockPairing(object):
         self.check_valid(now)
         return True
 
-    def _prune_old_data(self, latest_base_ts):
-        i = 0
+    cdef _prune_old_data(self):
+        cdef int i = 0
 
         if self.n > 20:
             i = self.n - 20
 
-        while i < self.n and (latest_base_ts - self.ts_base[i]) > 45 * self.base_clock.freq:
+        cdef double latest_base_ts = self.ts_base[-1]
+        cdef double limit = 45.0 * self.base_clock.freq
+        while i < self.n and (latest_base_ts - self.ts_base[i]) > limit:
             i += 1
 
         if i > 0:
@@ -264,7 +268,7 @@ cdef class ClockPairing(object):
         self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
-    cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, double outlier):
+    cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
         if self.n != 0:
             assert base_ts > self.ts_base[-1]
@@ -301,7 +305,7 @@ cdef class ClockPairing(object):
         self.ts_base.append(base_ts)
         self.ts_peer.append(peer_ts)
 
-        cdef double p_var = prediction_error ** 2
+        cdef double p_var = prediction_error * prediction_error
         self.var.append(p_var)
         self.var_sum += p_var
         self.updateVars()
