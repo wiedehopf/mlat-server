@@ -24,6 +24,10 @@ import math
 import time
 import bisect
 import logging
+
+from cpython cimport array
+import array
+
 from mlat import config
 
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
@@ -83,9 +87,9 @@ cdef class ClockPairing(object):
     cdef readonly double drift
     cdef readonly double i_drift
     cdef readonly int n
-    cdef list ts_base
-    cdef list ts_peer
-    cdef list var
+    cdef array.array ts_base
+    cdef array.array ts_peer
+    cdef array.array var
     cdef double var_sum
     cdef readonly int outliers
     cdef double cumulative_error
@@ -112,9 +116,9 @@ cdef class ClockPairing(object):
         self.drift = 1e99
         self.i_drift = 1e99
         self.n = 0
-        self.ts_base = []
-        self.ts_peer = []
-        self.var = []
+        self.ts_base = array.array('d', [])
+        self.ts_peer = array.array('d', [])
+        self.var = array.array('d', [])
         self.var_sum = 0.0
         self.outliers = 0
         self.cumulative_error = 0.0
@@ -163,7 +167,7 @@ cdef class ClockPairing(object):
         Returns True if the update was used, False if it was an outlier.
         """
 
-        if self.n != 0 and base_ts <= self.ts_base[-1]:
+        if self.n > 0 and base_ts <= self.ts_base[-1]:
             # timestamp is in the past or duplicated, don't use this
             #glogger.warn("{0}: timestamp in past or duplicated".format(self))
             return False
@@ -273,9 +277,9 @@ cdef class ClockPairing(object):
             # again.
 
             if peer_ts < self.ts_peer[-1]:
-                self.ts_base = []
-                self.ts_peer = []
-                self.var = []
+                self.ts_base = array.array('d', [])
+                self.ts_peer = array.array('d', [])
+                self.var = array.array('d', [])
                 self.var_sum = 0
                 self.updateVars()
                 self.cumulative_error = 0
