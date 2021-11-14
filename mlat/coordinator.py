@@ -196,7 +196,7 @@ class Coordinator(object):
         self.handshake_logger.addHandler(self.handshake_handler)
 
     def start(self):
-        self._write_state_task = asyncio.ensure_future(self.write_state())
+        self._every_15_task = asyncio.ensure_future(self.every_15())
         if profile.enabled:
             self._write_profile_task = asyncio.ensure_future(self.write_profile())
         else:
@@ -226,7 +226,7 @@ class Coordinator(object):
             handler()
 
     @profile.trackcpu
-    def _really_write_state(self):
+    def _write_state(self):
         aircraft_state = {}
         mlat_count = 0
         sync_count = 0
@@ -394,10 +394,11 @@ class Coordinator(object):
         os.replace(tmpfile, aircraftfile)
 
 
-    async def write_state(self):
+    async def every_15(self):
         while True:
             try:
-                self._really_write_state()
+                self._write_state()
+                self.clock_tracker.sync_points.clear()
             except Exception:
                 glogger.exception("Failed to write state files")
 
@@ -414,12 +415,12 @@ class Coordinator(object):
                 glogger.exception("Failed to write CPU profile")
 
     def close(self):
-        self._write_state_task.cancel()
+        self._every_15_task.cancel()
         if self._write_profile_task:
             self._write_profile_task.cancel()
 
     async def wait_closed(self):
-        await util.safe_wait([self._write_state_task, self._write_profile_task])
+        await util.safe_wait([self._every_15_task, self._write_profile_task])
 
     @profile.trackcpu
     def new_receiver(self, connection, uuid, user, auth, position_llh, clock_type, privacy, connection_info):

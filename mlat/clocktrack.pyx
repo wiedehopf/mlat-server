@@ -207,7 +207,7 @@ class ClockTracker(object):
     def _cleanup(self):
         """Called periodically to clean up clock pairings that have expired and update pairing.valid"""
 
-        self.loop.call_later(5.0, self._cleanup)
+        self.loop.call_later(10.0, self._cleanup)
 
         now = time.time()
         prune = set()
@@ -335,9 +335,8 @@ class ClockTracker(object):
             self.sync_points[key] = (message_details, 'invalid')
             # schedule cleanup of the syncpoint after 3 seconds -
             # we should have seen all copies of those messages by then.
-            self.loop.call_later(
-                3.0,
-                functools.partial(self._cleanup_syncpointlist,key=key))
+            #self.loop.call_later(3.0, functools.partial(self._cleanup_syncpointlist,key=key))
+            # change to centralized cleanup every 15 seconds, maybe save some CPU
 
         # Validate the messages and maybe create a real sync point list
 
