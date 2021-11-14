@@ -61,10 +61,6 @@ class TrackedAircraft(object):
         # invariant: r.mlat_interest.contains(a) iff a.mlat_interest.contains(r)
         self.mlat_interest = set()
 
-        # set of receivers that have contributed to at least one multilateration
-        # result. This is used to decide who to forward results to.
-        self.successful_mlat = set()
-
         # number of mlat message resolves attempted
         self.mlat_message_count = 0
         # number of mlat messages that produced valid least-squares results
@@ -147,7 +143,6 @@ class Tracker(object):
                 continue
 
             ac.tracking.discard(receiver)
-            ac.successful_mlat.discard(receiver)
             receiver.tracking.discard(ac)
             if not ac.tracking:
                 del self.aircraft[icao]
@@ -155,7 +150,6 @@ class Tracker(object):
     def remove_all(self, receiver):
         for ac in receiver.tracking:
             ac.tracking.discard(receiver)
-            ac.successful_mlat.discard(receiver)
             ac.sync_interest.discard(receiver)
             ac.adsb_seen.discard(receiver)
             ac.mlat_interest.discard(receiver)
@@ -196,6 +190,8 @@ class Tracker(object):
         for icao, rate in receiver.last_rate_report.items():
             ac = self.aircraft.get(icao)
             if not ac:
+                # for the moment don't add aircraft from here ....
+                continue
                 self.add(receiver, {icao})
                 ac = self.aircraft.get(icao)
                 if not ac:

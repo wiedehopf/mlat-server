@@ -262,21 +262,21 @@ class Coordinator(object):
                     mlat_count += 1
 
         if self.partition[1] > 1:
-            util.setproctitle('{tag} {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
-                tag=self.tag,
+            title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
                 i=self.partition[0],
                 n=self.partition[1],
                 r=len(self.receivers),
                 m=mlat_count,
                 s=sync_count,
-                t=len(self.tracker.aircraft)))
+                t=len(self.tracker.aircraft))
         else:
-            util.setproctitle('{tag} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
-                tag=self.tag,
+            title_string = 'Status: ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
                 r=len(self.receivers),
                 m=mlat_count,
                 s=sync_count,
-                t=len(self.tracker.aircraft)))
+                t=len(self.tracker.aircraft))
+        util.setproctitle(title_string)
+        glogger.warning(title_string)
 
         sync = {}
         clients = {}
@@ -518,10 +518,6 @@ class Coordinator(object):
 
         broadcast = receivers
         # only send result to receivers who received this message
-        #ac = self.tracker.aircraft.get(address)
-        #if ac:
-        #    ac.successful_mlat.update(receivers)
-        #    broadcast = ac.successful_mlat
         result_new_old = [ None, None ]
         for receiver in broadcast:
             try:

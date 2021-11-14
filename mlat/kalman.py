@@ -71,7 +71,7 @@ class KalmanState(object):
         self._cov = None
         self._acquiring = True
         self._outliers = 0
-        self.last_update = None
+        self.last_update = 0
 
         # does the filter have useful data?
         self.valid = False
@@ -178,6 +178,12 @@ class KalmanState(object):
         distinct:              the number of distinct receivers
         dof:                   the number of degrees of freedom in the solution
         """
+        dt = position_time - self.last_update
+        if dt < 0:
+            return False
+        if dt > 300:
+            self._reset()
+            # reset and try to reacquire
 
         if self._acquiring and dof < self.min_acquiring_dof:
             # don't trust this result until we have converged
@@ -225,10 +231,6 @@ class KalmanState(object):
                 obs_var[i] = (variance + measurements[0][2]) * constants.Cair**2
 
         obs_covar = numpy.diag(obs_var)
-
-        dt = position_time - self.last_update
-        if dt < 0:
-            return False
 
         try:
             trans_covar = self.transition_covariance(dt)
