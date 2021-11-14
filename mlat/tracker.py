@@ -96,6 +96,8 @@ class TrackedAircraft(object):
         self.callsign = None
         self.squawk = None
 
+        self.seen = time.time()
+
     @property
     def interesting(self):
         """Is this aircraft interesting, i.e. are we asking any station to transmit data for it?"""
@@ -196,6 +198,7 @@ class Tracker(object):
                 ac = self.aircraft.get(icao)
                 if not ac:
                     continue
+            ac.seen = now
 
             rate_report_set.add(ac)
             new_adsb.add(ac)

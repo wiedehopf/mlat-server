@@ -346,6 +346,8 @@ class ClockTracker(object):
         odd_message = modes.message.decode(odd_message)
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
+        if ac:
+            ac.seen = now
         if (ac
                 and even_message.estype == modes.message.ESType.surface_position
                 and odd_message.estype == modes.message.ESType.surface_position

@@ -125,6 +125,8 @@ class MlatTracker(object):
         ac = self.tracker.aircraft.get(decoded.address)
         if not ac:
             return
+        now = time.time()
+        ac.seen = now
 
         ac.mlat_message_count += 1
 
@@ -168,7 +170,6 @@ class MlatTracker(object):
         if decoded.callsign is not None:
             ac.callsign = decoded.callsign
 
-        now = time.time()
         if now - ac.last_resolve_attempt < config.RESOLVE_INTERVAL:
             return
         ac.last_resolve_attemp = now

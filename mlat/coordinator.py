@@ -233,6 +233,7 @@ class Coordinator(object):
         now = time.time()
         for ac in self.tracker.aircraft.values():
             s = aircraft_state['{0:06X}'.format(ac.icao)] = {}
+            s['elapsed_seen'] = now - ac.seen
             s['interesting'] = 1 if ac.interesting else 0
             s['allow_mlat'] = 1 if ac.allow_mlat else 0
             s['tracking'] = len(ac.tracking)
