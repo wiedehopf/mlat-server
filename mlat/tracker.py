@@ -172,7 +172,7 @@ class Tracker(object):
         now = time.time()
 
 
-        new_mlat = {ac for ac in receiver.tracking if ac.allow_mlat and now - ac.last_adsb_time > 30}
+        new_mlat = {ac for ac in receiver.tracking if len(ac.tracking) >= 2 and ac.allow_mlat and now - ac.last_adsb_time > 30}
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking}
