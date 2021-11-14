@@ -198,7 +198,6 @@ class JsonClient(connection.Connection):
         self._read_task = None
         self._heartbeat_task = None
         self._pending_traffic_update = None
-        self._pending_flush = None
 
         self._udp_key = None
         self._compression_methods = (
@@ -207,8 +206,8 @@ class JsonClient(connection.Connection):
             ('none', self.handle_line_messages, self.write_raw)
         )
         self._last_message_time = None
-        self._compressor = None
-        self._decompressor = None
+        self._compressor = zlib.compressobj(1)
+        self._decompressor = zlib.decompressobj()
         self._pending_flush = None
         self._writebuf = []
 
@@ -487,12 +486,6 @@ class JsonClient(connection.Connection):
     def _flush_zlib(self):
         self._pending_flush = None
 
-        if not self._writebuf:
-            return
-
-        if self._compressor is None:
-            self._compressor = zlib.compressobj(1)
-
         data = bytearray(2)
         pending = False
         for line in self._writebuf:
@@ -528,10 +521,6 @@ class JsonClient(connection.Connection):
             self.process_message(line.decode('ascii'))
 
     async def handle_zlib_messages(self):
-        if self._decompressor is None:
-            self._decompressor = zlib.decompressobj()
-
-        decompressor = self._decompressor
 
         while not self.r.at_eof():
             header = (await self.r.readexactly(2))
@@ -547,10 +536,10 @@ class JsonClient(connection.Connection):
             while True:
                 # limit decompression to 64k at a time
                 if packet:
-                    decompressed = decompressor.decompress(packet, 65536)
+                    decompressed = self._decompressor.decompress(packet, 65536)
                     if not decompressed:
                         raise ValueError('Decompressor made no progress')
-                    packet = decompressor.unconsumed_tail
+                    packet = self._decompressor.unconsumed_tail
                 else:
                     break
 
@@ -567,7 +556,7 @@ class JsonClient(connection.Connection):
                     # try to mitigate DoS attacks that send highly compressible data
                     await asyncio.sleep(0.1)
 
-            if decompressor.unused_data:
+            if self._decompressor.unused_data:
                 raise ValueError('Client sent a packet that had trailing uncompressed data')
             if linebuf:
                 raise ValueError('Client sent a packet that was not newline terminated')
