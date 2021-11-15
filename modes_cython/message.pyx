@@ -848,4 +848,4 @@ def decode_cpr(double latE, double lonE, double latO, double lonO):
     rlonE -= floor((rlonE + 180) / 360) * 360
     rlonO -= floor((rlonO + 180) / 360) * 360
 
-    return (rlatE, rlonE, rlatO, rlonO)
+    return array.array('d', (rlatE, rlonE, rlatO, rlonO))

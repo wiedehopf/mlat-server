@@ -22,6 +22,7 @@ Utility functions to convert between coordinate systems and calculate distances.
 
 import math
 from . import constants
+import array
 
 # WGS84 ellipsoid Earth parameters
 WGS84_A = 6378137.0
@@ -58,7 +59,7 @@ def llh2ecef(llh):
     y = (rn + alt) * clat * slng
     z = (rn * (1 - WGS84_ECC_SQ) + alt) * slat
 
-    return (x, y, z)
+    return array.array('d', (x, y, z))
 
 
 def ecef2llh(ecef):
@@ -76,7 +77,7 @@ def ecef2llh(ecef):
     N = WGS84_A / math.sqrt(1 - WGS84_ECC_SQ * math.sin(lat)**2)
     alt = p / math.cos(lat) - N
 
-    return (lat * constants.RTOD, lon * constants.RTOD, alt)
+    return array.array('d', (lat * constants.RTOD, lon * constants.RTOD, alt))
 
 
 def greatcircle(p0, p1):

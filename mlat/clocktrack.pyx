@@ -28,6 +28,9 @@ import time
 import logging
 import math
 
+from cpython cimport array
+import array
+
 import modes_cython.message
 
 from mlat import geodesy, constants, profile
@@ -44,8 +47,8 @@ cdef class SyncPoint(object):
     that pair.
     """
     cdef public int address
-    cdef public tuple posA
-    cdef public tuple posB
+    cdef public array.array posA
+    cdef public array.array posB
     cdef public double interval
     cdef public list receivers
 
@@ -69,10 +72,9 @@ cdef class SyncPoint(object):
         self.interval = interval
         self.receivers = []  # a list of (receiver, timestampA, timestampB) values
 
-cdef double ecef_distance(tuple p0, tuple p1):
+cdef double ecef_distance(p0, p1):
     """Returns the straight-line distance in metres between two ECEF points."""
     return sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2 + (p0[2] - p1[2])**2)
-
 
 cdef get_limit(int cat):
     if cat == 0:
