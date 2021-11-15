@@ -10,6 +10,7 @@ for f in removeFiles:
     os.remove('mlat/' + f)
 
 extensions = [
+    Extension("modes_cython.message", ["modes_cython/message.pyx"]),
     Extension("mlat.clocksync", ["mlat/clocksync.pyx"]),
     Extension("mlat.clocknorm", ["mlat/clocknorm.pyx"]),
     Extension("mlat.clocktrack", ["mlat/clocktrack.pyx"])

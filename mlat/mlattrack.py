@@ -33,7 +33,7 @@ from contextlib import closing
 
 import traceback
 
-import modes.message
+import modes_cython.message
 from mlat import geodesy, constants, profile
 from mlat import clocknorm, solver, config
 
@@ -117,7 +117,7 @@ class MlatTracker(object):
         if len(group.copies) < 3:
             return
 
-        decoded = modes.message.decode(group.message)
+        decoded = modes_cython.message.decode(group.message)
 
         if not decoded or not decoded.address:
             return

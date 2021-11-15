@@ -28,7 +28,7 @@ import time
 import logging
 import math
 
-import modes.message
+import modes_cython.message
 
 from mlat import geodesy, constants, profile
 from mlat import clocksync, config
@@ -341,29 +341,29 @@ class ClockTracker(object):
         # Validate the messages and maybe create a real sync point list
 
         # basic validity
-        even_message = modes.message.decode(even_message)
-        odd_message = modes.message.decode(odd_message)
+        even_message = modes_cython.message.decode(even_message)
+        odd_message = modes_cython.message.decode(odd_message)
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
             ac.seen = now
         if (ac
-                and even_message.estype == modes.message.ESType.surface_position
-                and odd_message.estype == modes.message.ESType.surface_position
+                and even_message.estype == modes_cython.message.ESType.surface_position
+                and odd_message.estype == modes_cython.message.ESType.surface_position
                 ):
             ac.last_adsb_time = now
 
         if ((not even_message or
              even_message.DF != 17 or
              not even_message.crc_ok or
-             even_message.estype != modes.message.ESType.airborne_position or
+             even_message.estype != modes_cython.message.ESType.airborne_position or
              even_message.F)):
             return
 
         if ((not odd_message or
              odd_message.DF != 17 or
              not odd_message.crc_ok or
-             odd_message.estype != modes.message.ESType.airborne_position or
+             odd_message.estype != modes_cython.message.ESType.airborne_position or
              not odd_message.F)):
             return
 
@@ -372,7 +372,7 @@ class ClockTracker(object):
 
         # find global positions
         try:
-            even_lat, even_lon, odd_lat, odd_lon = modes.cpr.decode(even_message.LAT,
+            even_lat, even_lon, odd_lat, odd_lon = modes_cython.message.decode_cpr(even_message.LAT,
                                                                     even_message.LON,
                                                                     odd_message.LAT,
                                                                     odd_message.LON)

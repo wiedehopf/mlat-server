@@ -4,3 +4,4 @@ check.sh
 __pycache__
 *.csv
 *.json
+*.swp
