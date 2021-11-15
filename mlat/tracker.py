@@ -130,6 +130,7 @@ class Tracker(object):
         return bool((h % self.partition_count) == self.partition_id)
 
     def add(self, receiver, icao_set):
+        now = time.time()
         for icao in icao_set:
             ac = self.aircraft.get(icao)
             if ac is None:
@@ -137,6 +138,7 @@ class Tracker(object):
 
             ac.tracking.add(receiver)
             receiver.tracking.add(ac)
+            ac.seen = now
 
     def remove(self, receiver, icao_set):
         for icao in icao_set:

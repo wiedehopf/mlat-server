@@ -232,8 +232,14 @@ class Coordinator(object):
         sync_count = 0
         now = time.time()
         for ac in self.tracker.aircraft.values():
-            s = aircraft_state['{0:06X}'.format(ac.icao)] = {}
-            s['elapsed_seen'] = now - ac.seen
+            elapsed_seen = now - ac.seen
+            #if elapsed_seen > 3 * 3600:
+            #    continue
+            icao_string = '{0:06X}'.format(ac.icao)
+            s = {}
+            aircraft_state[icao_string] = s
+            s['icao'] = icao_string
+            s['elapsed_seen'] = round(elapsed_seen, 1)
             s['interesting'] = 1 if ac.interesting else 0
             s['allow_mlat'] = 1 if ac.allow_mlat else 0
             s['tracking'] = len(ac.tracking)
@@ -255,6 +261,9 @@ class Coordinator(object):
                 if ac.kalman.valid:
                     s['heading'] = round(ac.kalman.heading, 0)
                     s['speed'] = round(ac.kalman.ground_speed, 0)
+
+            if elapsed_seen > 600:
+                s['tracking_receivers'] = [receiver.uid for receiver in ac.tracking]
 
             if ac.interesting:
                 if ac.sync_interest:
@@ -352,6 +361,7 @@ class Coordinator(object):
 
             clients[r.user] = {
                 'user': r.user,
+                'uid': r.uid,
                 'uuid': r.uuid,
                 'lat': r.position_llh[0],
                 'lon': r.position_llh[1],
