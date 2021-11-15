@@ -366,7 +366,7 @@ class DF18(ExtendedSquitter):
         self.address = self.AA
 
 
-message_types = {
+cdef dict message_types = {
     0: DF0,
     4: DF4,
     5: DF5,
@@ -389,7 +389,7 @@ def decode(const unsigned char[:] frombuf):
     handled.
     """
 
-    df = (frombuf[0] & 0xf8) >> 3
+    cdef int df = (frombuf[0] & 0xf8) >> 3
     try:
         return message_types[df](frombuf)
     except KeyError:
@@ -402,18 +402,20 @@ Decoders for the 12- and 13-bit altitude encodings used in Mode S responses
 and ADS-B extended squitter messages.
 """
 
+cdef int BAD_ALT = -999999
+
 def _decode_ac13(ac13):
     if ac13 is None or ac13 == 0:    # no data
-        return None
+        return BAD_ALT
     if ac13 & 0x0040:                # M bit set
-        return None
+        return BAD_ALT
     if ac13 & 0x0010:                # Q bit set
         n = ((ac13 & 0x1f80) >> 2) | ((ac13 & 0x0020) >> 1) | (ac13 & 0x000f)
         return n * 25 - 1000
 
     # convert from Gillham code
     if not (ac13 & 0x1500):
-        return None  # illegal C bits
+        return BAD_ALT  # illegal C bits
 
     h = 0
     if ac13 & 0x1000:
@@ -425,7 +427,7 @@ def _decode_ac13(ac13):
     if h & 5:
         h ^= 5
     if h > 5:
-        return None  # illegal C bits
+        return BAD_ALT  # illegal C bits
 
     f = 0
     if ac13 & 0x0010:
@@ -452,12 +454,12 @@ def _decode_ac13(ac13):
 
     a = 500 * f + 100 * h - 1300
     if a < -1200:
-        return None  # illegal value
+        return BAD_ALT  # illegal value
 
     return a
 
 
-def decode_ac13(ac13):
+cdef decode_ac13(ac13):
     """Decodes a Mode S 13-bit altitude field.
 
     The expected ordering is as specified in §3.1.2.6.5.4 of Annex 10:
@@ -469,10 +471,13 @@ def decode_ac13(ac13):
 
     if ac13 is None:
         return None
-    return _alt_table[ac13 & 0x1fff]
+    cdef int alt = _alt_table[ac13 & 0x1fff]
+    if alt is BAD_ALT:
+        return None
+    return alt
 
 
-def decode_ac12(ac12):
+cdef decode_ac12(ac12):
     """Decode a 12-bit AC altitude field from an extended squitter.
 
     The expected ordering is as specified in Doc 9871 Table A-2-5:
@@ -484,11 +489,14 @@ def decode_ac12(ac12):
 
     if ac12 is None:
         return None
-    return _alt_table[((ac12 & 0x0fc0) << 1) | (ac12 & 0x003f)]
+    cdef int alt = _alt_table[((ac12 & 0x0fc0) << 1) | (ac12 & 0x003f)]
+    if alt is BAD_ALT:
+        return None
+    return alt
 
 
 # precompute the lookup table
-_alt_table = [_decode_ac13(i) for i in range(2**13)]
+cdef array.array _alt_table = array.array('i', [_decode_ac13(i) for i in range(2**13)])
 
 """
 Decoder for 12-bit squawk (identity) fields contained in some Mode S messages.
@@ -537,7 +545,7 @@ def _make_lower_table():
     return lt
 
 
-def decode_id13(id13):
+cdef decode_id13(id13):
     """Decode a 13-bit Mode A squawk.
 
     The expected ordering is that from Annex 10 vol 4 3.1.2.6.7.1:
