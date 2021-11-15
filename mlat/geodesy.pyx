@@ -20,16 +20,24 @@
 Utility functions to convert between coordinate systems and calculate distances.
 """
 
+from libc.math cimport sqrt, sin, cos, atan2, acos
+
 import math
-from . import constants
+
+from cpython cimport array
 import array
 
+# degrees to radians
+cdef double DTOR = math.pi / 180.0
+# radians to degrees
+cdef double RTOD = 180.0 / math.pi
+
 # WGS84 ellipsoid Earth parameters
-WGS84_A = 6378137.0
-WGS84_F = 1.0/298.257223563
-WGS84_B = WGS84_A * (1 - WGS84_F)
-WGS84_ECC_SQ = 1 - WGS84_B * WGS84_B / (WGS84_A * WGS84_A)
-WGS84_ECC = math.sqrt(WGS84_ECC_SQ)
+cdef double WGS84_A = 6378137.0
+cdef double WGS84_F = 1.0/298.257223563
+cdef double WGS84_B = WGS84_A * (1 - WGS84_F)
+cdef double WGS84_ECC_SQ = 1 - WGS84_B * WGS84_B / (WGS84_A * WGS84_A)
+cdef double WGS84_ECC = sqrt(WGS84_ECC_SQ)
 
 # Average radius for a spherical Earth
 SPHERICAL_R = 6371e3
@@ -43,21 +51,21 @@ _wgs84_e2_a = WGS84_ECC_SQ * WGS84_A
 def llh2ecef(llh):
     """Converts from WGS84 lat/lon/height to ellipsoid-earth ECEF"""
 
-    lat = llh[0] * constants.DTOR
-    lng = llh[1] * constants.DTOR
-    alt = llh[2]
+    cdef double lat = llh[0] * DTOR
+    cdef double lng = llh[1] * DTOR
+    cdef double alt = llh[2]
 
-    slat = math.sin(lat)
-    slng = math.sin(lng)
-    clat = math.cos(lat)
-    clng = math.cos(lng)
+    cdef double slat = sin(lat)
+    cdef double slng = sin(lng)
+    cdef double clat = cos(lat)
+    cdef double clng = cos(lng)
 
-    d = math.sqrt(1 - (slat * slat * WGS84_ECC_SQ))
-    rn = WGS84_A / d
+    cdef double d = sqrt(1 - (slat * slat * WGS84_ECC_SQ))
+    cdef double rn = WGS84_A / d
 
-    x = (rn + alt) * clat * clng
-    y = (rn + alt) * clat * slng
-    z = (rn * (1 - WGS84_ECC_SQ) + alt) * slat
+    cdef double x = (rn + alt) * clat * clng
+    cdef double y = (rn + alt) * clat * slng
+    cdef double z = (rn * (1 - WGS84_ECC_SQ) + alt) * slat
 
     return array.array('d', (x, y, z))
 
@@ -65,19 +73,20 @@ def llh2ecef(llh):
 def ecef2llh(ecef):
     "Converts from ECEF to WGS84 lat/lon/height"
 
+    cdef double x, y, z
     x, y, z = ecef
 
-    lon = math.atan2(y, x)
+    cdef double lon = atan2(y, x)
 
-    p = math.sqrt(x**2 + y**2)
-    th = math.atan2(WGS84_A * z, WGS84_B * p)
-    lat = math.atan2(z + _wgs84_ep2_b * math.sin(th)**3,
-                     p - _wgs84_e2_a * math.cos(th)**3)
+    cdef double p = sqrt(x**2 + y**2)
+    cdef double th = atan2(WGS84_A * z, WGS84_B * p)
+    cdef double lat = atan2(z + _wgs84_ep2_b * sin(th)**3,
+                     p - _wgs84_e2_a * cos(th)**3)
 
-    N = WGS84_A / math.sqrt(1 - WGS84_ECC_SQ * math.sin(lat)**2)
-    alt = p / math.cos(lat) - N
+    cdef double N = WGS84_A / sqrt(1 - WGS84_ECC_SQ * sin(lat)**2)
+    cdef double alt = p / cos(lat) - N
 
-    return array.array('d', (lat * constants.RTOD, lon * constants.RTOD, alt))
+    return array.array('d', (lat * RTOD, lon * RTOD, alt))
 
 
 def greatcircle(p0, p1):
@@ -85,17 +94,17 @@ def greatcircle(p0, p1):
     _assuming spherical earth_ and _ignoring altitude_. Don't use this if you
     need a distance accurate to better than 1%."""
 
-    lat0 = p0[0] * constants.DTOR
-    lon0 = p0[1] * constants.DTOR
-    lat1 = p1[0] * constants.DTOR
-    lon1 = p1[1] * constants.DTOR
-    return SPHERICAL_R * math.acos(
-        math.sin(lat0) * math.sin(lat1) +
-        math.cos(lat0) * math.cos(lat1) * math.cos(abs(lon0 - lon1)))
+    cdef double lat0 = p0[0] * DTOR
+    cdef double lon0 = p0[1] * DTOR
+    cdef double lat1 = p1[0] * DTOR
+    cdef double lon1 = p1[1] * DTOR
+    return SPHERICAL_R * acos(
+        sin(lat0) * sin(lat1) +
+        cos(lat0) * cos(lat1) * cos(abs(lon0 - lon1)))
 
 
 # direct implementation here turns out to be _much_ faster (10-20x) compared to
 # scipy.spatial.distance.euclidean or numpy-based approaches
 def ecef_distance(p0, p1):
     """Returns the straight-line distance in metres between two ECEF points."""
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2 + (p0[2] - p1[2])**2)
+    return sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2 + (p0[2] - p1[2])**2)
