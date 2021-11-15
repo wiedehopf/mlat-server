@@ -30,6 +30,8 @@ import bisect
 from cpython cimport array
 import array
 
+from libc.math cimport floor
+
 ais_charset = " ABCDEFGHIJKLMNOPQRSTUVWXYZ????? ???????????????0123456789??????"
 
 class ModeSMessage:
@@ -678,26 +680,26 @@ nl_table = (
     (90.00000000, 1)
 )
 
-nl_lats = [x[0] for x in nl_table]
-nl_vals = [x[1] for x in nl_table]
+cdef array.array nl_lats = array.array('d', [x[0] for x in nl_table])
+cdef array.array nl_vals = array.array('i', [x[1] for x in nl_table])
 
 
-def NL(lat):
+cdef int NL(double lat):
     if lat < 0:
         lat = -lat
 
-    nl = nl_vals[bisect.bisect_left(nl_lats, lat)]
+    cdef int nl = nl_vals[bisect.bisect_left(nl_lats, lat)]
     return nl
 
 
-def MOD(a, b):
-    r = a % b
+cdef int MOD(int a, int b):
+    cdef int r = a % b
     if r < 0:
         r += b
     return r
 
 
-def decode_cpr(latE, lonE, latO, lonO):
+def decode_cpr(double latE, double lonE, double latO, double lonO):
     """Perform globally unambiguous position decoding for a pair of
     airborne CPR messages.
 
@@ -709,9 +711,9 @@ def decode_cpr(latE, lonE, latO, lonO):
     Raises ValueError if the messages do not produce a useful position."""
 
     # Compute the Latitude Index "j"
-    j = math.floor(((59 * latE - 60 * latO) / 131072.0) + 0.5)
-    rlatE = (360.0 / 60.0) * (MOD(j, 60) + latE / 131072.0)
-    rlatO = (360.0 / 59.0) * (MOD(j, 59) + latO / 131072.0)
+    cdef int j = (int) (floor(((59 * latE - 60 * latO) / 131072.0) + 0.5))
+    cdef double rlatE = (360.0 / 60.0) * (MOD(j, 60) + latE / 131072.0)
+    cdef double rlatO = (360.0 / 59.0) * (MOD(j, 59) + latO / 131072.0)
 
     # adjust for southern hemisphere values, which are in the range (270,360)
     if rlatE >= 270:
@@ -724,23 +726,23 @@ def decode_cpr(latE, lonE, latO, lonO):
         raise ValueError('latitude out of range')
 
     # Find latitude zone, abort if the two positions are not in the same zone
-    nl = NL(rlatE)
+    cdef int nl = NL(rlatE)
     if nl != NL(rlatO):
         raise ValueError('messages lie in different latitude zones')
 
     # Compute n(i)
-    nE = nl
-    nO = max(1, nl - 1)
+    cdef int nE = nl
+    cdef int nO = max(1, nl - 1)
 
     # Compute the Longitude Index "m"
-    m = math.floor((((lonE * (nl - 1)) - (lonO * nl)) / 131072.0) + 0.5)
+    cdef int m = (int) (floor((((lonE * (nl - 1)) - (lonO * nl)) / 131072.0) + 0.5))
 
     # Compute global longitudes
-    rlonE = (360.0 / nE) * (MOD(m, nE) + lonE / 131072.0)
-    rlonO = (360.0 / nO) * (MOD(m, nO) + lonO / 131072.0)
+    cdef double rlonE = (360.0 / nE) * (MOD(m, nE) + lonE / 131072.0)
+    cdef double rlonO = (360.0 / nO) * (MOD(m, nO) + lonO / 131072.0)
 
     # Renormalize to -180 .. +180
-    rlonE -= math.floor((rlonE + 180) / 360) * 360
-    rlonO -= math.floor((rlonO + 180) / 360) * 360
+    rlonE -= floor((rlonE + 180) / 360) * 360
+    rlonO -= floor((rlonO + 180) / 360) * 360
 
     return (rlatE, rlonE, rlatO, rlonO)
