@@ -328,14 +328,48 @@ class ExtendedSquitter(ModeSMessage):
             self.callsign = None
 
 
-class DF17(ExtendedSquitter):
+class DF17(ModeSMessage):
     """DF17 (Extended Squitter) message.
 
     Fields: DF, CA, AA, address, crc_ok; plus those of ExtendedSquitter.
     """
 
     def __init__(self, const unsigned char[:] frombuf):
-        ExtendedSquitter.__init__(self, frombuf)
+        metype = (frombuf[4] & 0xf8) >> 3
+        self.estype, self.nuc = es_types.get(metype, (ESType.other, None))
+
+        if self.estype is ESType.airborne_position:
+            self.SS = (frombuf[4] & 0x06) >> 1
+            self.SAF = frombuf[4] & 0x01
+            self.AC12 = (frombuf[5] << 4) | ((frombuf[6] & 0xf0) >> 4)
+            self.T = (frombuf[6] & 0x08) >> 3
+            self.F = (frombuf[6] & 0x04) >> 2
+            self.LAT = (((frombuf[6] & 0x03) << 15) |
+                        (frombuf[7] << 7) |
+                        ((frombuf[8] & 0xfe) >> 1))
+            self.LON = (((frombuf[8] & 0x01) << 16) |
+                        (frombuf[9] << 8) |
+                        frombuf[10])
+            self.altitude = decode_ac12(self.AC12)
+            self.callsign = None
+
+        elif self.estype is ESType.id_and_category:
+            self.CATEGORY = frombuf[4] & 0x07
+            self.altitude = None
+            self.callsign = (
+                ais_charset[(frombuf[5] & 0xfc) >> 2] +
+                ais_charset[((frombuf[5] & 0x03) << 4) | ((frombuf[6] & 0xf0) >> 4)] +
+                ais_charset[((frombuf[6] & 0x0f) << 2) | ((frombuf[7] & 0xc0) >> 6)] +
+                ais_charset[frombuf[7] & 0x3f] +
+                ais_charset[(frombuf[8] & 0xfc) >> 2] +
+                ais_charset[((frombuf[8] & 0x03) << 4) | ((frombuf[9] & 0xf0) >> 4)] +
+                ais_charset[((frombuf[9] & 0x0f) << 2) | ((frombuf[10] & 0xc0) >> 6)] +
+                ais_charset[frombuf[10] & 0x3f]
+            )
+
+        else:
+            self.altitude = None
+            self.callsign = None
 
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.CA = (frombuf[0] & 0x07)       # 3 bits
@@ -680,16 +714,16 @@ nl_table = (
     (90.00000000, 1)
 )
 
-cdef array.array nl_lats = array.array('d', [x[0] for x in nl_table])
-cdef array.array nl_vals = array.array('i', [x[1] for x in nl_table])
+#cdef array.array nl_lats = array.array('d', [x[0] for x in nl_table])
+#cdef array.array nl_vals = array.array('i', [x[1] for x in nl_table])
 
 
-cdef int NL_old(double lat):
-    if lat < 0:
-        lat = -lat
-
-    cdef int nl = nl_vals[bisect.bisect_left(nl_lats, lat)]
-    return nl
+#cdef int NL_old(double lat):
+#    if lat < 0:
+#        lat = -lat
+#
+#    cdef int nl = nl_vals[bisect.bisect_left(nl_lats, lat)]
+#    return nl
 
 cdef int NL(double lat):
     if lat < 0:
