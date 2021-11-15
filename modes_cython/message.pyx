@@ -27,6 +27,9 @@ from enum import Enum
 import math
 import bisect
 
+from cpython cimport array
+import array
+
 ais_charset = " ABCDEFGHIJKLMNOPQRSTUVWXYZ????? ???????????????0123456789??????"
 
 class ModeSMessage:
@@ -54,7 +57,7 @@ class DF0(ModeSMessage):
     Fields: DF, VS, CC, SL, RI, AC, altitude, address
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.VS = (frombuf[0] & 0x04) >> 2  # 1 bit
         self.CC = (frombuf[0] & 0x02) >> 1  # 1 bit
@@ -79,7 +82,7 @@ class DF4(ModeSMessage):
     Fields: DF, FS, DR, UM, AC, altitude, address
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.FS = (frombuf[0] & 0x07)       # 3 bits
         self.DR = (frombuf[1] & 0xf8) >> 3  # 5 bits
@@ -100,7 +103,7 @@ class DF5(ModeSMessage):
     Fields: DF, FS, DR, UM, ID, squawk, address
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.FS = (frombuf[0] & 0x07)       # 3 bits
         self.DR = (frombuf[1] & 0xf8) >> 3  # 5 bits
@@ -121,7 +124,7 @@ class DF11(ModeSMessage):
     Fields: DF, CA, AA, address, crc_ok
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.CA = (frombuf[0] & 0x07)       # 3 bits
         self.AA = (frombuf[1] << 16) | (frombuf[2] << 8) | frombuf[3]  # 24 bits
@@ -146,7 +149,7 @@ class DF16(ModeSMessage):
     Fields: DF, VS, SL, RI, AC, altitude, address
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
         self.VS = (frombuf[0] & 0x04) >> 2  # 1 bit
         # 2 bits pad
@@ -170,7 +173,7 @@ class CommB(ModeSMessage):
     Fields: MB, callsign
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         self.MB = frombuf[4:11]  # 56 bits
 
         if frombuf[4] != 0x20:
@@ -200,7 +203,7 @@ class DF20(CommB):
     Fields: DF, FS, DR, UM, AC, altitude, address, MB, callsign
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         CommB.__init__(self, frombuf)
 
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
@@ -224,7 +227,7 @@ class DF21(CommB):
     Fields: DF, FS, DR, UM, ID, squawk, address, MB, callsign
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         CommB.__init__(self, frombuf)
 
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
@@ -285,7 +288,7 @@ class ExtendedSquitter(ModeSMessage):
     For id and category: CATEGORY, callsign
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         metype = (frombuf[4] & 0xf8) >> 3
         self.estype, self.nuc = es_types.get(metype, (ESType.other, None))
 
@@ -329,7 +332,7 @@ class DF17(ExtendedSquitter):
     Fields: DF, CA, AA, address, crc_ok; plus those of ExtendedSquitter.
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         ExtendedSquitter.__init__(self, frombuf)
 
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
@@ -349,7 +352,7 @@ class DF18(ExtendedSquitter):
     Fields: DF, CF, AA, address, crc_ok; plus those of ExtendedSquitter.
     """
 
-    def __init__(self, frombuf):
+    def __init__(self, const unsigned char[:] frombuf):
         ExtendedSquitter.__init__(self, frombuf)
 
         self.DF = (frombuf[0] & 0xf8) >> 3  # 5 bits
@@ -376,7 +379,7 @@ message_types = {
 }
 
 
-def decode(frombuf):
+def decode(const unsigned char[:] frombuf):
     """
     Decode a Mode S message.
 
@@ -552,7 +555,7 @@ _id13_ut = _make_upper_table()
 Calculates the 24-bit CRC used in Mode S messages.
 """
 
-def crc_residual(payload):
+def crc_residual(const unsigned char[:] payload):
     """Computes the 24-bit Mode S CRC residual for a message.
 
     The CRC residual is the CRC computed across the first 4 or 11 bytes,
@@ -571,18 +574,19 @@ def crc_residual(payload):
     in the residual value.
     """
 
-    t = _crc_table
-    rem = t[payload[0]]
-    for b in payload[1:-3]:
-        rem = ((rem & 0xFFFF) << 8) ^ t[b ^ (rem >> 16)]
+    cdef unsigned int df = (payload[0] & 0xf8) >> 3
+    cdef unsigned int n = 14 if df > 15 else 7
+    cdef unsigned int rem = _crc_table[payload[0]]
+    for i in range(1, n - 3):
+        rem = ((rem & 0xFFFF) << 8) ^ _crc_table[payload[i] ^ (rem >> 16)]
 
-    rem = rem ^ (payload[-3] << 16) ^ (payload[-2] << 8) ^ (payload[-1])
+    rem = rem ^ (payload[n-3] << 16) ^ (payload[n-2] << 8) ^ (payload[n-1])
     return rem
 
 
 def _make_crc_table():
     # precompute the CRC table
-    t = []
+    t = array.array('I', [])
 
     poly = 0xfff409
     for i in range(256):
@@ -597,7 +601,7 @@ def _make_crc_table():
 
     return t
 
-_crc_table = _make_crc_table()
+cdef unsigned int[:] _crc_table = _make_crc_table()
 
 """
 Decoder for the Compact Position Reporting (CPR) position encoding used in

@@ -30,7 +30,7 @@ import array
 
 from libc.math cimport sqrt
 
-from mlat import config
+from mlat import config, constants
 
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
 
@@ -45,6 +45,7 @@ cdef class Clock(object):
     cdef readonly double freq
     cdef readonly double max_freq_error
     cdef readonly double jitter
+    cdef readonly double delayFactor
 
     def __init__(self, freq, max_freq_error, jitter):
         """Create a new clock representation.
@@ -56,6 +57,7 @@ cdef class Clock(object):
         self.freq = freq
         self.max_freq_error = max_freq_error
         self.jitter = jitter
+        self.delayFactor = freq / constants.Cair
 
 
 def make_clock(clock_type):

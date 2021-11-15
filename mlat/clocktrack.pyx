@@ -102,7 +102,8 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
         return
 
     # propagation delays, in clock units
-    cdef double delayFactor = r0.clock.freq / constants.Cair
+    #cdef double delayFactor = r0.clock.freq / constants.Cair
+    cdef double delayFactor = r0.clock.delayFactor
     delay0A = receiverDistA * delayFactor
     delay0B = receiverDistB * delayFactor
 
@@ -119,6 +120,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
     cdef double td1B, i1
     cdef int cat
     cdef double p0, p1, limit
+    cdef dict distances = r0.distance
     for r1l in syncpoint.receivers:
         r1, td1B, i1 = r1l
 
@@ -137,7 +139,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
                 # odd, but could happen
                 continue
 
-            cat = r0.distance[r1.uid] / 50e3
+            cat = (int) (distances[r1.uid] / 50e3)
             if cat > 3:
                 cat = 3
 
