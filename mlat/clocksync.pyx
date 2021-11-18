@@ -152,7 +152,7 @@ cdef class ClockPairing(object):
             """Standard error of recent predictions."""
             self.error = sqrt(self.variance)
 
-    def check_valid(self, double now):
+    cpdef check_valid(self, double now):
         """True if this pairing is usable for clock syncronization."""
         self.valid = (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
                     self.outliers < 3 and now - self.updated < 35.0 and
@@ -328,7 +328,7 @@ cdef class ClockPairing(object):
             if self.base.bad_syncs < 0.1:
                 self.peer.incrementJumps()
 
-    def predict_peer(self, double base_ts):
+    cpdef predict_peer(self, double base_ts):
         """
         Given a time from the base clock, predict the time of the peer clock.
         """
@@ -360,7 +360,7 @@ cdef class ClockPairing(object):
                 (base_ts - self.ts_base[i-1]) /
                 (self.ts_base[i] - self.ts_base[i-1]))
 
-    def predict_base(self, double peer_ts):
+    cpdef predict_base(self, double peer_ts):
         """
         Given a time from the peer clock, predict the time of the base
         clock.
