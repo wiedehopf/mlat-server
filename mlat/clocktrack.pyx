@@ -302,7 +302,7 @@ class ClockTracker(object):
         message_details, syncpointlist = self.sync_points.get(key, (None, None))
 
         # check if sync point is invalid
-        if syncpointlist == 'invalid':
+        if syncpointlist == False:
             return
 
         cdef double freq = receiver.clock.freq
@@ -336,7 +336,7 @@ class ClockTracker(object):
         message_details = (None, None, None)
         if syncpointlist is None:
             # No existing match. Create an invalid sync point, if it pans out, replace it.
-            self.sync_points[key] = (message_details, 'invalid')
+            self.sync_points[key] = (message_details, False)
             # schedule cleanup of the syncpoint after 3 seconds -
             # we should have seen all copies of those messages by then.
             #self.loop.call_later(3.0, functools.partial(self._cleanup_syncpointlist,key=key))
