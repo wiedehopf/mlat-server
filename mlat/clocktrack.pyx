@@ -78,13 +78,13 @@ cdef double ecef_distance(p0, p1):
 
 cdef get_limit(int cat):
     if cat == 0:
-        return 30
+        return 32
     if cat == 1:
         return 16
     if cat == 2:
-        return 6
+        return 8
     if cat == 3:
-        return 6
+        return 8
 
 cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t0B):
     # add a new receiver and timestamps to an existing syncpoint
