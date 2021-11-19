@@ -347,31 +347,32 @@ class ClockTracker(object):
         # basic validity
         even_message = modes_cython.message.decode(even_message)
         odd_message = modes_cython.message.decode(odd_message)
+        if (not even_message or not odd_message):
+            return
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
         if ac:
             ac.seen = now
-        if (ac
-                and even_message.estype == modes_cython.message.ESType.surface_position
-                and odd_message.estype == modes_cython.message.ESType.surface_position
-                ):
-            ac.last_adsb_time = now
 
-        if ((not even_message or
-             even_message.DF != 17 or
+        if ((even_message.DF != 17 or
              not even_message.crc_ok or
-             even_message.estype != modes_cython.message.ESType.airborne_position or
              even_message.F)):
             return
 
-        if ((not odd_message or
-             odd_message.DF != 17 or
+        if ((odd_message.DF != 17 or
              not odd_message.crc_ok or
-             odd_message.estype != modes_cython.message.ESType.airborne_position or
              not odd_message.F)):
             return
 
         if even_message.address != odd_message.address:
+            return
+
+        if (odd_message.estype != modes_cython.message.ESType.airborne_position or
+            even_message.estype != modes_cython.message.ESType.airborne_position):
+            if (ac and even_message.estype == modes_cython.message.ESType.surface_position
+                    and odd_message.estype == modes_cython.message.ESType.surface_position):
+                ac.last_adsb_time = now
+
             return
 
         # find global positions
@@ -412,7 +413,7 @@ class ClockTracker(object):
             #logging.info("{a:06X}: receiver range check (odd) failed".format(a=odd_message.address))
             #return
 
-        if geodesy.ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
+        if ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
             #logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
@@ -432,7 +433,7 @@ class ClockTracker(object):
         else:
             message_details = (even_message.address, odd_ecef, even_ecef)
 
-        if geodesy.ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
+        if ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
             # suppress this spam, can't help if ppl give a wrong location
             # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
             receiver.sync_range_exceeded = now
