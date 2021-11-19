@@ -159,7 +159,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
             r1.sync_peers[cat] += 1
 
         else:
-            if now - pairing.updated < 0.7:
+            if now - pairing.updated < 0.5:
                 continue
             cat = pairing.cat
 
