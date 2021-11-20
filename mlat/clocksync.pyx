@@ -1,3 +1,4 @@
+# distutils: language = c++
 # -*- mode: python; indent-tabs-mode: nil -*-
 
 # Part of mlat-server: a Mode S multilateration server
@@ -24,10 +25,11 @@ import math
 import time
 import bisect
 import logging
-
-from cpython cimport array
 import array
 
+# cython stuff:
+from cpython cimport array
+from libcpp.vector cimport vector
 from libc.math cimport sqrt
 
 from mlat import config, constants
@@ -91,9 +93,9 @@ cdef class ClockPairing(object):
     cdef readonly double drift
     cdef readonly double i_drift
     cdef readonly int n
-    cdef array.array ts_base
-    cdef array.array ts_peer
-    cdef array.array var
+    cdef vector[double] ts_base
+    cdef vector[double] ts_peer
+    cdef vector[double] var
     cdef double var_sum
     cdef readonly int outliers
     cdef double cumulative_error
@@ -120,9 +122,9 @@ cdef class ClockPairing(object):
         self.drift = 1e99
         self.i_drift = 1e99
         self.n = 0
-        self.ts_base = array.array('d', [])
-        self.ts_peer = array.array('d', [])
-        self.var = array.array('d', [])
+        self.ts_base.clear()
+        self.ts_peer.clear()
+        self.var.clear()
         self.var_sum = 0.0
         self.outliers = 0
         self.cumulative_error = 0.0
@@ -152,7 +154,7 @@ cdef class ClockPairing(object):
             """Standard error of recent predictions."""
             self.error = sqrt(self.variance)
 
-    cpdef check_valid(self, double now):
+    cpdef bint check_valid(self, double now):
         """True if this pairing is usable for clock syncronization."""
         self.valid = (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
                     self.outliers < 3 and now - self.updated < 35.0 and
@@ -171,7 +173,7 @@ cdef class ClockPairing(object):
         Returns True if the update was used, False if it was an outlier.
         """
 
-        if self.n > 0 and base_ts <= self.ts_base[-1]:
+        if self.n > 0 and base_ts <= self.ts_base[self.n - 1]:
             # timestamp is in the past or duplicated, don't use this
             #glogger.warn("{0}: timestamp in past or duplicated".format(self))
             return False
@@ -222,21 +224,21 @@ cdef class ClockPairing(object):
         self.check_valid(now)
         return True
 
-    cdef _prune_old_data(self):
+    cdef void _prune_old_data(self):
         cdef int i = 0
 
         if self.n > 20:
             i = self.n - 20
 
-        cdef double latest_base_ts = self.ts_base[-1]
+        cdef double latest_base_ts = self.ts_base[self.n - 1]
         cdef double limit = 45.0 * self.base_clock.freq
         while i < self.n and (latest_base_ts - self.ts_base[i]) > limit:
             i += 1
 
         if i > 0:
-            del self.ts_base[0:i]
-            del self.ts_peer[0:i]
-            del self.var[0:i]
+            self.ts_base.erase(self.ts_base.begin(), self.ts_base.begin() + i)
+            self.ts_peer.erase(self.ts_peer.begin(), self.ts_peer.begin() + i)
+            self.var.erase(self.var.begin(), self.var.begin() + i)
             self.n -= i
             self.var_sum = sum(self.var)
             self.updateVars()
@@ -273,7 +275,7 @@ cdef class ClockPairing(object):
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
         if self.n != 0:
-            assert base_ts > self.ts_base[-1]
+            assert base_ts > self.ts_base[self.n - 1]
 
             # ts_base and ts_peer define a function constructed by linearly
             # interpolating between each pair of values.
@@ -282,14 +284,14 @@ cdef class ClockPairing(object):
             # has effectively gone backwards. If this happens, give up and start
             # again.
 
-            if peer_ts < self.ts_peer[-1]:
-                self.ts_base = array.array('d', [])
-                self.ts_peer = array.array('d', [])
-                self.var = array.array('d', [])
+            if peer_ts < self.ts_peer[self.n - 1]:
+                self.ts_base.clear()
+                self.ts_peer.clear()
+                self.var.clear()
                 self.var_sum = 0
-                self.updateVars()
                 self.cumulative_error = 0
                 self.n = 0
+                self.updateVars()
 
                 if not self.jumped:
                     self.jumped = 1
@@ -304,11 +306,11 @@ cdef class ClockPairing(object):
                         self.peer.incrementJumps()
 
         self.n += 1
-        self.ts_base.append(base_ts)
-        self.ts_peer.append(peer_ts)
+        self.ts_base.push_back(base_ts)
+        self.ts_peer.push_back(peer_ts)
 
         cdef double p_var = prediction_error * prediction_error
-        self.var.append(p_var)
+        self.var.push_back(p_var)
         self.var_sum += p_var
         self.updateVars()
 
@@ -333,24 +335,25 @@ cdef class ClockPairing(object):
         Given a time from the base clock, predict the time of the peer clock.
         """
 
-        if self.n == 0:
+        cdef int n = self.n
+        if n == 0:
             return None
 
-        if base_ts < self.ts_base[0] or self.n == 1:
+        if base_ts < self.ts_base[0] or n == 1:
             # extrapolate before first point or if we only have one point
             elapsed = base_ts - self.ts_base[0]
             return self.ts_peer[0] + elapsed * self.relative_freq * (1 + self.drift)
 
-        if base_ts > self.ts_base[-2]:
+        if base_ts > self.ts_base[n-2]:
             # extrapolate after or before the last point
-            elapsed = base_ts - self.ts_base[-1]
-            result = self.ts_peer[-1] + elapsed * self.relative_freq * (1 + self.drift)
+            elapsed = base_ts - self.ts_base[n-1]
+            result = self.ts_peer[n-1] + elapsed * self.relative_freq * (1 + self.drift)
 
-            if self.ts_base[-1] - self.ts_base[-2] > 10 * self.base_clock.freq and base_ts > self.ts_base[-1]:
+            if self.ts_base[n-1] - self.ts_base[n-2] > 10 * self.base_clock.freq and base_ts > self.ts_base[n-1]:
                 return result
 
-            elapsed = base_ts - self.ts_base[-2]
-            result += self.ts_peer[-2] + elapsed * self.relative_freq * (1 + self.drift)
+            elapsed = base_ts - self.ts_base[n-2]
+            result += self.ts_peer[n-2] + elapsed * self.relative_freq * (1 + self.drift)
             return result * 0.5
 
         i = bisect.bisect_left(self.ts_base, base_ts)
@@ -366,24 +369,25 @@ cdef class ClockPairing(object):
         clock.
         """
 
-        if self.n == 0:
+        cdef int n = self.n
+        if n == 0:
             return None
 
-        if peer_ts < self.ts_peer[0] or self.n == 1:
+        if peer_ts < self.ts_peer[0] or n == 1:
             # extrapolate before first point or if we only have one point
             elapsed = peer_ts - self.ts_peer[0]
             return self.ts_base[0] + elapsed * self.i_relative_freq * (1 + self.i_drift)
 
-        if peer_ts > self.ts_peer[-2]:
+        if peer_ts > self.ts_peer[n-2]:
             # extrapolate after or before the last point
-            elapsed = peer_ts - self.ts_peer[-1]
-            result = self.ts_base[-1] + elapsed * self.i_relative_freq * (1 + self.i_drift)
+            elapsed = peer_ts - self.ts_peer[n-1]
+            result = self.ts_base[n-1] + elapsed * self.i_relative_freq * (1 + self.i_drift)
 
-            if self.ts_peer[-1] - self.ts_peer[-2] > 10 * self.peer_clock.freq and peer_ts > self.ts_peer[-1]:
+            if self.ts_peer[n-1] - self.ts_peer[n-2] > 10 * self.peer_clock.freq and peer_ts > self.ts_peer[n-1]:
                 return result
 
-            elapsed = peer_ts - self.ts_peer[-2]
-            result += self.ts_base[-2] + elapsed * self.i_relative_freq * (1 + self.i_drift)
+            elapsed = peer_ts - self.ts_peer[n-2]
+            result += self.ts_base[n-2] + elapsed * self.i_relative_freq * (1 + self.i_drift)
             return result * 0.5
 
         i = bisect.bisect_left(self.ts_peer, peer_ts)
