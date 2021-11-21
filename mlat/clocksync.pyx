@@ -208,7 +208,7 @@ cdef class ClockPairing(object):
                 self.outliers += 1
                 outlier = True
 
-                if self.outliers < 2:
+                if self.outliers < 3:
                     # don't reset quite yet, maybe something strange was unique
                     return False
 
@@ -223,7 +223,6 @@ cdef class ClockPairing(object):
                 if abs(prediction_error) > self.outlier_threshold:
                     outlier = True
                     self.outliers += 1
-                    self.outliers = min(7, self.outliers)
                     if self.outliers < 5:
                         # don't accept this one
                         self.check_valid(now)
@@ -263,7 +262,7 @@ cdef class ClockPairing(object):
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
-        self.outliers = max(0, self.outliers - 1)
+        self.outliers = max(0, self.outliers - 2)
 
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
@@ -345,6 +344,7 @@ cdef class ClockPairing(object):
         self.cumulative_error = 0.0
         self.error = -1e-6
         self.variance = -1e-6
+        self.outliers = 0
 
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
