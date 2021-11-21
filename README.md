@@ -63,13 +63,13 @@ users, and they may redistribute it further if they wish.
  * pygraph (https://github.com/pmatiello/python-graph)
  * pykalman (https://github.com/pykalman/pykalman)
  * optionally, objgraph (https://mg.pov.lt/objgraph/) for leak checking
- * gcc, g++
+ * gcc
  * uvloop, ujson, Cython
 
 ## Example of how to make it run with virtualenv:
 
 ```
-apt install python3-pip python3 python3-venv gcc g++
+apt install python3-pip python3 python3-venv gcc
 VENV=/opt/mlat-python-venv
 rm -rf $VENV
 python3 -m venv $VENV

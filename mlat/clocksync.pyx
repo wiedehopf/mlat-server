@@ -1,4 +1,3 @@
-# distutils: language = c++
 # -*- mode: python; indent-tabs-mode: nil -*-
 
 # Part of mlat-server: a Mode S multilateration server
@@ -29,7 +28,7 @@ import array
 
 # cython stuff:
 from cpython cimport array
-from libcpp.vector cimport vector
+from libc.string cimport memmove
 from libc.math cimport sqrt
 
 from mlat import config, constants
@@ -75,6 +74,8 @@ def make_clock(clock_type):
         return Clock(freq=12e6, max_freq_error=100e-6, jitter=500e-9)
     raise NotImplementedError("{ct}".format(ct=clock_type))
 
+cdef int cp_size = 32
+
 cdef class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
 
@@ -93,9 +94,10 @@ cdef class ClockPairing(object):
     cdef readonly double i_drift
     cdef readonly int drift_n
     cdef readonly int n
-    cdef vector[double] ts_base
-    cdef vector[double] ts_peer
-    cdef vector[double] var
+    # needs to be cp_size big, can't use it here though
+    cdef double ts_base[32]
+    cdef double ts_peer[32]
+    cdef double var[32]
     cdef double var_sum
     cdef readonly int outliers
     cdef double cumulative_error
@@ -138,9 +140,6 @@ cdef class ClockPairing(object):
 
         self.valid = False
         self.n = 0
-        self.ts_base.clear()
-        self.ts_peer.clear()
-        self.var.clear()
         self.var_sum = 0.0
         self.cumulative_error = 0.0
         self.error = -1e-6
@@ -176,14 +175,14 @@ cdef class ClockPairing(object):
 
         # update clock drift based on interval ratio
         # this might reject the update
-        if not self._update_drift(address, base_interval, peer_interval):
+        if not self._update_drift(base_interval, peer_interval):
             self.check_valid(now)
             return False
 
         cdef bint outlier = False
         if self.n > 0:
             # clean old data
-            if self.n > 30 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
+            if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
                 self._prune_old_data(now)
 
             # ts_base and ts_peer define a function constructed by linearly
@@ -260,7 +259,7 @@ cdef class ClockPairing(object):
         self.outliers = max(0, self.outliers - 2)
 
         # update clock offset based on the actual clock values
-        self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
+        self._update_offset(base_ts, peer_ts, prediction_error, outlier)
 
         self.updated = now
         self.check_valid(now)
@@ -269,8 +268,9 @@ cdef class ClockPairing(object):
     cdef void _prune_old_data(self, double now):
         cdef int i = 0
 
-        if self.n > 20:
-            i = self.n - 20
+        cdef int new_max = cp_size - 12
+        if self.n > new_max:
+            i = self.n - new_max
 
         cdef double latest_base_ts = self.ts_base[self.n - 1]
         cdef double limit = 45.0 * self.base_freq
@@ -278,14 +278,16 @@ cdef class ClockPairing(object):
             i += 1
 
         if i > 0:
-            self.ts_base.erase(self.ts_base.begin(), self.ts_base.begin() + i)
-            self.ts_peer.erase(self.ts_peer.begin(), self.ts_peer.begin() + i)
-            self.var.erase(self.var.begin(), self.var.begin() + i)
             self.n -= i
-            self.var_sum = sum(self.var)
+            memmove(self.ts_base, self.ts_base + i, self.n * sizeof(double))
+            memmove(self.ts_peer, self.ts_peer + i, self.n * sizeof(double))
+            memmove(self.var, self.var + i, self.n * sizeof(double))
+            self.var_sum = 0
+            for k in range(self.n):
+                self.var_sum += self.var[k]
             self.check_valid(now)
 
-    cdef bint _update_drift(self, address, double base_interval, double peer_interval):
+    cdef bint _update_drift(self, double base_interval, double peer_interval):
         # try to reduce the effects of catastropic cancellation here:
         #new_drift = (peer_interval / base_interval) / self.relative_freq - 1.0
         cdef double adjusted_base_interval = base_interval * self.relative_freq
@@ -332,24 +334,23 @@ cdef class ClockPairing(object):
     cpdef void reset_offsets(self):
         self.valid = False
         self.n = 0
-        self.ts_base.clear()
-        self.ts_peer.clear()
-        self.var.clear()
         self.var_sum = 0.0
         self.cumulative_error = 0.0
         self.error = -1e-6
         self.variance = -1e-6
         self.outliers = 0
 
-    cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
+    cdef void _update_offset(self, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
 
-        self.n += 1
-        self.ts_base.push_back(base_ts)
-        self.ts_peer.push_back(peer_ts)
-
         cdef double p_var = prediction_error * prediction_error
-        self.var.push_back(p_var)
+
+        self.ts_base[self.n] = base_ts
+        self.ts_peer[self.n] = peer_ts
+        self.var[self.n] = p_var
+
+        self.n += 1
+
         self.var_sum += p_var
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
