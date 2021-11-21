@@ -195,16 +195,19 @@ cdef class ClockPairing(object):
             # again.
 
             if peer_ts <= self.ts_peer[self.n - 1] or base_ts <= self.ts_base[self.n - 1]:
+                if peer_ts < self.ts_peer[self.n - 1] and base_ts < self.ts_base[self.n - 1]:
+                    return False
                 if peer_ts == self.ts_peer[self.n - 1] or base_ts == self.ts_base[self.n - 1]:
                     return False
 
                 # just in case, make this pair invalid for the moment
                 # the next update will set it to valid again
                 self.valid = False
+
                 self.outliers += 1
                 outlier = True
 
-                if self.outliers < 3:
+                if self.outliers < 2:
                     # don't reset quite yet, maybe something strange was unique
                     return False
 

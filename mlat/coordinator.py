@@ -118,7 +118,7 @@ class Receiver(object):
         self.recent_pair_jumps += 1
         total_peers = sum(self.sync_peers)
         if total_peers == 0 or self.recent_pair_jumps / total_peers > 0.2:
-            now = time.time()
+            self.recent_pair_jumps = 0
             self.recent_clock_jumps += 1
             if self.recent_clock_jumps > 2:
                 self.bad_syncs += 0.4 # timeout 60 seconds
