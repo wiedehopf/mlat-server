@@ -84,7 +84,6 @@ cdef class ClockPairing(object):
     cdef base
     cdef peer
     cdef public int cat
-    cdef public double update_attempted
     cdef base_clock
     cdef peer_clock
     cdef double base_freq
@@ -128,7 +127,6 @@ cdef class ClockPairing(object):
         self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
 
         self.updated = 0
-        self.update_attempted = 0
 
         self.raw_drift = 0
         self.drift = 0
