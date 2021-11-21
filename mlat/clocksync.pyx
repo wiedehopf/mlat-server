@@ -1,3 +1,6 @@
+#!python
+#cython: language_level=3, boundscheck=False, wraparound=False, cdivision=True, nonecheck=False
+
 # -*- mode: python; indent-tabs-mode: nil -*-
 
 # Part of mlat-server: a Mode S multilateration server
@@ -20,14 +23,10 @@
 Maintains clock synchronization between individual pairs of receivers.
 """
 
-import math
-import time
 import bisect
 import logging
-import array
 
 # cython stuff:
-from cpython cimport array
 from libc.string cimport memmove
 from libc.math cimport sqrt
 
@@ -36,7 +35,6 @@ from mlat import config, constants
 __all__ = ('Clock', 'ClockPairing', 'make_clock')
 
 glogger = logging.getLogger("clocksync")
-
 
 cdef class Clock(object):
     """A particular clock. Stores characteristics of a clock,
