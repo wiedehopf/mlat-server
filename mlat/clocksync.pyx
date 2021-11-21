@@ -91,6 +91,7 @@ cdef class ClockPairing(object):
     cdef readonly double raw_drift
     cdef readonly double drift
     cdef readonly double i_drift
+    cdef readonly int drift_n
     cdef readonly int n
     cdef vector[double] ts_base
     cdef vector[double] ts_peer
@@ -129,6 +130,7 @@ cdef class ClockPairing(object):
         self.raw_drift = 1e99
         self.drift = 1e99
         self.i_drift = 1e99
+        self.drift_n = 0
 
         self.outliers = 0
         self.jumped = 0
@@ -144,7 +146,7 @@ cdef class ClockPairing(object):
         self.variance = 1e99
 
     cpdef bint check_valid(self, double now):
-        if self.n < 3:
+        if self.n < 4:
             self.variance = 1e99
             self.error = 1e99
             self.valid = False
@@ -256,21 +258,31 @@ cdef class ClockPairing(object):
             #glogger.warn("{0}: drift_max".format(self))
             return False
 
-        if self.drift == 1e99:
+        if self.drift_n == 0:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
             self.i_drift = -1 * self.drift / (1.0 + self.drift)
+            # give this a bit of confidence
+            self.drift_n += 2
             return True
 
         cdef double drift_error = new_drift - self.raw_drift
         if abs(drift_error) > self.drift_max_delta:
             # Too far away from the value we expect, discard
             #glogger.warn("{0}: drift_max_delta".format(self))
+            # in case the first drift reading we got was bogus, accept the next drift reading
+            self.drift_n -= 1
             return False
-
 
         cdef double KP = 0.05
         cdef double KI = 0.01
+
+        # for relatively new pairs allow quicker adjustment of relative drift
+        if self.drift_n < 10:
+            KP *= 4
+            KI *= 4
+        self.drift_n += 1
+
         # move towards the new value
         self.raw_drift += drift_error * KP
         self.drift = self.raw_drift - KI * self.cumulative_error
