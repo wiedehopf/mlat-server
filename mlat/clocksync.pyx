@@ -125,7 +125,7 @@ cdef class ClockPairing(object):
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
         self.drift_max_delta = self.drift_max / 10.0
         self.drift_max *= 1.5 # allow a bit more absolute drift
-        self.outlier_threshold = 5 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
+        self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
 
         self.updated = 0
         self.update_attempted = 0
@@ -161,7 +161,7 @@ cdef class ClockPairing(object):
         self.error = sqrt(self.variance)
 
         """True if this pairing is usable for clock syncronization."""
-        self.valid = (self.variance < 16e-12 and self.outliers < 3 and now - self.updated < 35.0)
+        self.valid = (self.variance < 16e-12 and now - self.updated < 35.0)
         return self.valid
 
     def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
@@ -223,9 +223,7 @@ cdef class ClockPairing(object):
                 if abs(prediction_error) > self.outlier_threshold:
                     outlier = True
                     self.outliers += 1
-                    if self.outliers < 5:
-                        # don't accept this one
-                        self.check_valid(now)
+                    if self.outliers < 3:
                         return False
                 if self.n > 10 and now - self.updated < 5.0:
                     # drop this one silently
@@ -245,17 +243,16 @@ cdef class ClockPairing(object):
             prediction_error = 0  # first sync point, no error
 
         if outlier:
-            if not self.jumped:
-                self.jumped = 1
-                if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
-                    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
-                #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
-                #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            self.jumped = 1
+            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
+                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
+            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
-                if self.peer.bad_syncs < 0.1:
-                    self.base.incrementJumps()
-                if self.base.bad_syncs < 0.1:
-                    self.peer.incrementJumps()
+            if self.peer.bad_syncs < 0.1:
+                self.base.incrementJumps()
+            if self.base.bad_syncs < 0.1:
+                self.peer.incrementJumps()
 
             # outliers and jumps .. we need to reset this clock pair
             self.reset_offsets()

@@ -117,13 +117,14 @@ class Receiver(object):
     def incrementJumps(self):
         self.recent_pair_jumps += 1
         total_peers = sum(self.sync_peers)
-        if total_peers == 0 or self.recent_pair_jumps / total_peers > 0.2:
+        if total_peers == 0 or self.recent_pair_jumps / total_peers > 0.15:
             self.recent_pair_jumps = 0
             self.recent_clock_jumps += 1
             if self.recent_clock_jumps > 2:
                 self.bad_syncs += 0.4 # timeout 60 seconds
             self.clock_reset()
-            #glogger.warning("Clockjump reset: {r}".format(r=self.user))
+            if self.user.startswith(config.DEBUG_FOCUS):
+                glogger.warning("Clockjump reset: {r}".format(r=self.user))
 
     def clock_reset(self):
         """Reset current clock synchronization for this receiver."""
@@ -335,9 +336,9 @@ class Coordinator(object):
 
         for r in self.receivers.values():
 
-            r.recent_clock_jumps -= 0.5
+            r.recent_clock_jumps -= 0.4
             r.recent_clock_jumps = max(0, r.recent_clock_jumps)
-            r.recent_pair_jumps = 0
+            r.recent_clock_jumps = min(5, r.recent_clock_jumps)
 
             # fudge positions, set retained precision as a fraction of a degree:
             precision = 20
