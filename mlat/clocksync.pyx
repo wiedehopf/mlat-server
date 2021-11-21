@@ -187,15 +187,19 @@ cdef class ClockPairing(object):
             prediction = self.predict_peer(base_ts)
             prediction_error = (prediction - peer_ts) / self.peer_freq
 
-            if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
-                outlier = True
-                self.outliers += 1
-                self.outliers = min(7, self.outliers)
-                if self.outliers < 5:
-                    # don't accept this one
-                    self.check_valid(now)
+            if abs(prediction_error) > self.error * 4 : # 4 sigma
+                if abs(prediction_error) > self.outlier_threshold:
+                    outlier = True
+                    self.outliers += 1
+                    self.outliers = min(7, self.outliers)
+                    if self.outliers < 5:
+                        # don't accept this one
+                        self.check_valid(now)
+                        return False
+                if self.n > 10 and now - self.updated < 5.0:
+                    # drop this one silently
                     return False
-            else:
+            if self.n > 1:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
                 # changing the prediction functions to take into account more past values would likely be the cleaner approach
@@ -273,6 +277,17 @@ cdef class ClockPairing(object):
         self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
+    cdef void _reset_offsets(self):
+        self.valid = False
+        self.n = 0
+        self.ts_base.clear()
+        self.ts_peer.clear()
+        self.var.clear()
+        self.var_sum = 0.0
+        self.cumulative_error = 0.0
+        self.error = 1e99
+        self.variance = 1e99
+
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
         if self.n > 0:
@@ -284,40 +299,7 @@ cdef class ClockPairing(object):
             # again.
 
             if peer_ts < self.ts_peer[self.n - 1] or base_ts < self.ts_base[self.n - 1]:
-                self.valid = False
-                self.n = 0
-                self.ts_base.clear()
-                self.ts_peer.clear()
-                self.var.clear()
-                self.var_sum = 0.0
-                self.cumulative_error = 0.0
-                self.error = 1e99
-                self.variance = 1e99
-
-                if not self.jumped:
-                    self.jumped = 1
-                    if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
-                        glogger.warn("{0}: monotonicity broken, reset".format(self))
-                    #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
-                    #    glogger.warn("{0}: monotonicity broken, reset".format(self))
-
-                    if self.peer.bad_syncs < 0.1:
-                        self.base.incrementJumps()
-                    if self.base.bad_syncs < 0.1:
-                        self.peer.incrementJumps()
-
-        self.n += 1
-        self.ts_base.push_back(base_ts)
-        self.ts_peer.push_back(peer_ts)
-
-        cdef double p_var = prediction_error * prediction_error
-        self.var.push_back(p_var)
-        self.var_sum += p_var
-
-        # do not include outliers in our integral term
-        if not outlier:
-            self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
-            self.outliers = max(0, self.outliers - 1)
+                outlier = True
 
         if outlier and not self.jumped:
             self.jumped = 1
@@ -329,6 +311,24 @@ cdef class ClockPairing(object):
                 self.base.incrementJumps()
             if self.base.bad_syncs < 0.1:
                 self.peer.incrementJumps()
+
+        if outlier:
+            # outliers and jumps .. we need to reset this clock pair
+            self._reset_offsets()
+            # as we just reset everything, this is the first point and the prediction error is zero
+            prediction_error = 0
+
+        self.n += 1
+        self.ts_base.push_back(base_ts)
+        self.ts_peer.push_back(peer_ts)
+
+        cdef double p_var = prediction_error * prediction_error
+        self.var.push_back(p_var)
+        self.var_sum += p_var
+
+        self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
+        self.outliers = max(0, self.outliers - 1)
+
 
     cpdef predict_peer(self, double base_ts):
         """
