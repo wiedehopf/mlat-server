@@ -63,17 +63,26 @@ users, and they may redistribute it further if they wish.
  * pygraph (https://github.com/pmatiello/python-graph)
  * pykalman (https://github.com/pykalman/pykalman)
  * optionally, objgraph (https://mg.pov.lt/objgraph/) for leak checking
+ * gcc, g++
+ * uvloop, ujson, Cython
 
 ## Example of how to make it run with virtualenv:
 
 ```
-apt install python3-pip python3 python3-venv
+apt install python3-pip python3 python3-venv gcc g++
 VENV=/opt/mlat-python-venv
 rm -rf $VENV
 python3 -m venv $VENV
 source $VENV/bin/activate
 pip3 install -U pip
-pip3 install numpy scipy pykalman python-graph-core uvloop ujson
+pip3 install numpy scipy pykalman python-graph-core uvloop ujson Cython
+```
+
+After every code update, recompile the Cython stuff:
+```
+source $VENV/bin/activate
+cd /opt/mlat-server
+python3 setup.py build_ext --inplace
 ```
 
 Starting mlat server:
