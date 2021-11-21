@@ -175,17 +175,42 @@ cdef class ClockPairing(object):
         Returns True if the update was used, False if it was an outlier.
         """
 
-        if self.n > 0 and base_ts <= self.ts_base[self.n - 1]:
-            # timestamp is in the past or duplicated, don't use this
-            #glogger.warn("{0}: timestamp in past or duplicated".format(self))
+        # update clock drift based on interval ratio
+        # this might reject the update
+        if not self._update_drift(address, base_interval, peer_interval):
+            self.check_valid(now)
             return False
 
-        # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 50.0 * self.base_freq):
-            self._prune_old_data(now)
+        if self.n > 0:
+            # clean old data
+            if self.n > 30 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
+                self._prune_old_data(now)
+
+            # ts_base and ts_peer define a function constructed by linearly
+            # interpolating between each pair of values.
+            #
+            # This function must be monotonically increasing or one of our clocks
+            # has effectively gone backwards. If this happens, give up and start
+            # again.
+
+            if peer_ts <= self.ts_peer[self.n - 1] or base_ts <= self.ts_base[self.n - 1]:
+                if peer_ts == self.ts_peer[self.n - 1] or base_ts == self.ts_base[self.n - 1]:
+                    return False
+
+                # just in case, make this pair invalid for the moment
+                # the next update will set it to valid again
+                self.valid = False
+                self.outliers += 1
+
+                if self.outliers < 3:
+                    # don't reset quite yet, maybe something strange was unique
+                    return False
+
+                self._reset_offsets()
+
 
         cdef bint outlier = False
-        cdef double prection, prediction_error
+        cdef double prediction, prediction_error
         # predict from existing data, compare to actual value
         if self.n > 0:
             prediction = self.predict_peer(base_ts)
@@ -217,11 +242,24 @@ cdef class ClockPairing(object):
         else:
             prediction_error = 0  # first sync point, no error
 
-        # update clock drift based on interval ratio
-        # this might reject the update
-        if not self._update_drift(address, base_interval, peer_interval):
-            self.check_valid(now)
-            return False
+        if outlier and not self.jumped:
+            self.jumped = 1
+            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
+                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
+            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            if self.peer.bad_syncs < 0.1:
+                self.base.incrementJumps()
+            if self.base.bad_syncs < 0.1:
+                self.peer.incrementJumps()
+
+        if outlier:
+            # outliers and jumps .. we need to reset this clock pair
+            self._reset_offsets()
+            # as we just reset everything, this is the first point and the prediction error is zero
+            prediction_error = 0
+
+        self.outliers = max(0, self.outliers - 1)
 
         # update clock offset based on the actual clock values
         self._update_offset(address, base_ts, peer_ts, prediction_error, outlier)
@@ -304,33 +342,6 @@ cdef class ClockPairing(object):
 
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
-        if self.n > 0:
-            # ts_base and ts_peer define a function constructed by linearly
-            # interpolating between each pair of values.
-            #
-            # This function must be monotonically increasing or one of our clocks
-            # has effectively gone backwards. If this happens, give up and start
-            # again.
-
-            if peer_ts < self.ts_peer[self.n - 1] or base_ts < self.ts_base[self.n - 1]:
-                outlier = True
-
-        if outlier and not self.jumped:
-            self.jumped = 1
-            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
-                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
-            #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
-            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
-            if self.peer.bad_syncs < 0.1:
-                self.base.incrementJumps()
-            if self.base.bad_syncs < 0.1:
-                self.peer.incrementJumps()
-
-        if outlier:
-            # outliers and jumps .. we need to reset this clock pair
-            self._reset_offsets()
-            # as we just reset everything, this is the first point and the prediction error is zero
-            prediction_error = 0
 
         self.n += 1
         self.ts_base.push_back(base_ts)
@@ -341,7 +352,6 @@ cdef class ClockPairing(object):
         self.var_sum += p_var
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
-        self.outliers = max(0, self.outliers - 1)
 
 
     cpdef double predict_peer(self, double base_ts):
