@@ -75,20 +75,19 @@ def make_clock(clock_type):
         return Clock(freq=12e6, max_freq_error=100e-6, jitter=500e-9)
     raise NotImplementedError("{ct}".format(ct=clock_type))
 
-
 cdef class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
 
     cdef readonly bint valid
     cdef readonly double updated
     cdef readonly double variance
-    cdef double KP
-    cdef double KI
     cdef base
     cdef peer
     cdef public int cat
     cdef base_clock
     cdef peer_clock
+    cdef double base_freq
+    cdef double peer_freq
     cdef readonly double raw_drift
     cdef readonly double drift
     cdef readonly double i_drift
@@ -111,27 +110,13 @@ cdef class ClockPairing(object):
 
 
     def __init__(self, base, peer, cat):
-        self.KP = 0.05
-        self.KI = 0.01
         self.base = base
         self.peer = peer
         self.cat = cat
         self.base_clock = base.clock
         self.peer_clock = peer.clock
-        self.raw_drift = 1e99
-        self.drift = 1e99
-        self.i_drift = 1e99
-        self.n = 0
-        self.ts_base.clear()
-        self.ts_peer.clear()
-        self.var.clear()
-        self.var_sum = 0.0
-        self.outliers = 0
-        self.cumulative_error = 0.0
-        self.error = 1e99
-        self.variance = 1e99
-
-        self.jumped = 0
+        self.base_freq = base.clock.freq
+        self.peer_freq = peer.clock.freq
 
         self.relative_freq = peer.clock.freq / base.clock.freq
         self.i_relative_freq = base.clock.freq / peer.clock.freq
@@ -140,25 +125,38 @@ cdef class ClockPairing(object):
         self.outlier_threshold = 5 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         self.updated = 0
+
+        self.raw_drift = 1e99
+        self.drift = 1e99
+        self.i_drift = 1e99
+
+        self.outliers = 0
+        self.jumped = 0
+
         self.valid = False
-
-
-    cdef void updateVars(self):
-        if self.n == 0:
-            self.variance = 1e99
-            self.error = 1e99
-        else:
-            """Variance of recent predictions of the sync point versus the actual sync point."""
-            self.variance = self.var_sum / self.n
-
-            """Standard error of recent predictions."""
-            self.error = sqrt(self.variance)
+        self.n = 0
+        self.ts_base.clear()
+        self.ts_peer.clear()
+        self.var.clear()
+        self.var_sum = 0.0
+        self.cumulative_error = 0.0
+        self.error = 1e99
+        self.variance = 1e99
 
     cpdef bint check_valid(self, double now):
+        if self.n < 3:
+            self.variance = 1e99
+            self.error = 1e99
+            self.valid = False
+            return False
+
+        """Variance of recent predictions of the sync point versus the actual sync point."""
+        self.variance = self.var_sum / self.n
+        """Standard error of recent predictions."""
+        self.error = sqrt(self.variance)
+
         """True if this pairing is usable for clock syncronization."""
-        self.valid = (self.n >= 3 and (self.var_sum / self.n) < 16e-12 and
-                    self.outliers < 3 and now - self.updated < 35.0 and
-                    self.base.bad_syncs < 0.1 and self.peer.bad_syncs < 0.1)
+        self.valid = (self.variance < 16e-12 and self.outliers < 3 and now - self.updated < 35.0)
         return self.valid
 
     def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
@@ -179,15 +177,15 @@ cdef class ClockPairing(object):
             return False
 
         # clean old data
-        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 50.0 * self.base_clock.freq):
-            self._prune_old_data()
+        if self.n > 30 or (self.n > 1 and (base_ts - self.ts_base[0]) > 50.0 * self.base_freq):
+            self._prune_old_data(now)
 
         cdef bint outlier = False
         cdef double prection, prediction_error
         # predict from existing data, compare to actual value
         if self.n > 0:
             prediction = self.predict_peer(base_ts)
-            prediction_error = (prediction - peer_ts) / self.peer_clock.freq
+            prediction_error = (prediction - peer_ts) / self.peer_freq
 
             if (abs(prediction_error) > self.outlier_threshold or self.n > 8) and abs(prediction_error) > self.error * 4 : # 4 sigma
                 outlier = True
@@ -224,14 +222,14 @@ cdef class ClockPairing(object):
         self.check_valid(now)
         return True
 
-    cdef void _prune_old_data(self):
+    cdef void _prune_old_data(self, double now):
         cdef int i = 0
 
         if self.n > 20:
             i = self.n - 20
 
         cdef double latest_base_ts = self.ts_base[self.n - 1]
-        cdef double limit = 45.0 * self.base_clock.freq
+        cdef double limit = 45.0 * self.base_freq
         while i < self.n and (latest_base_ts - self.ts_base[i]) > limit:
             i += 1
 
@@ -241,7 +239,7 @@ cdef class ClockPairing(object):
             self.var.erase(self.var.begin(), self.var.begin() + i)
             self.n -= i
             self.var_sum = sum(self.var)
-            self.updateVars()
+            self.check_valid(now)
 
     cdef bint _update_drift(self, address, double base_interval, double peer_interval):
         # try to reduce the effects of catastropic cancellation here:
@@ -266,17 +264,18 @@ cdef class ClockPairing(object):
             #glogger.warn("{0}: drift_max_delta".format(self))
             return False
 
+
+        cdef double KP = 0.05
+        cdef double KI = 0.01
         # move towards the new value
-        self.raw_drift += drift_error * self.KP
-        self.drift = self.raw_drift - self.KI * self.cumulative_error
+        self.raw_drift += drift_error * KP
+        self.drift = self.raw_drift - KI * self.cumulative_error
         self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
-        if self.n != 0:
-            assert base_ts > self.ts_base[self.n - 1]
-
+        if self.n > 0:
             # ts_base and ts_peer define a function constructed by linearly
             # interpolating between each pair of values.
             #
@@ -284,14 +283,16 @@ cdef class ClockPairing(object):
             # has effectively gone backwards. If this happens, give up and start
             # again.
 
-            if peer_ts < self.ts_peer[self.n - 1]:
+            if peer_ts < self.ts_peer[self.n - 1] or base_ts < self.ts_base[self.n - 1]:
+                self.valid = False
+                self.n = 0
                 self.ts_base.clear()
                 self.ts_peer.clear()
                 self.var.clear()
-                self.var_sum = 0
-                self.cumulative_error = 0
-                self.n = 0
-                self.updateVars()
+                self.var_sum = 0.0
+                self.cumulative_error = 0.0
+                self.error = 1e99
+                self.variance = 1e99
 
                 if not self.jumped:
                     self.jumped = 1
@@ -312,7 +313,6 @@ cdef class ClockPairing(object):
         cdef double p_var = prediction_error * prediction_error
         self.var.push_back(p_var)
         self.var_sum += p_var
-        self.updateVars()
 
         # do not include outliers in our integral term
         if not outlier:
@@ -349,7 +349,7 @@ cdef class ClockPairing(object):
             elapsed = base_ts - self.ts_base[n-1]
             result = self.ts_peer[n-1] + elapsed * self.relative_freq * (1 + self.drift)
 
-            if self.ts_base[n-1] - self.ts_base[n-2] > 10 * self.base_clock.freq and base_ts > self.ts_base[n-1]:
+            if self.ts_base[n-1] - self.ts_base[n-2] > 10 * self.base_freq and base_ts > self.ts_base[n-1]:
                 return result
 
             elapsed = base_ts - self.ts_base[n-2]
@@ -383,7 +383,7 @@ cdef class ClockPairing(object):
             elapsed = peer_ts - self.ts_peer[n-1]
             result = self.ts_base[n-1] + elapsed * self.i_relative_freq * (1 + self.i_drift)
 
-            if self.ts_peer[n-1] - self.ts_peer[n-2] > 10 * self.peer_clock.freq and peer_ts > self.ts_peer[n-1]:
+            if self.ts_peer[n-1] - self.ts_peer[n-2] > 10 * self.peer_freq and peer_ts > self.ts_peer[n-1]:
                 return result
 
             elapsed = peer_ts - self.ts_peer[n-2]
