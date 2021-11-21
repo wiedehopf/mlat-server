@@ -181,6 +181,7 @@ cdef class ClockPairing(object):
             self.check_valid(now)
             return False
 
+        cdef bint outlier = False
         if self.n > 0:
             # clean old data
             if self.n > 30 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
@@ -201,18 +202,16 @@ cdef class ClockPairing(object):
                 # the next update will set it to valid again
                 self.valid = False
                 self.outliers += 1
+                outlier = True
 
                 if self.outliers < 3:
                     # don't reset quite yet, maybe something strange was unique
                     return False
 
-                self._reset_offsets()
 
-
-        cdef bint outlier = False
         cdef double prediction, prediction_error
         # predict from existing data, compare to actual value
-        if self.n > 0:
+        if self.n > 0 and not outlier:
             prediction = self.predict_peer(base_ts)
             prediction_error = (prediction - peer_ts) / self.peer_freq
 
@@ -242,18 +241,19 @@ cdef class ClockPairing(object):
         else:
             prediction_error = 0  # first sync point, no error
 
-        if outlier and not self.jumped:
-            self.jumped = 1
-            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
-                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
-            #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
-            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
-            if self.peer.bad_syncs < 0.1:
-                self.base.incrementJumps()
-            if self.base.bad_syncs < 0.1:
-                self.peer.incrementJumps()
-
         if outlier:
+            if not self.jumped:
+                self.jumped = 1
+                if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
+                    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+                #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
+                #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+
+                if self.peer.bad_syncs < 0.1:
+                    self.base.incrementJumps()
+                if self.base.bad_syncs < 0.1:
+                    self.peer.incrementJumps()
+
             # outliers and jumps .. we need to reset this clock pair
             self._reset_offsets()
             # as we just reset everything, this is the first point and the prediction error is zero
