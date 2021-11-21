@@ -124,6 +124,7 @@ cdef class ClockPairing(object):
         self.i_relative_freq = base.clock.freq / peer.clock.freq
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
         self.drift_max_delta = self.drift_max / 10.0
+        self.drift_max *= 1.5 # allow a bit more absolute drift
         self.outlier_threshold = 5 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         self.updated = 0
@@ -148,7 +149,7 @@ cdef class ClockPairing(object):
         self.variance = -1e-6
 
     cpdef bint check_valid(self, double now):
-        if self.n < 4:
+        if self.n < 4 or self.drift_n < 4:
             self.variance = -1e-6
             self.error = -1e-6
             self.valid = False
@@ -258,7 +259,7 @@ cdef class ClockPairing(object):
                     self.peer.incrementJumps()
 
             # outliers and jumps .. we need to reset this clock pair
-            self._reset_offsets()
+            self.reset_offsets()
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
@@ -301,12 +302,12 @@ cdef class ClockPairing(object):
             #glogger.warn("{0}: drift_max".format(self))
             return False
 
-        if self.drift_n == 0:
+        if self.drift_n <= 0:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
             self.i_drift = -1 * self.drift / (1.0 + self.drift)
             # give this a bit of confidence
-            self.drift_n += 2
+            self.drift_n = 2
             return True
 
         cdef double drift_error = new_drift - self.raw_drift
@@ -314,6 +315,8 @@ cdef class ClockPairing(object):
             # Too far away from the value we expect, discard
             #glogger.warn("{0}: drift_max_delta".format(self))
             # in case the first drift reading we got was bogus, accept the next drift reading
+            if self.drift_n > 15:
+                self.drift_n = 15
             self.drift_n -= 1
             return False
 
@@ -332,7 +335,7 @@ cdef class ClockPairing(object):
         self.i_drift = -1 * self.drift / (1.0 + self.drift)
         return True
 
-    cdef void _reset_offsets(self):
+    cpdef void reset_offsets(self):
         self.valid = False
         self.n = 0
         self.ts_base.clear()

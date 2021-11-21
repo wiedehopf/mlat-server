@@ -235,13 +235,11 @@ class ClockTracker(object):
         state for a given receiver. This happens on input disconnect/
         reconnect.
 
-        (This is actually the same work as receiver_disconnect for the moment)
+        Only reset the offsets, the drift shouldn't be affected
         """
         for k, pairing in list(self.clock_pairs.items()):
             if k[0] is receiver or k[1] is receiver:
-                k[0].sync_peers[pairing.cat] -= 1
-                k[1].sync_peers[pairing.cat] -= 1
-                del self.clock_pairs[k]
+                pairing.reset_offsets()
 
     @profile.trackcpu
     def receiver_disconnect(self, receiver):
