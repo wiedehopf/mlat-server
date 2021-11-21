@@ -562,9 +562,6 @@ class JsonClient(connection.Connection):
                 raise ValueError('Client sent a packet that was not newline terminated')
 
     def process_message(self, line):
-        if self.receiver.bad_syncs > 3:
-            return
-
         try:
             msg = ujson.loads(line)
         except ValueError:
@@ -572,6 +569,9 @@ class JsonClient(connection.Connection):
 
 
         if 'sync' in msg:
+            if self.receiver.bad_syncs > 3:
+                return
+
             sync = msg['sync']
 
             self.coordinator.receiver_sync(self.receiver,
