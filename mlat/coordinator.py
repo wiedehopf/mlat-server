@@ -310,7 +310,7 @@ class Coordinator(object):
             #           3: bad_syncs, 4: pairing.jumped]
             peers = receiver_states.get(r.user, {})
             for state in peers.values():
-                if state[3] > 0:
+                if state[3] > 0 or state[0] < 3:
                     continue
                 num_peers += 1
                 if (state[0] > 10 and state[1] > 1.5) or state[1] > 3:

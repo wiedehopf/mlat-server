@@ -84,6 +84,7 @@ cdef class ClockPairing(object):
     cdef base
     cdef peer
     cdef public int cat
+    cdef public double update_attempted
     cdef base_clock
     cdef peer_clock
     cdef double base_freq
@@ -126,10 +127,11 @@ cdef class ClockPairing(object):
         self.outlier_threshold = 5 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 5 sigma
 
         self.updated = 0
+        self.update_attempted = 0
 
-        self.raw_drift = 1e99
-        self.drift = 1e99
-        self.i_drift = 1e99
+        self.raw_drift = 0
+        self.drift = 0
+        self.i_drift = 0
         self.drift_n = 0
 
         self.outliers = 0
@@ -142,13 +144,13 @@ cdef class ClockPairing(object):
         self.var.clear()
         self.var_sum = 0.0
         self.cumulative_error = 0.0
-        self.error = 1e99
-        self.variance = 1e99
+        self.error = -1e-6
+        self.variance = -1e-6
 
     cpdef bint check_valid(self, double now):
         if self.n < 4:
-            self.variance = 1e99
-            self.error = 1e99
+            self.variance = -1e-6
+            self.error = -1e-6
             self.valid = False
             return False
 
@@ -297,8 +299,8 @@ cdef class ClockPairing(object):
         self.var.clear()
         self.var_sum = 0.0
         self.cumulative_error = 0.0
-        self.error = 1e99
-        self.variance = 1e99
+        self.error = -1e-6
+        self.variance = -1e-6
 
     cdef void _update_offset(self, address, double base_ts, double peer_ts, double prediction_error, bint outlier):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
