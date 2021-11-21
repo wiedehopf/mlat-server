@@ -342,14 +342,14 @@ cdef class ClockPairing(object):
         self.outliers = max(0, self.outliers - 1)
 
 
-    cpdef predict_peer(self, double base_ts):
+    cpdef double predict_peer(self, double base_ts):
         """
         Given a time from the base clock, predict the time of the peer clock.
         """
 
         cdef int n = self.n
         if n == 0:
-            return None
+            raise ValueError("predict_peer called on n == 0 clock pair")
 
         if base_ts < self.ts_base[0] or n == 1:
             # extrapolate before first point or if we only have one point
@@ -375,7 +375,7 @@ cdef class ClockPairing(object):
                 (base_ts - self.ts_base[i-1]) /
                 (self.ts_base[i] - self.ts_base[i-1]))
 
-    cpdef predict_base(self, double peer_ts):
+    cpdef double predict_base(self, double peer_ts):
         """
         Given a time from the peer clock, predict the time of the base
         clock.
@@ -383,7 +383,7 @@ cdef class ClockPairing(object):
 
         cdef int n = self.n
         if n == 0:
-            return None
+            raise ValueError("predict_base called on n == 0 clock pair")
 
         if peer_ts < self.ts_peer[0] or n == 1:
             # extrapolate before first point or if we only have one point
