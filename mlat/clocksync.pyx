@@ -102,6 +102,7 @@ cdef class ClockPairing(object):
     cdef readonly double error
 
     cdef public int jumped
+    cdef public int mono_broken
 
     cdef double relative_freq
     cdef double i_relative_freq
@@ -144,7 +145,7 @@ cdef class ClockPairing(object):
         self.variance = -1e-6
 
     cpdef bint check_valid(self, double now):
-        if self.n < 4 or self.drift_n < 4:
+        if self.n < 2 or self.drift_n < 2:
             self.variance = -1e-6
             self.error = -1e-6
             self.valid = False
@@ -156,7 +157,7 @@ cdef class ClockPairing(object):
         self.error = sqrt(self.variance)
 
         """True if this pairing is usable for clock syncronization."""
-        self.valid = (self.variance < 16e-12 and now - self.updated < 35.0)
+        self.valid = (self.n > 3 and self.drift_n > 3 and self.variance < 16e-12 and now - self.updated < 35.0)
         return self.valid
 
     def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
@@ -170,19 +171,14 @@ cdef class ClockPairing(object):
 
         Returns True if the update was used, False if it was an outlier.
         """
-
-        # update clock drift based on interval ratio
-        # this might reject the update
-        if not self._update_drift(base_interval, peer_interval):
-            self.check_valid(now)
-            return False
-
+        cdef double prediction, prediction_error
         cdef bint outlier = False
-        if self.n > 0:
-            # clean old data
-            if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
-                self._prune_old_data(now)
 
+        # clean old data
+        if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
+            self._prune_old_data(now)
+
+        if self.n > 0 and not outlier:
             # ts_base and ts_peer define a function constructed by linearly
             # interpolating between each pair of values.
             #
@@ -200,29 +196,38 @@ cdef class ClockPairing(object):
                 # the next update will set it to valid again
                 self.valid = False
 
-                self.outliers += 1
+                self.outliers += 10
                 outlier = True
 
-                if self.outliers < 3:
+                if self.outliers <= 10:
                     # don't reset quite yet, maybe something strange was unique
                     return False
 
+                if self.peer.bad_syncs < 0.1:
+                    self.base.incrementJumps()
+                if self.base.bad_syncs < 0.1:
+                    self.peer.incrementJumps()
+                self.mono_broken = 1
 
-        cdef double prediction, prediction_error
         # predict from existing data, compare to actual value
         if self.n > 0 and not outlier:
             prediction = self.predict_peer(base_ts)
             prediction_error = (prediction - peer_ts) / self.peer_freq
 
-            if abs(prediction_error) > self.error * 4 : # 4 sigma
-                if abs(prediction_error) > self.outlier_threshold:
-                    outlier = True
-                    self.outliers += 1
-                    if self.outliers < 3:
-                        return False
-                if self.n > 10 and now - self.updated < 5.0:
-                    # drop this one silently
+            #if abs(prediction_error) > self.outlier_threshold and abs(prediction_error) > self.error * 4 : # 4 sigma
+            if abs(prediction_error) > self.outlier_threshold:
+
+                outlier = True
+                self.outliers += 10
+                if self.outliers <= 28:
                     return False
+
+                if self.peer.bad_syncs < 0.1:
+                    self.base.incrementJumps()
+                if self.base.bad_syncs < 0.1:
+                    self.peer.incrementJumps()
+                self.jumped = 1
+
             if self.n > 1:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
@@ -238,26 +243,28 @@ cdef class ClockPairing(object):
             prediction_error = 0  # first sync point, no error
 
         if outlier:
-            self.jumped = 1
             if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
                 glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
-            if self.peer.bad_syncs < 0.1:
-                self.base.incrementJumps()
-            if self.base.bad_syncs < 0.1:
-                self.peer.incrementJumps()
-
-            # outliers and jumps .. we need to reset this clock pair
+            # outlier .. we need to reset this clock pair
             self.reset_offsets()
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
-        self.outliers = max(0, self.outliers - 2)
+        self.outliers = max(0, self.outliers - 12)
+
+        self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
+
+        # update clock drift based on interval ratio
+        # this might reject the update
+        if not self._update_drift(base_interval, peer_interval):
+            self.check_valid(now)
+            return False
 
         # update clock offset based on the actual clock values
-        self._update_offset(base_ts, peer_ts, prediction_error, outlier)
+        self._update_offset(base_ts, peer_ts, prediction_error)
 
         self.updated = now
         self.check_valid(now)
@@ -309,8 +316,8 @@ cdef class ClockPairing(object):
             # Too far away from the value we expect, discard
             #glogger.warn("{0}: drift_max_delta".format(self))
             # in case the first drift reading we got was bogus, accept the next drift reading
-            if self.drift_n > 15:
-                self.drift_n = 15
+            if self.drift_n > 12:
+                self.drift_n = 12
             self.drift_n -= 1
             return False
 
@@ -338,7 +345,7 @@ cdef class ClockPairing(object):
         self.variance = -1e-6
         self.outliers = 0
 
-    cdef void _update_offset(self, double base_ts, double peer_ts, double prediction_error, bint outlier):
+    cdef void _update_offset(self, double base_ts, double peer_ts, double prediction_error):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
 
         cdef double p_var = prediction_error * prediction_error
@@ -350,8 +357,6 @@ cdef class ClockPairing(object):
         self.n += 1
 
         self.var_sum += p_var
-
-        self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 
 
     cpdef double predict_peer(self, double base_ts):

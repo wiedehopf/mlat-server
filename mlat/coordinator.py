@@ -117,11 +117,11 @@ class Receiver(object):
     def incrementJumps(self):
         self.recent_pair_jumps += 1
         total_peers = sum(self.sync_peers)
-        if total_peers == 0 or self.recent_pair_jumps / total_peers > 0.15:
+        if total_peers > 0 and self.recent_pair_jumps / total_peers > 0.4 and self.recent_pair_jumps > 2:
             self.recent_pair_jumps = 0
             self.recent_clock_jumps += 1
-            if self.recent_clock_jumps > 2:
-                self.bad_syncs += 0.4 # timeout 60 seconds
+            if self.recent_clock_jumps > 1:
+                self.bad_syncs += 0.2 * self.recent_clock_jumps # timeout 30 seconds for every recent clock jump
             self.clock_reset()
             if self.user.startswith(config.DEBUG_FOCUS):
                 glogger.warning("Clockjump reset: {r}".format(r=self.user))
@@ -311,10 +311,8 @@ class Coordinator(object):
             #           3: bad_syncs, 4: pairing.jumped]
             peers = receiver_states.get(r.user, {})
             for state in peers.values():
-                if state[3] > 0 or state[0] < 3:
-                    continue
                 num_peers += 1
-                if (state[0] > 10 and state[1] > 1.5) or state[1] > 3:
+                if state[4] or (state[0] > 10 and state[1] > 0.9) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
 
             # If your sync with 5 receivers or more than 10 percent of peers is bad,
@@ -336,7 +334,8 @@ class Coordinator(object):
 
         for r in self.receivers.values():
 
-            r.recent_clock_jumps -= 0.4
+            r.recent_pair_jumps = 0
+            r.recent_clock_jumps -= 0.25
             r.recent_clock_jumps = max(0, r.recent_clock_jumps)
             r.recent_clock_jumps = min(5, r.recent_clock_jumps)
 

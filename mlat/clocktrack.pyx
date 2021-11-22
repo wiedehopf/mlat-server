@@ -466,7 +466,7 @@ class ClockTracker(object):
     def dump_receiver_state(self):
         state = {}
         for (r0, r1), pairing in self.clock_pairs.items():
-            if pairing.n < 4:
+            if pairing.n < 2:
                 continue
 
             state.setdefault(r0.user, {})[r1.user] = [pairing.n,
@@ -483,4 +483,5 @@ class ClockTracker(object):
                     #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
             # reset jumped indicator
             pairing.jumped = 0
+            pairing.mono_broken = 0
         return state
