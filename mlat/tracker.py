@@ -194,13 +194,11 @@ class Tracker(object):
         for icao, rate in receiver.last_rate_report.items():
             ac = self.aircraft.get(icao)
             if not ac:
-                # for the moment don't add aircraft from here ....
+                # don't add aircraft from here to avoid seen / lost lingering aircraft issues
                 continue
-                self.add(receiver, {icao})
-                ac = self.aircraft.get(icao)
-                if not ac:
-                    continue
             ac.seen = now
+            # this can save some performance but we might not do MLAT for some aircraft we want to do MLAT on
+            #ac.last_adsb_time = now
 
             rate_report_set.add(ac)
             new_adsb.add(ac)
