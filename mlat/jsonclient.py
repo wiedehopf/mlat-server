@@ -214,6 +214,8 @@ class JsonClient(connection.Connection):
         self._requested_traffic = set()
         self._wanted_traffic = set()
 
+        self.message_counter = 0
+
         # start
         self._read_task = asyncio.ensure_future(self.handle_connection())
 
@@ -568,6 +570,7 @@ class JsonClient(connection.Connection):
             logging.warn("process_message json ValueError: %s >> %s", self.receiver.user, line)
 
 
+        self.message_counter += 1
         if 'sync' in msg:
             sync = msg['sync']
 

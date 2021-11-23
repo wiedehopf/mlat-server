@@ -372,11 +372,14 @@ class Coordinator(object):
                 'connection': r.connection_info,
                 'source_ip': r.connection.source_ip,
                 'source_port': r.connection.source_port,
+                'message_rate': round(r.connection.message_counter / 15.0),
                 'peer_count': sum(r.sync_peers),
-                'bad_sync_timeout': (r.bad_syncs * 15 / 0.1),
+                'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
             }
+            # reset message counter
+            r.connection.message_counter = 0
 
         # The sync matrix json can be large.  This means it might take a little time to write out.
         # This therefore means someone could start reading it before it has completed writing...
