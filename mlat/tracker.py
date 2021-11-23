@@ -208,7 +208,7 @@ class Tracker(object):
             altFactor = None
             if ac.altitude is not None and ac.altitude > 0:
                 altFactor = (1 + (ac.altitude / 20000)**1.5)
-                #if receiver.user.startswith(config.DEBUG_FOCUS):
+                #if receiver.focus:
                 #    glogger.warn('altFactor:' + str(altFactor) + ' alt: ' + str(ac.altitude))
             ac_to_ratepair_map[ac] = l = []  # list of (rateproduct, receiver, ac) tuples for this aircraft
             for r1 in ac.tracking:
@@ -254,7 +254,7 @@ class Tracker(object):
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
-                #if receiver.user.startswith(config.DEBUG_FOCUS):
+                #if receiver.focus:
                 #    glogger.warn('1st round: ' + str(rate))
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
@@ -272,22 +272,18 @@ class Tracker(object):
                 # use this aircraft for sync
                 new_sync.add(ac)
                 total_rate += rate
-                #if receiver.user.startswith(config.DEBUG_FOCUS):
+                #if receiver.focus:
                 #    glogger.warn('2nd round: ' + str(rate))
                 # update rate-product totals for all receivers that see this aircraft
                 for rp2, r2, ac2, rate in ac_to_ratepair_map[ac]:
                     ntotal[r2] = ntotal.get(r2, 0.0) + rp2
-
-        if now - receiver.connectedSince < 45 and len(new_sync) < int(config.MAX_SYNC_AC / 2):
-            acAvailable = ac_to_ratepair_map.keys()
-            new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), int(config.MAX_SYNC_AC / 2))))
 
         addSome = int(config.MAX_SYNC_AC / 4) - len(new_sync)
         if addSome > 0:
             acAvailable = set(ac_to_ratepair_map.keys()).difference(new_sync)
             new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), addSome)))
 
-        #if receiver.user.startswith(config.DEBUG_FOCUS):
+        #if receiver.focus:
         #    glogger.warn('new_sync:' + str([format(a.icao, '06x') for a in new_sync]))
 
         receiver.update_interest_sets(new_sync, new_mlat, new_adsb)

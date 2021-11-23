@@ -83,6 +83,8 @@ class Receiver(object):
         self.recent_pair_jumps = 0
         self.recent_clock_jumps = 0
 
+        self.focus = False
+
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
         if self.bad_syncs > 3 and len(new_sync) > 3:
@@ -123,7 +125,7 @@ class Receiver(object):
             if self.recent_clock_jumps > 1:
                 self.bad_syncs += 0.2 * self.recent_clock_jumps # timeout 30 seconds for every recent clock jump
             self.clock_reset()
-            if self.user.startswith(config.DEBUG_FOCUS):
+            if self.focus or self.recent_clock_jumps < 3:
                 glogger.warning("Clockjump reset: {r}".format(r=self.user))
 
     def clock_reset(self):
@@ -464,6 +466,8 @@ class Coordinator(object):
 
         self.receivers[receiver.uid] = receiver
         self.usernames[receiver.user] = receiver
+        if receiver.user.startswith(config.DEBUG_FOCUS):
+            self.focus = True
         return receiver
 
     def _compute_interstation_distances(self, receiver):

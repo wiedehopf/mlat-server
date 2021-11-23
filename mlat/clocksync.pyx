@@ -171,7 +171,8 @@ cdef class ClockPairing(object):
 
         Returns True if the update was used, False if it was an outlier.
         """
-        cdef double prediction, prediction_error
+        cdef double prediction = 0
+        cdef double prediction_error = 0
         cdef bint outlier = False
 
         # clean old data
@@ -222,9 +223,9 @@ cdef class ClockPairing(object):
                 if self.outliers <= 28:
                     return False
 
-                if self.peer.bad_syncs < 0.1:
+                if self.peer.bad_syncs < 0.01:
                     self.base.incrementJumps()
-                if self.base.bad_syncs < 0.1:
+                if self.base.bad_syncs < 0.01:
                     self.peer.incrementJumps()
                 self.jumped = 1
 
@@ -239,21 +240,19 @@ cdef class ClockPairing(object):
                 prediction_base = self.predict_base(peer_ts)
                 peer_ts += (prediction - peer_ts) * 0.4
                 base_ts += (prediction_base - base_ts) * 0.4
-        else:
-            prediction_error = 0  # first sync point, no error
 
         if outlier:
-            if self.peer.user.startswith(config.DEBUG_FOCUS) or self.base.user.startswith(config.DEBUG_FOCUS):
+            if self.peer.focus or self.base.focus:
                 glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
-            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
             # outlier .. we need to reset this clock pair
             self.reset_offsets()
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
-        self.outliers = max(0, self.outliers - 12)
+        self.outliers = max(0, self.outliers - 15)
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 

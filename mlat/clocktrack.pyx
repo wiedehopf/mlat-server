@@ -150,7 +150,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
             p1 = r1.sync_peers[cat]
 
             if p0 > limit and p1 > limit:
-                #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                #if r0.focus or r1.focus:
                 #    logging.warning("rejected new sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                 continue
 
@@ -169,7 +169,7 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
 
 
             if p0 > limit and p1 > limit:
-                #if r0.user.startswith(config.DEBUG_FOCUS) or r1.user.startswith(config.DEBUG_FOCUS):
+                #if r0.focus or r1.focus:
                 #    logging.warning("rejected existing sync: %06x cat: %d p0: %d p1: %d limit: %d", syncpoint.address, cat, p0, p1, limit)
                 r0.sync_peers[cat] -= 1
                 r1.sync_peers[cat] -= 1

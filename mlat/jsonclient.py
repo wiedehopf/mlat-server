@@ -569,9 +569,6 @@ class JsonClient(connection.Connection):
 
 
         if 'sync' in msg:
-            if self.receiver.bad_syncs > 3:
-                return
-
             sync = msg['sync']
 
             self.coordinator.receiver_sync(self.receiver,
