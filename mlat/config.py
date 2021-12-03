@@ -43,10 +43,10 @@ MAX_SYNC_AC = 18
 MAX_SYNC_RATE = 12
 
 # minimum interval between trying to get an MLAT position
-RESOLVE_INTERVAL = 0.05
+RESOLVE_INTERVAL = 0.08
 
 # minimum time after successful position before trying to calculate the next one
-RESOLVE_BACKOFF = 0.5
+RESOLVE_BACKOFF = 0.7
 
 # maximum distance between even/odd DF17 messages, metres
 MAX_INTERMESSAGE_RANGE = 10e3
@@ -56,14 +56,14 @@ MAX_ALT = 75000 * constants.FTOM
 MIN_ALT = -1500 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 1.5
+MLAT_DELAY = 1.8
 
 # maxfev (maximum function evaluations) for the solver
 SOLVER_MAXFEV = 165
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
-MAX_GROUP = 20
+MAX_GROUP = 18
 
 DEBUG_FOCUS='euerdorf'
 

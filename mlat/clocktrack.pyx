@@ -80,7 +80,7 @@ cdef get_limit(int cat):
     if cat == 0:
         return 32
     if cat == 1:
-        return 16
+        return 32
     if cat == 2:
         return 8
     if cat == 3:
