@@ -324,7 +324,7 @@ class Coordinator(object):
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
                 r.bad_syncs += min(1, 2*bad_peers/num_peers)
                 if r.focus:
-                    glogger.warning("bad peers: {bp} ratio: {r}".format(bp=bad_peers, r=bad_peers/num_peers))
+                    glogger.warning("{u}: bad peers: {bp} ratio: {r}".format(u=r.user, bp=bad_peers, r=bad_peers/num_peers))
             else:
                 r.bad_syncs -= 0.1
 
@@ -335,6 +335,9 @@ class Coordinator(object):
             # Limit bad_sync score to the range of 0 to 6
 
             r.bad_syncs = max(0, min(6, r.bad_syncs))
+
+            if r.focus and r.bad_syncs > 0:
+                glogger.warning("{u}: bad_syncs: {b}".format(u=r.user, b=r.bad_syncs))
 
         for r in self.receivers.values():
 
