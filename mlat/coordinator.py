@@ -323,6 +323,8 @@ class Coordinator(object):
 
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
                 r.bad_syncs += min(1, 2*bad_peers/num_peers)
+                if r.focus:
+                    glogger.warning("bad peers: {bp} ratio: {r}".format(bp=bad_peers, r=bad_peers/num_peers))
             else:
                 r.bad_syncs -= 0.1
 
@@ -470,7 +472,7 @@ class Coordinator(object):
         self.receivers[receiver.uid] = receiver
         self.usernames[receiver.user] = receiver
         if receiver.user.startswith(config.DEBUG_FOCUS):
-            self.focus = True
+            receiver.focus = True
         return receiver
 
     def _compute_interstation_distances(self, receiver):
