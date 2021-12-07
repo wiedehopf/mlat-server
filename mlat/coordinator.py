@@ -314,6 +314,9 @@ class Coordinator(object):
             peers = receiver_states.get(r.user, {})
             for state in peers.values():
                 num_peers += 1
+                if state[3] > 0:
+                    # skip peers which have bad sync
+                    continue
                 if state[4] or (state[0] > 10 and state[1] > 0.9) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
 
