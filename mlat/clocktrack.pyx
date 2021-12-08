@@ -52,7 +52,7 @@ cdef class SyncPoint(object):
     cdef public array.array posB
     cdef public double interval
     cdef public list receivers
-    cdef public aircraft
+    cdef public ac
 
     def __init__(self, message_details, interval):
         """Construct a new sync point.
@@ -66,11 +66,8 @@ cdef class SyncPoint(object):
           to distinguish cases where the same message is
           transmitted more than once.
         """
-        address, posA, posB, ac = message_details
+        self.address, self.posA, self.posB, self.ac = message_details
 
-        self.address = address
-        self.posA = posA
-        self.posB = posB
         self.interval = interval
         self.receivers = []  # a list of (receiver, timestampA, timestampB) values
 
@@ -179,9 +176,9 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
                 continue
 
         if r0 < r1:
-            pairing.update(syncpoint.address, td0B, td1B, i0, i1, now)
+            pairing.update(syncpoint.address, td0B, td1B, i0, i1, now, syncpoint.ac)
         else:
-            pairing.update(syncpoint.address, td1B, td0B, i1, i0, now)
+            pairing.update(syncpoint.address, td1B, td0B, i1, i0, now, syncpoint.ac)
 
     # update syncpoint with the new receiver and we're done
     syncpoint.receivers.append(r0l)

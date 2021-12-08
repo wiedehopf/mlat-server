@@ -168,7 +168,7 @@ cdef class ClockPairing(object):
                 and now - self.updated < 35.0)
         return self.valid
 
-    def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
+    def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now, ac):
         """Update the relative drift and offset of this pairing given:
 
         address: the ICAO address of the sync aircraft, for logging purposes
@@ -226,6 +226,7 @@ cdef class ClockPairing(object):
                 outlier_threshold = 2.0 * self.outlier_threshold
 
             if abs(prediction_error) > outlier_threshold:
+                ac.sync_bad += 1
 
                 outlier = True
                 self.outliers += 10
@@ -240,6 +241,8 @@ cdef class ClockPairing(object):
                         self.peer.incrementJumps()
 
                 self.jumped = 1
+            else:
+                ac.sync_good += 1
 
             if self.n >= 2 and not outlier:
                 # wiedehopf: add hacky sync averaging

@@ -251,6 +251,10 @@ class Coordinator(object):
             s['mlat_message_count'] = ac.mlat_message_count
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count
+            s['sync_good'] = ac.sync_good
+            s['sync_bad'] = ac.sync_bad
+            ac.sync_good = 0
+            ac.sync_bad = 0
 
             if ac.last_result_time is not None:
                 s['last_result'] = round(now - ac.last_result_time, 1)

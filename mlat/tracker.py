@@ -98,6 +98,9 @@ class TrackedAircraft(object):
 
         self.seen = time.time()
 
+        self.sync_good = 0
+        self.sync_bad = 0
+
     @property
     def interesting(self):
         """Is this aircraft interesting, i.e. are we asking any station to transmit data for it?"""
