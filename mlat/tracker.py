@@ -100,6 +100,7 @@ class TrackedAircraft(object):
 
         self.sync_good = 0
         self.sync_bad = 0
+        self.sync_dont_use = 0
 
     @property
     def interesting(self):

@@ -228,6 +228,9 @@ cdef class ClockPairing(object):
             if abs(prediction_error) > outlier_threshold:
                 ac.sync_bad += 1
 
+                if ac.sync_dont_use:
+                    return False
+
                 outlier = True
                 self.outliers += 10
                 if self.outliers <= 37:
@@ -255,6 +258,9 @@ cdef class ClockPairing(object):
                 prediction_base = self.predict_base(peer_ts)
                 peer_ts += (prediction - peer_ts) * 0.4
                 base_ts += (prediction_base - base_ts) * 0.4
+
+        if ac.sync_dont_use:
+            return False
 
         if outlier:
             if self.peer.focus or self.base.focus:

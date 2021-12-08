@@ -251,8 +251,14 @@ class Coordinator(object):
             s['mlat_message_count'] = ac.mlat_message_count
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count
-            s['sync_good'] = ac.sync_good
-            s['sync_bad'] = ac.sync_bad
+            if ac.sync_bad > 10 and ac.sync_bad > ac.sync_good:
+                ac.sync_dont_use = 1
+                s['sync_good'] = ac.sync_good
+                s['sync_bad'] = ac.sync_bad
+            else:
+                ac.sync_dont_use = 0
+            s['sync_dont_use'] = ac.sync_dont_use
+
             ac.sync_good = 0
             ac.sync_bad = 0
 
