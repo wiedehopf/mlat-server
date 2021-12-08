@@ -124,17 +124,17 @@ class Receiver(object):
             self.recent_clock_jumps += 1
             if self.recent_clock_jumps > 1:
                 self.bad_syncs += 0.2 * self.recent_clock_jumps # timeout 30 seconds for every recent clock jump
-            self.clock_reset()
-            if self.focus:
-                glogger.warning("Clockjump reset: {r}".format(r=self.user))
+            self.clock_reset('sync detected clock jump')
 
-    def clock_reset(self):
+    def clock_reset(self, reason):
         """Reset current clock synchronization for this receiver."""
         self.clock_tracker.receiver_clock_reset(self)
         self.last_clock_reset = time.time()
         self.clock_reset_counter += 1
         if self.focus:
-            glogger.warning("Clock reset: {r} count: {c}".format(r=self.user, c=self.clock_reset_counter))
+            if not reason:
+                reason = ''
+            glogger.warning("Clock reset: {r} count: {c} reason: {s}".format(r=self.user, c=self.clock_reset_counter, s=reason))
 
     @profile.trackcpu
     def refresh_traffic_requests(self):
