@@ -162,8 +162,8 @@ cdef class ClockPairing(object):
 
         """True if this pairing is usable for clock syncronization."""
         self.valid = (self.outlier_reset_cooldown < 1
-                and self.n > 3
-                and self.drift_n > 3
+                and self.n > 4
+                and self.drift_n > 4
                 and self.variance < 16e-12
                 and now - self.updated < 35.0)
         return self.valid
@@ -182,6 +182,7 @@ cdef class ClockPairing(object):
         cdef double prediction = 0
         cdef double prediction_error = 0
         cdef bint outlier = False
+        cdef double outlier_threshold
 
         # clean old data
         if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
@@ -218,7 +219,13 @@ cdef class ClockPairing(object):
             prediction_error = (prediction - peer_ts) / self.peer_freq
 
             #if abs(prediction_error) > self.outlier_threshold and abs(prediction_error) > self.error * 4 : # 4 sigma
-            if abs(prediction_error) > self.outlier_threshold:
+
+            if self.n >= 4:
+                outlier_threshold = self.outlier_threshold
+            else:
+                outlier_threshold = 2.0 * self.outlier_threshold
+
+            if abs(prediction_error) > outlier_threshold:
 
                 outlier = True
                 self.outliers += 10
@@ -234,7 +241,7 @@ cdef class ClockPairing(object):
 
                 self.jumped = 1
 
-            if self.n > 1:
+            if self.n >= 2 and not outlier:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
                 # changing the prediction functions to take into account more past values would likely be the cleaner approach
