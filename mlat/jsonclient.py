@@ -446,7 +446,7 @@ class JsonClient(connection.Connection):
                    motd=self.motd)
 
         response = {"compress": self.compress,
-                    "reconnect_in": util.fuzzy(15),
+                    "reconnect_in": util.fuzzy(10),
                     "selective_traffic": True,
                     "heartbeat": True,
                     "return_results": self.use_return_results,
