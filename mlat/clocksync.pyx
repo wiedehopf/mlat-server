@@ -125,7 +125,9 @@ cdef class ClockPairing(object):
         self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
         self.drift_max_delta = self.drift_max / 10.0
         self.drift_max *= 1.5 # allow a bit more absolute drift
-        self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
+        # self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
+        # this was about 2.5 us for rtl-sdr receivers
+        self.outlier_threshold = 1.1 * 1e-6 # 1e-6 -> 1 us
 
         self.updated = 0
 
@@ -210,11 +212,6 @@ cdef class ClockPairing(object):
                     # don't reset quite yet, maybe something strange was unique
                     return False
 
-                if self.peer.bad_syncs < 0.1:
-                    self.base.incrementJumps()
-                if self.base.bad_syncs < 0.1:
-                    self.peer.incrementJumps()
-
         # predict from existing data, compare to actual value
         if self.n > 0 and not outlier:
             prediction = self.predict_peer(base_ts)
@@ -225,13 +222,17 @@ cdef class ClockPairing(object):
 
                 outlier = True
                 self.outliers += 10
-                if self.outliers <= 28:
+                if self.outliers <= 37:
                     return False
 
-                if self.peer.bad_syncs < 0.01:
-                    self.base.incrementJumps()
-                if self.base.bad_syncs < 0.01:
-                    self.peer.incrementJumps()
+
+                if not self.jumped:
+                    if self.peer.bad_syncs < 0.01:
+                        self.base.incrementJumps()
+                    if self.base.bad_syncs < 0.01:
+                        self.peer.incrementJumps()
+
+                self.jumped = 1
 
             if self.n > 1:
                 # wiedehopf: add hacky sync averaging
@@ -252,13 +253,12 @@ cdef class ClockPairing(object):
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
             # outlier .. we need to reset this clock pair
-            self.jumped = 1
             self.reset_offsets()
             self.outlier_reset_cooldown = 15 # number of sync pair updates before this sync pair can be trusted
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
-        self.outliers = max(0, self.outliers - 15)
+        self.outliers = max(0, self.outliers - 22)
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 

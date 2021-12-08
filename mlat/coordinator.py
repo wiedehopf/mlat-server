@@ -81,7 +81,6 @@ class Receiver(object):
         self.sync_range_exceeded = 0
 
         self.recent_pair_jumps = 0
-        self.recent_clock_jumps = 0
 
         self.focus = False
 
@@ -119,12 +118,12 @@ class Receiver(object):
     def incrementJumps(self):
         self.recent_pair_jumps += 1
         total_peers = sum(self.sync_peers)
-        if total_peers > 0 and self.recent_pair_jumps / total_peers > 0.4 and self.recent_pair_jumps > 2:
+        if total_peers > 0 and self.recent_pair_jumps / total_peers > 0.25 and self.recent_pair_jumps > 3:
             self.recent_pair_jumps = 0
-            self.recent_clock_jumps += 1
-            if self.recent_clock_jumps > 1:
-                self.bad_syncs += 0.2 * self.recent_clock_jumps # timeout 30 seconds for every recent clock jump
             self.clock_reset('sync detected clock jump')
+            if self.focus:
+                glogger.warning("{r}: detected clockjump, bad_syncs: {b}".format(r=self.user, b=round(self.bad_syncs, 1)))
+            self.bad_syncs += 0.1
 
     def clock_reset(self, reason):
         """Reset current clock synchronization for this receiver."""
@@ -327,7 +326,8 @@ class Coordinator(object):
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers)
                 if r.focus:
-                    glogger.warning("{u}: bad peers: {bp} ratio: {r}".format(u=r.user, bp=bad_peers, r=bad_peers/num_peers))
+                    glogger.warning("{u}: bad peers: {bp} ratio: {r}".format(
+                        u=r.user, bp=bad_peers, r=round(bad_peers/num_peers, 2)))
             else:
                 r.bad_syncs -= 0.1
 
@@ -345,9 +345,6 @@ class Coordinator(object):
         for r in self.receivers.values():
 
             r.recent_pair_jumps = 0
-            r.recent_clock_jumps -= 0.25
-            r.recent_clock_jumps = max(0, r.recent_clock_jumps)
-            r.recent_clock_jumps = min(5, r.recent_clock_jumps)
 
             # fudge positions, set retained precision as a fraction of a degree:
             precision = 20
