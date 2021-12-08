@@ -92,6 +92,7 @@ cdef class ClockPairing(object):
     cdef readonly double i_drift
     cdef readonly int drift_n
     cdef readonly int n
+    cdef readonly int outlier_reset_cooldown
     # needs to be cp_size big, can't use it here though
     cdef double ts_base[32]
     cdef double ts_peer[32]
@@ -102,7 +103,6 @@ cdef class ClockPairing(object):
     cdef readonly double error
 
     cdef public int jumped
-    cdef public int mono_broken
 
     cdef double relative_freq
     cdef double i_relative_freq
@@ -137,6 +137,8 @@ cdef class ClockPairing(object):
         self.outliers = 0
         self.jumped = 0
 
+        self.outlier_reset_cooldown = 5 # number of sync pair updates before this sync pair can be trusted
+
         self.valid = False
         self.n = 0
         self.var_sum = 0.0
@@ -157,7 +159,11 @@ cdef class ClockPairing(object):
         self.error = sqrt(self.variance)
 
         """True if this pairing is usable for clock syncronization."""
-        self.valid = (self.n > 3 and self.drift_n > 3 and self.variance < 16e-12 and now - self.updated < 35.0)
+        self.valid = (self.outlier_reset_cooldown < 1
+                and self.n > 3
+                and self.drift_n > 3
+                and self.variance < 16e-12
+                and now - self.updated < 35.0)
         return self.valid
 
     def update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now):
@@ -208,7 +214,6 @@ cdef class ClockPairing(object):
                     self.base.incrementJumps()
                 if self.base.bad_syncs < 0.1:
                     self.peer.incrementJumps()
-                self.mono_broken = 1
 
         # predict from existing data, compare to actual value
         if self.n > 0 and not outlier:
@@ -227,7 +232,6 @@ cdef class ClockPairing(object):
                     self.base.incrementJumps()
                 if self.base.bad_syncs < 0.01:
                     self.peer.incrementJumps()
-                self.jumped = 1
 
             if self.n > 1:
                 # wiedehopf: add hacky sync averaging
@@ -248,13 +252,17 @@ cdef class ClockPairing(object):
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
             # outlier .. we need to reset this clock pair
+            self.jumped = 1
             self.reset_offsets()
+            self.outlier_reset_cooldown = 15 # number of sync pair updates before this sync pair can be trusted
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
         self.outliers = max(0, self.outliers - 15)
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
+
+        self.outlier_reset_cooldown = max(0, self.outlier_reset_cooldown - 1)
 
         # update clock drift based on interval ratio
         # this might reject the update

@@ -325,7 +325,7 @@ class Coordinator(object):
             # You get 0.2 to 1 to your bad_sync score and timed out.
 
             if bad_peers > 5 or bad_peers/num_peers > 0.1:
-                r.bad_syncs += min(1, 2*bad_peers/num_peers)
+                r.bad_syncs += min(0.5, 2*bad_peers/num_peers)
                 if r.focus:
                     glogger.warning("{u}: bad peers: {bp} ratio: {r}".format(u=r.user, bp=bad_peers, r=bad_peers/num_peers))
             else:

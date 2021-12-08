@@ -483,5 +483,4 @@ class ClockTracker(object):
                     #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
             # reset jumped indicator
             pairing.jumped = 0
-            pairing.mono_broken = 0
         return state
