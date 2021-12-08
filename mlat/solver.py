@@ -105,7 +105,7 @@ def solve(measurements, altitude, altitude_error, initial_guess):
         # some sort of physical sense.
         (*position_est, offset_est) = x_est
 
-        if offset_est < 0 or offset_est > config.MAX_RANGE:
+        if offset_est < 0 or offset_est > 500e3:
             #glogger.info("solver: bad offset: {0}".formaT(offset_est))
             # implausible range offset to closest receiver
             return None
@@ -113,7 +113,7 @@ def solve(measurements, altitude, altitude_error, initial_guess):
         # disable this check for performance, shoudln't be necessary
         #for receiver, timestamp, variance in measurements:
         #    d = geodesy.ecef_distance(receiver.position, position_est)
-        #    if d > config.MAX_RANGE:
+        #    if d > 500e3:
         #        # too far from this receiver
         #        #glogger.info("solver: bad range: {0}".format(d))
         #        return None

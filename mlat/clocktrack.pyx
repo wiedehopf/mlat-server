@@ -39,6 +39,7 @@ from libc.math cimport sqrt
 
 __all__ = ('SyncPoint', 'ClockTracker')
 
+cdef double MAX_RANGE = 500e3
 
 cdef class SyncPoint(object):
     """A potential clock synchronization point.
@@ -51,6 +52,7 @@ cdef class SyncPoint(object):
     cdef public array.array posB
     cdef public double interval
     cdef public list receivers
+    cdef public aircraft
 
     def __init__(self, message_details, interval):
         """Construct a new sync point.
@@ -64,7 +66,7 @@ cdef class SyncPoint(object):
           to distinguish cases where the same message is
           transmitted more than once.
         """
-        address, posA, posB = message_details
+        address, posA, posB, ac = message_details
 
         self.address = address
         self.posA = posA
@@ -98,8 +100,8 @@ cdef _add_to_existing_syncpoint(clock_pairs, syncpoint, r0, double t0A, double t
 
     cdef double now = time.time()
 
-    # add receiver distance check here
-    if receiverDistA > config.MAX_RANGE or receiverDistB > config.MAX_RANGE:
+    # receiver distance check, checking one range is sufficient
+    if receiverDistA > MAX_RANGE:
         r0.sync_range_exceeded = now
         return
 
@@ -297,10 +299,10 @@ class ClockTracker(object):
             key = (odd_message, even_message)
 
         # do we have a suitable existing match?
-        message_details, syncpointlist = self.sync_points.get(key, (None, None))
+        message_details, syncpointlist = self.sync_points.get(key, (0, 0))
 
         # check if sync point is invalid
-        if syncpointlist == False:
+        if syncpointlist == -1:
             return
 
         cdef double freq = receiver.clock.freq
@@ -310,7 +312,7 @@ class ClockTracker(object):
         if interval > 5.0:
             return
 
-        if isinstance(syncpointlist, list):
+        if syncpointlist:
             for candidate in syncpointlist:
                 if abs(candidate.interval - interval) < 1e-3:
                     # interval matches within 1ms, close enough.
@@ -331,10 +333,9 @@ class ClockTracker(object):
         if now - receiver.sync_range_exceeded < 15.0:
             return
 
-        message_details = (None, None, None)
         if syncpointlist is None:
             # No existing match. Create an invalid sync point, if it pans out, replace it.
-            self.sync_points[key] = (message_details, False)
+            self.sync_points[key] = (-1, -1)
             # schedule cleanup of the syncpoint after 3 seconds -
             # we should have seen all copies of those messages by then.
             #self.loop.call_later(3.0, functools.partial(self._cleanup_syncpointlist,key=key))
@@ -349,8 +350,10 @@ class ClockTracker(object):
             return
 
         ac = self.coordinator.tracker.aircraft.get(even_message.address)
-        if ac:
-            ac.seen = now
+        if not ac:
+            return
+
+        ac.seen = now
 
         if ((even_message.DF != 17 or
              not even_message.crc_ok or
@@ -367,7 +370,7 @@ class ClockTracker(object):
 
         if (odd_message.estype != modes_cython.message.ESType.airborne_position or
             even_message.estype != modes_cython.message.ESType.airborne_position):
-            if (ac and even_message.estype == modes_cython.message.ESType.surface_position
+            if (even_message.estype == modes_cython.message.ESType.surface_position
                     and odd_message.estype == modes_cython.message.ESType.surface_position):
                 ac.last_adsb_time = now
 
@@ -406,20 +409,14 @@ class ClockTracker(object):
                                      odd_lon,
                                      odd_message.altitude * constants.FTOM))
 
-        # checking range for the even position and intermessage distance is sufficient
-        #if geodesy.ecef_distance(odd_ecef, receiver.position) > config.MAX_RANGE:
-            #logging.info("{a:06X}: receiver range check (odd) failed".format(a=odd_message.address))
-            #return
-
         if ecef_distance(even_ecef, odd_ecef) > config.MAX_INTERMESSAGE_RANGE:
             #logging.info("{a:06X}: intermessage range check failed".format(a=even_message.address))
             return
 
         #do some extra bookkeeping now we know this message is legit
-        if ac:
-            ac.last_adsb_time = now
-            ac.last_altitude_time = now
-            ac.altitude = even_message.altitude
+        ac.last_adsb_time = now
+        ac.last_altitude_time = now
+        ac.altitude = even_message.altitude
 
         # more quality checking
         if even_message.nuc < 6 or odd_message.nuc < 6:
@@ -427,25 +424,23 @@ class ClockTracker(object):
 
         # valid message, set the message details for use by the SyncPoint
         if even_time < odd_time:
-            message_details = (even_message.address, even_ecef, odd_ecef)
+            message_details = (even_message.address, even_ecef, odd_ecef, ac)
         else:
-            message_details = (even_message.address, odd_ecef, even_ecef)
+            message_details = (even_message.address, odd_ecef, even_ecef, ac)
 
-        if ecef_distance(even_ecef, receiver.position) > config.MAX_RANGE:
-            # suppress this spam, can't help if ppl give a wrong location
-            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
-            receiver.sync_range_exceeded = now
-            self.sync_points[key] = (message_details, 'dummy')
-            return
-
-        # valid. Create a new Sync point, add to it and creat the sync point list
+        # valid. Create a new Sync point, add to it and create the sync point list
 
         syncpoint = SyncPoint(message_details, interval)
 
-        _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
-
         self.sync_points[key] = (message_details, [ syncpoint ])
 
+        if ecef_distance(even_ecef, receiver.position) > MAX_RANGE:
+            # suppress this spam, can't help if ppl give a wrong location
+            # logging.info("{a:06X}: receiver range check (even) failed".format(a=even_message.address))
+            receiver.sync_range_exceeded = now
+            return
+
+        _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
 
     @profile.trackcpu

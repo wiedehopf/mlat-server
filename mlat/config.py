@@ -34,9 +34,6 @@ AGPL_SERVER_CODE_URL = "https://github.com/adsbexchange/mlat-server"
 # minimum NUCp value to accept as a sync message
 MIN_NUC = 6
 
-# absolute maximum receiver range for sync messages, metres
-MAX_RANGE = 500e3
-
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 18
 # max sync rate
