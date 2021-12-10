@@ -63,6 +63,9 @@ class Receiver(object):
         self.dead = False
         self.connectedSince = time.time()
 
+        self.num_outliers = 0
+        self.num_syncs = 0
+
         self.sync_peers = array.array('i', [0, 0, 0, 0, 0]) # number of peers per distance category
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
@@ -251,7 +254,7 @@ class Coordinator(object):
             s['mlat_message_count'] = ac.mlat_message_count
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count
-            if ac.sync_bad > 10 and ac.sync_bad > ac.sync_good:
+            if ac.sync_bad > 3 and ac.sync_bad / (ac.sync_bad + ac.sync_good) > 0.15:
                 ac.sync_dont_use = 1
                 s['sync_good'] = ac.sync_good
                 s['sync_bad'] = ac.sync_bad
@@ -283,37 +286,22 @@ class Coordinator(object):
                 if ac.mlat_interest:
                     mlat_count += 1
 
-        if self.partition[1] > 1:
-            title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
-                i=self.partition[0],
-                n=self.partition[1],
-                r=len(self.receivers),
-                m=mlat_count,
-                s=sync_count,
-                t=len(self.tracker.aircraft))
-        else:
-            title_string = 'Status: ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
-                r=len(self.receivers),
-                m=mlat_count,
-                s=sync_count,
-                t=len(self.tracker.aircraft))
-        util.setproctitle(title_string)
-        glogger.warning(title_string)
-
         sync = {}
         clients = {}
 
         receiver_states = self.clock_tracker.dump_receiver_state()
+
+        bad_receivers = 0
 
         # blacklist receivers with bad clock
         # note this section of code runs every 15 seconds
         for r in self.receivers.values():
             bad_peers = 0
             # count how many peers we have bad sync with
-            # don't count peers who have been timed out (state[4] > 0)
+            # don't count peers who have been timed out (state[3] > 0)
             # 1.5 microseconds error or more are considered a bad sync (state[1] > 3)
-            num_peers = 10
-            # start with 10 peers extra, so low peer receivers
+            num_peers = 8
+            # start with 8 peers extra, so low peer receivers
             # aren't timed out by the percentage threshold
             # of bad_peers as easily.
 
@@ -321,25 +309,35 @@ class Coordinator(object):
             # state = [ 0: pairing sync count, 1: offset, 2: drift,
             #           3: bad_syncs, 4: pairing.jumped]
             peers = receiver_states.get(r.user, {})
-            for state in peers.values():
-                num_peers += 1
+            bad_peer_list = []
+            for username, state in peers.items():
                 if state[3] > 0:
                     # skip peers which have bad sync
                     continue
+                num_peers += 1
                 if state[4] or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
+                    if r.focus:
+                        bad_peer_list.append(username)
 
-            # If your sync with 5 receivers or more than 10 percent of peers is bad,
+            outlier_ratio = r.num_outliers / (r.num_syncs + 0.1)
+            # running average for the outliers and sync
+            r.num_outliers *= 0.85
+            r.num_syncs *= 0.85
+
+            # If your sync with more than 10 percent of peers is bad,
             # it's likely you are the reason.
-            # You get 0.2 to 1 to your bad_sync score and timed out.
+            # You get 0.5 to 2 to your bad_sync score and timed out.
 
-            if bad_peers > 5 or bad_peers/num_peers > 0.1:
-                r.bad_syncs += min(0.5, 2*bad_peers/num_peers)
-                if r.focus:
-                    glogger.warning("{u}: bad peers: {bp} ratio: {r}".format(
-                        u=r.user, bp=bad_peers, r=round(bad_peers/num_peers, 2)))
-            else:
-                r.bad_syncs -= 0.1
+            if bad_peers/num_peers > 0.1:
+                r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
+
+            outlier_ratio_limit = 0.12
+
+            if outlier_ratio > outlier_ratio_limit:
+                r.bad_syncs += 0.15
+
+            r.bad_syncs -= 0.1
 
             # If your sync mostly looks good, your bad_sync score is decreased.
             # If you had a score before, once it goes down to zero you are
@@ -349,8 +347,14 @@ class Coordinator(object):
 
             r.bad_syncs = max(0, min(6, r.bad_syncs))
 
-            if r.focus and r.bad_syncs > 0:
-                glogger.warning("{u}: bad_syncs: {b}".format(u=r.user, b=r.bad_syncs))
+            if r.bad_syncs > 0:
+                bad_receivers += 1
+
+            #if r.focus or outlier_ratio > outlier_ratio_limit:
+            if r.focus:
+                glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier ratio: {pe:0.2f} bad peers: {bp} ratio: {r} list: {l}".format(
+                    u=r.user, bs=r.bad_syncs, pe=outlier_ratio,
+                    bp=bad_peers, r=round(bad_peers/num_peers, 2), l=str(bad_peer_list)))
 
         for r in self.receivers.values():
 
@@ -422,6 +426,25 @@ class Coordinator(object):
         with closing(open(tmpfile, 'w')) as f:
             ujson.dump(aircraft_state, f)
         os.replace(tmpfile, aircraftfile)
+
+        if self.partition[1] > 1:
+            title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
+                i=self.partition[0],
+                n=self.partition[1],
+                r=len(self.receivers),
+                m=mlat_count,
+                s=sync_count,
+                t=len(self.tracker.aircraft))
+        else:
+            title_string = 'Status: ({r} clients {b} bad sync) ({m} mlat {s} sync {t} tracked)'.format(
+                r=len(self.receivers),
+                b=bad_receivers,
+                m=mlat_count,
+                s=sync_count,
+                t=len(self.tracker.aircraft))
+        util.setproctitle(title_string)
+        glogger.warning(title_string)
+
 
 
     async def every_15(self):

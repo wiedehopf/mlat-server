@@ -127,7 +127,7 @@ cdef class ClockPairing(object):
         self.drift_max *= 1.5 # allow a bit more absolute drift
         # self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
         # this was about 2.5 us for rtl-sdr receivers
-        self.outlier_threshold = 1.1 * 1e-6 # 1e-6 -> 1 us
+        self.outlier_threshold = 0.9 * 1e-6 # 1e-6 -> 1 us
 
         self.updated = 0
 
@@ -213,6 +213,7 @@ cdef class ClockPairing(object):
                     # don't reset quite yet, maybe something strange was unique
                     return False
 
+        cdef double abs_error
         # predict from existing data, compare to actual value
         if self.n > 0 and not outlier:
             prediction = self.predict_peer(base_ts)
@@ -225,15 +226,27 @@ cdef class ClockPairing(object):
             else:
                 outlier_threshold = 2.0 * self.outlier_threshold
 
-            if abs(prediction_error) > outlier_threshold:
-                ac.sync_bad += 1
+            abs_error = abs(prediction_error)
+            self.base.num_syncs += 1
+            self.peer.num_syncs += 1
+            if abs_error > outlier_threshold:
+                if self.peer.bad_syncs < 0.01 and self.base.bad_syncs < 0.01:
+                    ac.sync_bad += 1
 
                 if ac.sync_dont_use:
                     return False
 
+                if self.peer.bad_syncs < 0.01:
+                    self.base.num_outliers += 1
+                if self.base.bad_syncs < 0.01:
+                    self.peer.num_outliers += 1
+
                 outlier = True
-                self.outliers += 10
-                if self.outliers <= 37:
+                if abs_error > 2.5 * outlier_threshold:
+                    self.outliers += 20
+                else:
+                    self.outliers += 10
+                if self.outliers <= 77:
                     return False
 
 
@@ -263,8 +276,8 @@ cdef class ClockPairing(object):
             return False
 
         if outlier:
-            if self.peer.focus or self.base.focus:
-                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+            #if (self.peer.focus and self.base.bad_syncs < 0.01) or (self.base.focus and self.peer.bad_syncs < 0.01):
+            #    glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
@@ -274,7 +287,7 @@ cdef class ClockPairing(object):
             # as we just reset everything, this is the first point and the prediction error is zero
             prediction_error = 0
 
-        self.outliers = max(0, self.outliers - 22)
+        self.outliers = max(0, self.outliers - 18)
 
         self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 
