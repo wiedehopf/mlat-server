@@ -311,7 +311,7 @@ class ClockTracker(object):
 
         if syncpointlist:
             for candidate in syncpointlist:
-                if abs(candidate.interval - interval) < 1e-3:
+                if abs(candidate.interval - interval) < 1.5e-3:
                     # interval matches within 1ms, close enough.
                     _add_to_existing_syncpoint(self.clock_pairs, candidate, receiver, tA, tB)
                     return
