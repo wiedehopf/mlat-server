@@ -317,8 +317,7 @@ class Coordinator(object):
                 num_peers += 1
                 if state[4] or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
-                    if r.focus:
-                        bad_peer_list.append(username)
+                    bad_peer_list.append(username)
 
             outlier_ratio = r.num_outliers / (r.num_syncs + 0.1)
             # running average for the outliers and sync
@@ -352,11 +351,10 @@ class Coordinator(object):
 
             #if r.focus or outlier_ratio > outlier_ratio_limit:
             if r.focus:
-                glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier ratio: {pe:0.2f} bad peers: {bp} ratio: {r} list: {l}".format(
+                glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier ratio: {pe:0.3f} bad peers: {bp} ratio: {r} list: {l}".format(
                     u=r.user, bs=r.bad_syncs, pe=outlier_ratio,
                     bp=bad_peers, r=round(bad_peers/num_peers, 2), l=str(bad_peer_list)))
 
-        for r in self.receivers.values():
 
             r.recent_pair_jumps = 0
 
@@ -394,6 +392,8 @@ class Coordinator(object):
                 'message_rate': round(r.connection.message_counter / 15.0),
                 'peer_count': sum(r.sync_peers),
                 'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
+                'outlier_ratio': round(outlier_ratio, 3),
+                'bad_peer_list': str(bad_peer_list),
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
             }
