@@ -74,6 +74,8 @@ def make_clock(clock_type):
 
 cdef int cp_size = 32
 
+cdef int drift_n_stable = 12
+
 cdef class ClockPairing(object):
     """Describes the current relative characteristics of a pair of clocks."""
 
@@ -93,6 +95,8 @@ cdef class ClockPairing(object):
     cdef readonly int drift_n
     cdef readonly int n
     cdef readonly int outlier_reset_cooldown
+    cdef readonly int outlier_total
+    cdef readonly int update_total
     # needs to be cp_size big, can't use it here though
     cdef double ts_base[32]
     cdef double ts_peer[32]
@@ -122,9 +126,8 @@ cdef class ClockPairing(object):
 
         self.relative_freq = peer.clock.freq / base.clock.freq
         self.i_relative_freq = base.clock.freq / peer.clock.freq
-        self.drift_max = base.clock.max_freq_error + peer.clock.max_freq_error
+        self.drift_max = 0.75 * (base.clock.max_freq_error + peer.clock.max_freq_error)
         self.drift_max_delta = self.drift_max / 10.0
-        self.drift_max *= 1.5 # allow a bit more absolute drift
         # self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
         # this was about 2.5 us for rtl-sdr receivers
         self.outlier_threshold = 0.9 * 1e-6 # 1e-6 -> 1 us
@@ -208,6 +211,7 @@ cdef class ClockPairing(object):
 
                 self.outliers += 10
                 outlier = True
+                self.outlier_total += 1
 
                 if self.outliers <= 10:
                     # don't reset quite yet, maybe something strange was unique
@@ -242,10 +246,11 @@ cdef class ClockPairing(object):
                     self.peer.num_outliers += 1
 
                 outlier = True
-                if abs_error > 2.5 * outlier_threshold:
+                self.outlier_total += 1
+                if abs_error > 2 * outlier_threshold:
                     self.outliers += 20
                 else:
-                    self.outliers += 10
+                    self.outliers += 8
                 if self.outliers <= 77:
                     return False
 
@@ -260,7 +265,7 @@ cdef class ClockPairing(object):
             else:
                 ac.sync_good += 1
 
-            if self.n >= 2 and not outlier:
+            if self.n > 0 and not outlier:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
                 # changing the prediction functions to take into account more past values would likely be the cleaner approach
@@ -269,15 +274,24 @@ cdef class ClockPairing(object):
                 # note that using weight 1/2 so the exact geometric mean seems to be unstable
                 # weights 1/4 and 1/3 seem to work well though
                 prediction_base = self.predict_base(peer_ts)
-                peer_ts += (prediction - peer_ts) * 0.4
-                base_ts += (prediction_base - base_ts) * 0.4
+                if self.drift_n > drift_n_stable:
+                    peer_ts += (prediction - peer_ts) * 0.4
+                    base_ts += (prediction_base - base_ts) * 0.4
+                else:
+                    peer_ts += (prediction - peer_ts) * 0.25
+                    base_ts += (prediction_base - base_ts) * 0.25
 
         if ac.sync_dont_use:
             return False
 
         if outlier:
             if (self.peer.focus and self.base.bad_syncs < 0.01) or (self.base.focus and self.peer.bad_syncs < 0.01):
-                glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
+                glogger.warning("ac {a:06X} step_us {e:.1f} drift_ppm {d:.1f} outlier ratio {o:.3f} pair: {r}".format(
+                    r=self,
+                    a=address,
+                    e=prediction_error*1e6,
+                    o=(<double>self.outlier_total/<double>self.update_total),
+                    d=self.drift*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
@@ -304,10 +318,16 @@ cdef class ClockPairing(object):
 
         self.updated = now
         self.check_valid(now)
+        if not outlier:
+            self.update_total += 1
         return True
 
     cdef void _prune_old_data(self, double now):
         cdef int i = 0
+
+        if self.outlier_total or self.update_total > 1024:
+            self.outlier_total /= 2
+            self.update_total /= 2
 
         cdef int new_max = cp_size - 12
         if self.n > new_max:
@@ -352,18 +372,20 @@ cdef class ClockPairing(object):
             # Too far away from the value we expect, discard
             #glogger.warn("{0}: drift_max_delta".format(self))
             # in case the first drift reading we got was bogus, accept the next drift reading
-            if self.drift_n > 12:
-                self.drift_n = 12
+            if self.drift_n > drift_n_stable + 5:
+                self.drift_n = drift_n_stable + 5
             self.drift_n -= 1
             return False
 
-        cdef double KP = 0.05
-        cdef double KI = 0.01
+        cdef double KP = 0.03
+        cdef double KI = 0.005
 
         # for relatively new pairs allow quicker adjustment of relative drift
-        if self.drift_n < 10:
-            KP *= 4
-            KI *= 4
+        cdef double adjustment_factor
+        if self.drift_n < drift_n_stable:
+            adjustment_factor = 1 + (0.3 / KP) * ((drift_n_stable - self.drift_n) / drift_n_stable)
+            KP *= adjustment_factor
+
         self.drift_n += 1
 
         # move towards the new value
@@ -376,10 +398,10 @@ cdef class ClockPairing(object):
         self.valid = False
         self.n = 0
         self.var_sum = 0.0
-        self.cumulative_error = 0.0
         self.error = -1e-6
         self.variance = -1e-6
         self.outliers = 0
+        self.cumulative_error = 0.0
 
     cdef void _update_offset(self, double base_ts, double peer_ts, double prediction_error):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
