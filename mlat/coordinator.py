@@ -328,7 +328,7 @@ class Coordinator(object):
             # it's likely you are the reason.
             # You get 0.5 to 2 to your bad_sync score and timed out.
 
-            if bad_peers/num_peers > 0.1:
+            if bad_peers/num_peers > 0.15:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
 
             outlier_ratio_limit = 0.12

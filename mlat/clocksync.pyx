@@ -188,6 +188,7 @@ cdef class ClockPairing(object):
         cdef double prediction = 0
         cdef double prediction_error = 0
         cdef bint outlier = False
+        cdef bint do_reset = False
         cdef double outlier_threshold
 
         # clean old data
@@ -255,23 +256,26 @@ cdef class ClockPairing(object):
                 self.outlier_total += 1
                 if abs_error > 2 * outlier_threshold:
                     self.outliers += 20
+                    do_reset = True
                 else:
                     self.outliers += 8
+
                 if self.outliers <= 77:
                     return False
 
 
-                if not self.jumped:
-                    if self.peer.bad_syncs < 0.01:
-                        self.base.incrementJumps()
-                    if self.base.bad_syncs < 0.01:
-                        self.peer.incrementJumps()
+                if abs_error > 2 * outlier_threshold:
+                    if not self.jumped:
+                        if self.peer.bad_syncs < 0.01:
+                            self.base.incrementJumps()
+                        if self.base.bad_syncs < 0.01:
+                            self.peer.incrementJumps()
 
-                self.jumped = 1
+                    self.jumped = 1
             else:
                 ac.sync_good += 1
 
-            if self.n >= 2 and not outlier:
+            if self.n >= 2:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
                 # changing the prediction functions to take into account more past values would likely be the cleaner approach
@@ -281,8 +285,8 @@ cdef class ClockPairing(object):
                 # weights 1/4 and 1/3 seem to work well though
                 prediction_base = self.predict_base(peer_ts)
                 if self.n >= 4 and self.drift_n > drift_n_stable:
-                    peer_ts += (prediction - peer_ts) * 0.4
-                    base_ts += (prediction_base - base_ts) * 0.4
+                    peer_ts += (prediction - peer_ts) * 0.38
+                    base_ts += (prediction_base - base_ts) * 0.38
                 else:
                     peer_ts += (prediction - peer_ts) * 0.15
                     base_ts += (prediction_base - base_ts) * 0.15
@@ -290,7 +294,7 @@ cdef class ClockPairing(object):
         if ac.sync_dont_use:
             return False
 
-        if outlier:
+        if outlier and do_reset:
             if (self.peer.focus and self.base.bad_syncs < 0.01) or (self.base.focus and self.peer.bad_syncs < 0.01):
                 glogger.warning("ac {a:06X} step_us {e:.1f} drift_ppm {d:.1f} outlier ratio {o:.3f} pair: {r}".format(
                     r=self,
