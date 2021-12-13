@@ -318,7 +318,8 @@ cdef class ClockPairing(object):
 
         self.outliers = max(0, self.outliers - 18)
 
-        self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
+        if not outlier:
+            self.cumulative_error = max(-50e-6, min(50e-6, self.cumulative_error + prediction_error))  # limit to 50us
 
         self.outlier_reset_cooldown = max(0, self.outlier_reset_cooldown - 1)
 
@@ -399,13 +400,14 @@ cdef class ClockPairing(object):
 
         self.drift_outliers = max(0, self.drift_outliers - 2)
 
-        cdef double KP = 0.03
+        cdef double KP = 0.04
         cdef double KI = 0.008
 
         # for relatively new pairs allow quicker adjustment of relative drift
         cdef double adjustment_factor
-        if self.drift_n < drift_n_stable:
-            adjustment_factor = 1 + (0.3 / KP) * ((drift_n_stable - self.drift_n) / drift_n_stable)
+        cdef int unstable = drift_n_stable - self.drift_n
+        if unstable > 0:
+            adjustment_factor = 1 + (0.2 / KP) * (unstable / drift_n_stable)
             KP *= adjustment_factor
 
         self.drift_n += 1
