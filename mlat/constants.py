@@ -23,7 +23,7 @@ Useful constants for unit conversion.
 import math
 
 # signal propagation speed in metres per second
-Cair = 299792458 / 1.0003
+Cair = 299792458 / 1.00031
 
 # degrees to radians
 DTOR = math.pi / 180.0
