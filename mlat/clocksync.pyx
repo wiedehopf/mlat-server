@@ -391,7 +391,7 @@ cdef class ClockPairing(object):
         self.drift_outliers = max(0, self.drift_outliers - 2)
 
         cdef double KP = 0.03
-        cdef double KI = 0.005
+        cdef double KI = 0.008
 
         # for relatively new pairs allow quicker adjustment of relative drift
         cdef double adjustment_factor
