@@ -93,6 +93,7 @@ cdef class ClockPairing(object):
     cdef readonly double drift
     cdef readonly double i_drift
     cdef readonly int drift_n
+    cdef int drift_outliers
     cdef readonly int n
     cdef readonly int outlier_reset_cooldown
     cdef readonly int outlier_total
@@ -137,7 +138,7 @@ cdef class ClockPairing(object):
         self.raw_drift = 0
         self.drift = 0
         self.i_drift = 0
-        self.drift_n = 0
+        self.drift_outliers = 0
 
         self.outliers = 0
         self.jumped = 0
@@ -190,6 +191,8 @@ cdef class ClockPairing(object):
         # clean old data
         if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
             self._prune_old_data(now)
+
+        self.update_total += 1
 
         if self.n > 0 and not outlier:
             # ts_base and ts_peer define a function constructed by linearly
@@ -318,8 +321,6 @@ cdef class ClockPairing(object):
 
         self.updated = now
         self.check_valid(now)
-        if not outlier:
-            self.update_total += 1
         return True
 
     cdef void _prune_old_data(self, double now):
@@ -359,6 +360,14 @@ cdef class ClockPairing(object):
             #glogger.warn("{0}: drift_max".format(self))
             return False
 
+        if self.drift_n <= 0 or self.drift_outliers > 30:
+            # First sample, just trust it outright
+            self.raw_drift = self.drift = new_drift
+            self.i_drift = -1 * self.drift / (1.0 + self.drift)
+            self.drift_n = 0
+            self.cumulative_error = 0.0
+            self.drift_outliers = 0
+
         if self.drift_n <= 0:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
@@ -371,11 +380,12 @@ cdef class ClockPairing(object):
         if abs(drift_error) > self.drift_max_delta:
             # Too far away from the value we expect, discard
             #glogger.warn("{0}: drift_max_delta".format(self))
-            # in case the first drift reading we got was bogus, accept the next drift reading
-            if self.drift_n > drift_n_stable + 5:
-                self.drift_n = drift_n_stable + 5
-            self.drift_n -= 1
+            if self.peer.focus or self.base.focus:
+                glogger.warn("{r}: drift_error_ppm out of limits: {de:.1f}".format(r=self, de=1e6*drift_error))
+            self.drift_outliers += 1
             return False
+
+        self.drift_outliers = max(0, self.drift_outliers - 2)
 
         cdef double KP = 0.03
         cdef double KI = 0.005
