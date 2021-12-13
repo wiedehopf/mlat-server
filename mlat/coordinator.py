@@ -293,6 +293,9 @@ class Coordinator(object):
 
         bad_receivers = 0
 
+        outlier_sum = 0
+        sync_sum = 0
+
         # blacklist receivers with bad clock
         # note this section of code runs every 15 seconds
         for r in self.receivers.values():
@@ -319,7 +322,9 @@ class Coordinator(object):
                     bad_peers += 1
                     bad_peer_list.append(username)
 
-            outlier_ratio = r.num_outliers / (r.num_syncs + 0.1)
+            outlier_sum += r.num_outliers
+            sync_sum += r.num_syncs
+            outlier_percent = 100 * r.num_outliers / (r.num_syncs + 0.1)
             # running average for the outliers and sync
             r.num_outliers *= 0.85
             r.num_syncs *= 0.85
@@ -331,9 +336,9 @@ class Coordinator(object):
             if bad_peers/num_peers > 0.15:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
 
-            outlier_ratio_limit = 0.12
+            outlier_percent_limit = 12
 
-            if outlier_ratio > outlier_ratio_limit:
+            if outlier_percent > outlier_percent_limit:
                 r.bad_syncs += 0.15
 
             r.bad_syncs -= 0.1
@@ -349,10 +354,10 @@ class Coordinator(object):
             if r.bad_syncs > 0:
                 bad_receivers += 1
 
-            #if r.focus or outlier_ratio > outlier_ratio_limit:
+            #if r.focus or outlier_percent_limit > outlier_percent_limit:
             if r.focus:
-                glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier ratio: {pe:0.3f} bad peers: {bp} ratio: {r} list: {l}".format(
-                    u=r.user, bs=r.bad_syncs, pe=outlier_ratio,
+                glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier percent: {pe:0.1f} bad peers: {bp} ratio: {r} list: {l}".format(
+                    u=r.user, bs=r.bad_syncs, pe=outlier_percent,
                     bp=bad_peers, r=round(bad_peers/num_peers, 2), l=str(bad_peer_list)))
 
 
@@ -392,7 +397,7 @@ class Coordinator(object):
                 'message_rate': round(r.connection.message_counter / 15.0),
                 'peer_count': sum(r.sync_peers),
                 'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
-                'outlier_ratio': round(outlier_ratio, 3),
+                'outlier_percent': round(outlier_percent, 1),
                 'bad_peer_list': str(bad_peer_list),
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
@@ -427,6 +432,8 @@ class Coordinator(object):
             ujson.dump(aircraft_state, f)
         os.replace(tmpfile, aircraftfile)
 
+        total_outlier_percent = outlier_sum / (sync_sum + 0.1)
+
         if self.partition[1] > 1:
             title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
                 i=self.partition[0],
@@ -436,9 +443,10 @@ class Coordinator(object):
                 s=sync_count,
                 t=len(self.tracker.aircraft))
         else:
-            title_string = 'Status: ({r} clients {b} bad sync) ({m} mlat {s} sync {t} tracked)'.format(
+            title_string = 'Status: ({r} clients {b} bad sync) ({o:.2f} outlier_percentage) ({m} mlat {s} sync {t} tracked)'.format(
                 r=len(self.receivers),
                 b=bad_receivers,
+                o=total_outlier_percent,
                 m=mlat_count,
                 s=sync_count,
                 t=len(self.tracker.aircraft))
