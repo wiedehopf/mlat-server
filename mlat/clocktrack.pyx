@@ -457,21 +457,25 @@ class ClockTracker(object):
 
     def dump_receiver_state(self):
         state = {}
+        cdef double outlier_percent
         for (r0, r1), pairing in self.clock_pairs.items():
             if pairing.n < 2:
                 continue
 
+            outlier_percent = 100.0 * pairing.outlier_total / pairing.update_total
             state.setdefault(r0.user, {})[r1.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.drift * 1e6),
                               round(r1.bad_syncs, 2),
-                              pairing.jumped]
+                              pairing.jumped,
+                              round(outlier_percent, 1)]
                     #removed: #pairing.ts_peer[-1] - pairing.ts_base[-1]]
             state.setdefault(r1.user, {})[r0.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.i_drift * 1e6),
                               round(r0.bad_syncs, 2),
-                              pairing.jumped]
+                              pairing.jumped,
+                              round(outlier_percent, 1)]
                     #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
             # reset jumped indicator
             pairing.jumped = 0

@@ -97,8 +97,8 @@ cdef class ClockPairing(object):
     cdef int drift_outliers
     cdef readonly int n
     cdef readonly int outlier_reset_cooldown
-    cdef readonly int outlier_total
-    cdef readonly int update_total
+    cdef readonly double outlier_total
+    cdef readonly double update_total
     # needs to be cp_size big, can't use it here though
     cdef double ts_base[32]
     cdef double ts_peer[32]
@@ -153,6 +153,9 @@ cdef class ClockPairing(object):
         self.cumulative_error = 0.0
         self.error = -1e-6
         self.variance = -1e-6
+
+        self.outlier_total = 0
+        self.update_total = 1e-3
 
     cpdef bint check_valid(self, double now):
         if self.n < 2 or self.drift_n < 2:
@@ -294,13 +297,15 @@ cdef class ClockPairing(object):
         if ac.sync_dont_use:
             return False
 
+        cdef double outlier_percent
         if outlier and do_reset:
             if (self.peer.focus and self.base.bad_syncs < 0.01) or (self.base.focus and self.peer.bad_syncs < 0.01):
-                glogger.warning("ac {a:06X} step_us {e:.1f} drift_ppm {d:.1f} outlier ratio {o:.3f} pair: {r}".format(
+                outlier_percent = 100.0 * self.outlier_total / self.update_total
+                glogger.warning("ac {a:06X} step_us {e:.1f} drift_ppm {d:.1f} outlier_percent {o:.3f} pair: {r}".format(
                     r=self,
                     a=address,
                     e=prediction_error*1e6,
-                    o=(<double>self.outlier_total/<double>self.update_total),
+                    o=outlier_percent,
                     d=self.drift*1e6))
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
@@ -333,7 +338,7 @@ cdef class ClockPairing(object):
     cdef void _prune_old_data(self, double now):
         cdef int i = 0
 
-        if self.outlier_total or self.update_total > 1024:
+        if self.outlier_total or self.update_total > 256:
             self.outlier_total /= 2
             self.update_total /= 2
 
