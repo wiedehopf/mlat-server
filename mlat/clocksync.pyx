@@ -81,6 +81,7 @@ cdef class ClockPairing(object):
 
     cdef readonly bint valid
     cdef readonly double updated
+    cdef readonly double update_attempted
     cdef readonly double variance
     cdef base
     cdef peer
@@ -134,6 +135,7 @@ cdef class ClockPairing(object):
         self.outlier_threshold = 0.9 * 1e-6 # 1e-6 -> 1 us
 
         self.updated = 0
+        self.update_attempted = 0
 
         self.raw_drift = 0
         self.drift = 0
@@ -193,6 +195,7 @@ cdef class ClockPairing(object):
             self._prune_old_data(now)
 
         self.update_total += 1
+        self.update_attempted = now
 
         if self.n > 0 and not outlier:
             # ts_base and ts_peer define a function constructed by linearly
