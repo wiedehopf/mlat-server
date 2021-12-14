@@ -33,7 +33,7 @@ from contextlib import closing
 import array
 
 from mlat import geodesy, profile, constants
-from mlat import tracker, clocksync, clocktrack, mlattrack, util, config
+from mlat import tracker, clocktrack, mlattrack, util, config
 
 glogger = logging.getLogger("coordinator")
 random.seed()
@@ -50,7 +50,7 @@ class Receiver(object):
         self.connection = connection
         self.coordinator = coordinator
         self.clock_tracker = clock_tracker
-        self.clock = clocksync.make_clock(clock_type)
+        self.clock = clocktrack.make_clock(clock_type)
         self.epoch = None
         if clock_type == 'radarcape_gps':
             self.epoch = 'gps_midnight'
