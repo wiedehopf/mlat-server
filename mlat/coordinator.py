@@ -245,8 +245,8 @@ class Coordinator(object):
     @profile.trackcpu
     def _write_state(self):
         aircraft_state = {}
-        mlat_count = 0
-        sync_count = 0
+        ac_count_mlat = 0
+        ac_count_sync = 0
         now = time.time()
         for ac in self.tracker.aircraft.values():
             elapsed_seen = now - ac.seen
@@ -298,11 +298,10 @@ class Coordinator(object):
             if elapsed_seen > 600:
                 s['tracking_receivers'] = [receiver.uid for receiver in ac.tracking]
 
-            if ac.interesting:
-                if ac.sync_interest:
-                    sync_count += 1
-                if ac.mlat_interest:
-                    mlat_count += 1
+            if ac.sync_interest:
+                ac_count_sync += 1
+            if ac.mlat_interest:
+                ac_count_mlat += 1
 
         sync = {}
         clients = {}
@@ -453,15 +452,15 @@ class Coordinator(object):
         total_outlier_percent = 100 * outlier_sum / (sync_sum + 0.1)
 
         cpu_time = time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID)
-        cpu_time_used_ms = round((cpu_time - self.last_cpu_time) * 1000)
+        cpu_time_us_per_sec = round((cpu_time - self.last_cpu_time) * (1e6 / 15))
         self.last_cpu_time = cpu_time
         try:
             with open('/run/node_exporter/mlat-server.prom', 'w', encoding='utf-8') as f:
                 out = ''
-                out += 'mlat_server_cpu ' + str(cpu_time_used_ms) + '\n'
+                out += 'mlat_server_cpu_ppm ' + str(cpu_time_us_per_sec) + '\n'
                 out += 'mlat_server_receivers ' + str(len(self.receivers)) + '\n'
-                out += 'mlat_server_ac_mlat ' + str(mlat_count) + '\n'
-                out += 'mlat_server_ac_sync ' + str(sync_count) + '\n'
+                out += 'mlat_server_ac_mlat ' + str(ac_count_mlat) + '\n'
+                out += 'mlat_server_ac_sync ' + str(ac_count_sync) + '\n'
                 out += 'mlat_server_ac_total ' + str(len(self.tracker.aircraft)) + '\n'
                 out += 'mlat_server_outlier_ppm ' + "{0:.0f}".format(total_outlier_percent * 1000) + '\n'
                 out += 'mlat_server_sync_points ' + "{0:.0f}".format(self.stats_sync_points / self.main_interval) + '\n'
@@ -479,22 +478,32 @@ class Coordinator(object):
         except:
             glogger.exception("prom stats")
 
+        # reset stats
+        self.stats_sync_points = 0
+        self.stats_sync_msgs = 0
+        self.stats_mlat_msgs = 0
+        self.stats_valid_groups = 0
+        self.stats_normalize = 0
+        self.stats_solve_attempt = 0
+        self.stats_solve_success = 0
+        self.stats_solve_used = 0
+
 
         if self.partition[1] > 1:
             title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
                 i=self.partition[0],
                 n=self.partition[1],
                 r=len(self.receivers),
-                m=mlat_count,
-                s=sync_count,
+                m=ac_count_mlat,
+                s=ac_count_sync,
                 t=len(self.tracker.aircraft))
         else:
             title_string = 'Status: ({r} clients {b} bad sync) ({o:.2f} outlier_percentage) ({m} mlat {s} sync {t} tracked)'.format(
                 r=len(self.receivers),
                 b=bad_receivers,
                 o=total_outlier_percent,
-                m=mlat_count,
-                s=sync_count,
+                m=ac_count_mlat,
+                s=ac_count_sync,
                 t=len(self.tracker.aircraft))
         util.setproctitle(title_string)
         glogger.warning(title_string)
