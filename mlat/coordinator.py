@@ -438,7 +438,7 @@ class Coordinator(object):
             ujson.dump(aircraft_state, f)
         os.replace(tmpfile, aircraftfile)
 
-        total_outlier_percent = outlier_sum / (sync_sum + 0.1)
+        total_outlier_percent = 100 * outlier_sum / (sync_sum + 0.1)
 
         if self.partition[1] > 1:
             title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
