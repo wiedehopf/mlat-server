@@ -506,7 +506,7 @@ class Coordinator(object):
             sleep = asyncio.create_task(asyncio.sleep(self.main_interval))
             try:
                 self._write_state()
-                self.clock_tracker.sync_points.clear()
+                self.clock_tracker.clear_all_sync_points()
             except Exception:
                 glogger.exception("Failed to write state files")
 

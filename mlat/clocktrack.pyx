@@ -442,6 +442,11 @@ class ClockTracker(object):
 
         _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
 
+    def clear_all_sync_points(self):
+        """Clear all syncpoint lists from sync_points.
+            called every 15 seconds by coordinator
+        """
+        self.sync_points.clear()
 
     @profile.trackcpu
     def _cleanup_syncpointlist(self, key):
@@ -456,7 +461,7 @@ class ClockTracker(object):
         except KeyError:
             # something is not right, reset the dict
             logging.warn("len(sync_points): {a}".format(a=len(self.sync_points)))
-            self.sync_points.clear()
+            self.clear_all_sync_points()
 
     def dump_receiver_state(self):
         state = {}
