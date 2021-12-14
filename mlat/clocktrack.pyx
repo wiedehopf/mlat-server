@@ -293,6 +293,8 @@ class ClockTracker(object):
         odd_time: the time of arrival of odd_message, as seen by receiver.clock
         """
 
+        cdef SyncPoint syncpoint
+
         self.coordinator.stats_sync_msgs += 1
         # Do sanity checks.
 
@@ -322,10 +324,10 @@ class ClockTracker(object):
             return
 
         if syncpointlist:
-            for candidate in syncpointlist:
-                if abs(candidate.interval - interval) < 0.75e-3:
+            for syncpoint in syncpointlist:
+                if abs(syncpoint.interval - interval) < 0.75e-3:
                     # interval matches within 0.75ms, close enough.
-                    _add_to_existing_syncpoint(self.clock_pairs, candidate, receiver, tA, tB)
+                    _add_to_existing_syncpoint(self.clock_pairs, syncpoint, receiver, tA, tB)
                     return
             # no matching syncpoint in syncpointlist, add one
             syncpoint = SyncPoint(message_details, interval)
