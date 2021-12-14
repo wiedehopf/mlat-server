@@ -200,6 +200,18 @@ class Coordinator(object):
 
         self.handshake_logger.addHandler(self.handshake_handler)
 
+        self.main_interval = 15.0
+
+        self.last_cpu_time = 0
+        self.stats_sync_points = 0
+        self.stats_sync_msgs = 0
+        self.stats_mlat_msgs = 0
+        self.stats_valid_groups = 0
+        self.stats_normalize = 0
+        self.stats_solve_attempt = 0
+        self.stats_solve_success = 0
+        self.stats_solve_used = 0
+
     def start(self):
         self._every_15_task = asyncio.ensure_future(self.every_15())
         if profile.enabled:
@@ -440,6 +452,34 @@ class Coordinator(object):
 
         total_outlier_percent = 100 * outlier_sum / (sync_sum + 0.1)
 
+        cpu_time = time.clock_gettime(time.CLOCK_PROCESS_CPUTIME_ID)
+        cpu_time_used_ms = round((cpu_time - self.last_cpu_time) * 1000)
+        self.last_cpu_time = cpu_time
+        try:
+            with open('/run/node_exporter/mlat-server.prom', 'w', encoding='utf-8') as f:
+                out = ''
+                out += 'mlat_server_cpu ' + str(cpu_time_used_ms) + '\n'
+                out += 'mlat_server_receivers ' + str(len(self.receivers)) + '\n'
+                out += 'mlat_server_ac_mlat ' + str(mlat_count) + '\n'
+                out += 'mlat_server_ac_sync ' + str(sync_count) + '\n'
+                out += 'mlat_server_ac_total ' + str(len(self.tracker.aircraft)) + '\n'
+                out += 'mlat_server_outlier_ppm ' + "{0:.0f}".format(total_outlier_percent * 1000) + '\n'
+                out += 'mlat_server_sync_points ' + "{0:.0f}".format(self.stats_sync_points / self.main_interval) + '\n'
+                out += 'mlat_server_sync_msgs ' + "{0:.0f}".format(self.stats_sync_msgs / self.main_interval) + '\n'
+                out += 'mlat_server_mlat_msgs ' + "{0:.0f}".format(self.stats_mlat_msgs / self.main_interval) + '\n'
+                out += 'mlat_server_valid_groups ' + "{0:.0f}".format(self.stats_valid_groups / self.main_interval) + '\n'
+                out += 'mlat_server_normalize_called ' + "{0:.0f}".format(self.stats_normalize / self.main_interval) + '\n'
+                out += 'mlat_server_solve_attempt ' + "{0:.0f}".format(self.stats_solve_attempt / self.main_interval) + '\n'
+                out += 'mlat_server_solve_success ' + "{0:.0f}".format(self.stats_solve_success / self.main_interval) + '\n'
+                out += 'mlat_server_solve_used ' + "{0:.0f}".format(self.stats_solve_used / self.main_interval) + '\n'
+
+                f.write(out)
+        except OSError:
+            pass
+        except:
+            glogger.exception("prom stats")
+
+
         if self.partition[1] > 1:
             title_string = 'Status: {i}/{n} ({r} clients) ({m} mlat {s} sync {t} tracked)'.format(
                 i=self.partition[0],
@@ -463,13 +503,14 @@ class Coordinator(object):
 
     async def every_15(self):
         while True:
+            sleep = asyncio.create_task(asyncio.sleep(self.main_interval))
             try:
                 self._write_state()
                 self.clock_tracker.sync_points.clear()
             except Exception:
                 glogger.exception("Failed to write state files")
 
-            await asyncio.sleep(15.0)
+            await sleep
 
     async def write_profile(self):
         while True:

@@ -90,6 +90,7 @@ class MlatTracker(object):
 
     @profile.trackcpu
     def receiver_mlat(self, receiver, timestamp, message, utc):
+        self.coordinator.stats_mlat_msgs += 1
         # use message as key
         group = self.pending.get(message)
         if not group:
@@ -129,6 +130,8 @@ class MlatTracker(object):
         ac.seen = now
 
         ac.mlat_message_count += 1
+
+        self.coordinator.stats_valid_groups += 1
 
         if not ac.allow_mlat:
             glogger.info("not doing mlat for {0:06x}, wrong partition!".format(ac.icao))
@@ -172,7 +175,7 @@ class MlatTracker(object):
 
         if now - ac.last_resolve_attempt < config.RESOLVE_INTERVAL:
             return
-        ac.last_resolve_attemp = now
+        ac.last_resolve_attempt = now
 
         # find old result, if present
         if ac.last_result_position is None or (group.first_seen - ac.last_result_time) > 120:
@@ -227,6 +230,8 @@ class MlatTracker(object):
             return
         if elapsed < 2 * config.RESOLVE_BACKOFF and dof < last_result_dof - elapsed + 0.5:
             return
+
+        self.coordinator.stats_normalize += 1
 
         # normalize timestamps. This returns a list of timestamp maps;
         # within each map, the timestamp values are comparable to each other.
@@ -286,6 +291,7 @@ class MlatTracker(object):
             else:
                 initial_guess = cluster[0][0].position
 
+            self.coordinator.stats_solve_attempt += 1
             r = solver.solve(cluster, altitude, altitude_error, initial_guess)
 
             if r:
@@ -311,9 +317,14 @@ class MlatTracker(object):
                 if error > max_error:
                     continue
 
+
+                self.coordinator.stats_solve_success += 1
+
                 # the higher the accuracy, the higher the freqency of positions that is output
                 if elapsed / 20 < error / max_error:
                     continue
+
+                self.coordinator.stats_solve_used += 1
 
                 #if elapsed < 10.0 and var_est > last_result_var * 2.25:
                 #    # much less accurate than a recent-ish position

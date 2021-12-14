@@ -282,6 +282,7 @@ class ClockTracker(object):
         odd_time: the time of arrival of odd_message, as seen by receiver.clock
         """
 
+        self.coordinator.stats_sync_msgs += 1
         # Do sanity checks.
 
         # compute key and interval
@@ -426,6 +427,8 @@ class ClockTracker(object):
             message_details = (even_message.address, odd_ecef, even_ecef, ac)
 
         # valid. Create a new Sync point, add to it and create the sync point list
+
+        self.coordinator.stats_sync_points += 1
 
         syncpoint = SyncPoint(message_details, interval)
 
