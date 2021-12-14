@@ -50,7 +50,14 @@ glogger = logging.getLogger("clocksync")
 
 cdef double MAX_RANGE = 500e3
 
-cdef class SyncPoint(object):
+cdef class SyncShard:
+    """part of a sync point, data for that receiver in relation to the sync point
+    """
+    cdef receiver
+    cdef double td
+    cdef double i
+
+cdef class SyncPoint:
     """A potential clock synchronization point.
     Clock synchronization points are a pair of DF17 messages,
     and associated timing info from all receivers that see
@@ -114,8 +121,8 @@ cdef _add_to_existing_syncpoint(dict clock_pairs, SyncPoint syncpoint, r0, doubl
     # propagation delays, in clock units
     #cdef double delayFactor = r0.clock.freq / constants.Cair
     cdef double delayFactor = r0.clock.delayFactor
-    delay0A = receiverDistA * delayFactor
-    delay0B = receiverDistB * delayFactor
+    cdef double delay0A = receiverDistA * delayFactor
+    cdef double delay0B = receiverDistB * delayFactor
 
     cdef double td0A = t0A - delay0A
     cdef double td0B = t0B - delay0B
@@ -123,7 +130,11 @@ cdef _add_to_existing_syncpoint(dict clock_pairs, SyncPoint syncpoint, r0, doubl
     # compute interval, adjusted for transmitter motion
     cdef double i0 = td0B - td0A
 
-    r0l = (r0, td0B, i0)
+    cdef SyncShard r0l = SyncShard()
+    cdef SyncShard r1l
+    r0l.receiver = r0
+    r0l.td = td0B
+    r0l.i = i0
 
     # try to sync the new receiver with all receivers that previously
     # saw the same pair
@@ -132,8 +143,11 @@ cdef _add_to_existing_syncpoint(dict clock_pairs, SyncPoint syncpoint, r0, doubl
     cdef double p0, p1, limit
     cdef dict distances = r0.distance
     cdef ClockPairing pairing
+
     for r1l in syncpoint.receivers:
-        r1, td1B, i1 = r1l
+        r1 = r1l.receiver
+        td1B = r1l.td
+        i1 = r1l.i
 
         # order the clockpair so that the receiver that sorts lower is the base clock
 
