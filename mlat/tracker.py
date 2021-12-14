@@ -181,7 +181,7 @@ class Tracker(object):
         new_mlat = {ac for ac in receiver.tracking if len(ac.tracking) >= 2 and ac.allow_mlat and now - ac.last_adsb_time > 30}
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
-            new_sync = {ac for ac in receiver.tracking}
+            new_sync = {ac for ac in receiver.tracking if not ac.sync_dont_use}
             if len(new_sync) > config.MAX_SYNC_AC:
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
@@ -248,6 +248,8 @@ class Tracker(object):
         for rp, r1, ac, rate in firstHalf:
             if ac in new_sync:
                 continue  # already added
+            if ac.sync_dont_use:
+                continue # don't use aircraft with sub par GPS in the first round
 
             if total_rate > config.MAX_SYNC_RATE:
                 break

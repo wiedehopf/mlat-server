@@ -254,16 +254,22 @@ class Coordinator(object):
             s['mlat_message_count'] = ac.mlat_message_count
             s['mlat_result_count'] = ac.mlat_result_count
             s['mlat_kalman_count'] = ac.mlat_kalman_count
-            if ac.sync_bad > 3 and ac.sync_bad / (ac.sync_bad + ac.sync_good) > 0.15:
+
+
+            sync_count = round(ac.sync_good + ac.sync_bad)
+            s['sync_count_1min'] = sync_count
+
+            sync_bad_percent = round(100 * ac.sync_bad / (sync_count + 0.01), 1)
+            s['sync_bad_percent'] = sync_bad_percent
+
+            if ac.sync_bad > 3 and sync_bad_percent > 10:
                 ac.sync_dont_use = 1
-                s['sync_good'] = ac.sync_good
-                s['sync_bad'] = ac.sync_bad
             else:
                 ac.sync_dont_use = 0
-            s['sync_dont_use'] = ac.sync_dont_use
 
-            ac.sync_good = 0
-            ac.sync_bad = 0
+
+            ac.sync_good *= 0.8
+            ac.sync_bad *= 0.8
 
             if ac.last_result_time is not None:
                 s['last_result'] = round(now - ac.last_result_time, 1)
