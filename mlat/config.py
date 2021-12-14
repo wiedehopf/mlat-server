@@ -37,7 +37,7 @@ MIN_NUC = 6
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
 MAX_SYNC_AC = 18
 # max sync rate
-MAX_SYNC_RATE = 12
+MAX_SYNC_RATE = 14
 
 # minimum interval between trying to get an MLAT position
 RESOLVE_INTERVAL = 0.08
