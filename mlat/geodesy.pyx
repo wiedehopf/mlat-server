@@ -40,12 +40,12 @@ cdef double WGS84_ECC_SQ = 1 - WGS84_B * WGS84_B / (WGS84_A * WGS84_A)
 cdef double WGS84_ECC = sqrt(WGS84_ECC_SQ)
 
 # Average radius for a spherical Earth
-SPHERICAL_R = 6371e3
+cdef double SPHERICAL_R = 6371e3
 
 # Some derived values
-_wgs84_ep = math.sqrt((WGS84_A**2 - WGS84_B**2) / WGS84_B**2)
-_wgs84_ep2_b = _wgs84_ep**2 * WGS84_B
-_wgs84_e2_a = WGS84_ECC_SQ * WGS84_A
+cdef double _wgs84_ep = math.sqrt((WGS84_A**2 - WGS84_B**2) / WGS84_B**2)
+cdef double _wgs84_ep2_b = _wgs84_ep**2 * WGS84_B
+cdef double _wgs84_e2_a = WGS84_ECC_SQ * WGS84_A
 
 
 def llh2ecef(llh):
