@@ -63,12 +63,12 @@ cdef class SyncPoint:
     and associated timing info from all receivers that see
     that pair.
     """
-    cdef public int address
-    cdef public array.array posA
-    cdef public array.array posB
-    cdef public double interval
-    cdef public list receivers
-    cdef public ac
+    cdef int address
+    cdef array.array posA
+    cdef array.array posB
+    cdef double interval
+    cdef list receivers
+    cdef ac
 
     def __init__(self, message_details, interval):
         """Construct a new sync point.
@@ -260,6 +260,7 @@ class ClockTracker(object):
 
         Only reset the offsets, the drift shouldn't be affected
         """
+        cdef ClockPairing pairing
         for k, pairing in list(self.clock_pairs.items()):
             if k[0] is receiver or k[1] is receiver:
                 pairing.reset_offsets()
@@ -278,6 +279,7 @@ class ClockTracker(object):
         set; this flag is tested before sync happens.
         """
 
+        cdef ClockPairing pairing
         # Clean up clock_pairs immediately.
         # Any membership in a pending sync point is noticed when we try to sync more receivers with it.
         for k, pairing in list(self.clock_pairs.items()):
@@ -493,6 +495,7 @@ class ClockTracker(object):
     def dump_receiver_state(self):
         state = {}
         cdef double outlier_percent
+        cdef ClockPairing pairing
         for (r0, r1), pairing in self.clock_pairs.items():
             if pairing.n < 2:
                 continue
@@ -561,34 +564,34 @@ cdef class ClockPairing(object):
 
     cdef readonly bint valid
     cdef readonly double updated
-    cdef readonly double update_attempted
     cdef readonly double variance
+    cdef readonly int n
+    cdef double update_attempted
     cdef base
     cdef peer
-    cdef public int cat
+    cdef int cat
     cdef base_clock
     cdef peer_clock
     cdef double base_freq
     cdef double peer_freq
-    cdef readonly double raw_drift
-    cdef readonly double drift
-    cdef readonly double i_drift
-    cdef readonly int drift_n
+    cdef double raw_drift
+    cdef double drift
+    cdef double i_drift
+    cdef int drift_n
     cdef int drift_outliers
-    cdef readonly int n
-    cdef readonly int outlier_reset_cooldown
-    cdef readonly double outlier_total
-    cdef readonly double update_total
+    cdef int outlier_reset_cooldown
+    cdef double outlier_total
+    cdef double update_total
     # needs to be cp_size big, can't use it here though
     cdef double ts_base[32]
     cdef double ts_peer[32]
     cdef double var[32]
     cdef double var_sum
-    cdef readonly int outliers
+    cdef int outliers
     cdef double cumulative_error
-    cdef readonly double error
+    cdef double error
 
-    cdef public int jumped
+    cdef int jumped
 
     cdef double relative_freq
     cdef double i_relative_freq
