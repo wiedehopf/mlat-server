@@ -404,6 +404,7 @@ class Coordinator(object):
                 'user': r.user,
                 'uid': r.uid,
                 'uuid': r.uuid,
+                'coords': "{0:.6f},{1:.6f}".format(r.position_llh[0], r.position_llh[1]),
                 'lat': r.position_llh[0],
                 'lon': r.position_llh[1],
                 'alt': r.position_llh[2],
