@@ -1,18 +1,4 @@
-# mlat-server
-
-# Changes by 'wiedehopf':
- * Ignore servers with bad clock via karma system:
-    * Clock sync is checked every 30s, if receiver has bad sync, gets penalty added to its score
-    * Badness ranges from "0" to "6.0".  (6 = 30 min timeout)
-    * Each time sync is good, bad karma is decremented by small amount.
-
-
-# Changes by 'TanerH':
-1) in `coordinator.py`, write data to a temp file before overwriting the old file (prevents race conditions)
-2) in `jsonclient.py`, sanity check the username that is sent, disconnecting if invalid (non-alnum)
-3) Clean up exception propagation (dummy loop exception handler added), and clean up the "cleanup" when clients exit.
-
-## Original README below --
+# mlat-server, adsbexchange fork
 
 This is a Mode S multilateration server that is designed to operate with
 clients that do _not_ have synchronized clocks.
@@ -23,6 +9,10 @@ messages to model the clock characteristics of each receiver.
 
 Then it does multilateration of aircraft that are transmitting only Mode S
 using the same receivers.
+
+## Numerous changes by wiedehopf and TanerH
+
+See commits or a diff for details.
 
 ## License
 
