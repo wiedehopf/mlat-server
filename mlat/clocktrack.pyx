@@ -771,11 +771,11 @@ cdef class ClockPairing(object):
                 # weights 1/4 and 1/3 seem to work well though
                 prediction_base = self.predict_base(peer_ts)
                 if self.n >= 4 and self.drift_n > drift_n_stable:
-                    peer_ts += (prediction - peer_ts) * 0.38
-                    base_ts += (prediction_base - base_ts) * 0.38
+                    peer_ts += (prediction - peer_ts) * 0.34
+                    base_ts += (prediction_base - base_ts) * 0.34
                 else:
-                    peer_ts += (prediction - peer_ts) * 0.15
-                    base_ts += (prediction_base - base_ts) * 0.15
+                    peer_ts += (prediction - peer_ts) * 0.10
+                    base_ts += (prediction_base - base_ts) * 0.10
 
         if ac.sync_dont_use:
             return False
