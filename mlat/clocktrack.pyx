@@ -82,7 +82,7 @@ cdef class SyncPoint:
           to distinguish cases where the same message is
           transmitted more than once.
         """
-        self.address, self.posA, self.posB, self.ac = message_details
+        self.address, self.posA, self.posB, self.ac, do_mlat = message_details
 
         self.interval = interval
         self.receivers = []  # a list of (receiver, timestampA, timestampB) values
@@ -328,6 +328,15 @@ class ClockTracker(object):
         # do we have a suitable existing match?
         message_details, syncpointlist = self.sync_points.get(key, (0, 0))
 
+        if message_details == -1:
+            return
+
+        now = time.time()
+
+        if message_details and message_details[4]:
+            # do MLAT on this sync message if do_mlat was set in the message details
+            self.coordinator.receiver_mlat(receiver, even_time, even_message, now)
+
         # check if sync point is invalid
         if syncpointlist == -1:
             return
@@ -354,13 +363,11 @@ class ClockTracker(object):
 
             return
 
-        now = time.time()
-
         # this receiver isn't allowed to create new sync points due to exceeding the range
         if now - receiver.sync_range_exceeded < 15.0:
             return
 
-        if syncpointlist is None:
+        if syncpointlist:
             # No existing match. Create an invalid sync point, if it pans out, replace it.
             self.sync_points[key] = (-1, -1)
             # schedule cleanup of the syncpoint after 3 seconds -
@@ -381,6 +388,16 @@ class ClockTracker(object):
             return
 
         ac.seen = now
+
+        if ac and ac.do_mlat and len(ac.tracking) >= 3:
+            do_mlat = True
+            self.coordinator.receiver_mlat(receiver, even_time, even_message, now)
+        else:
+            do_mlat = False
+
+        # set dummy message details for potential use for MLATing bad ADS-B data
+        message_details = (even_message.address, None, None, ac, do_mlat)
+        self.sync_points[key] = (message_details, -1)
 
         if ((even_message.DF != 17 or
              not even_message.crc_ok or
@@ -441,7 +458,6 @@ class ClockTracker(object):
             return
 
         #do some extra bookkeeping now we know this message is legit
-        ac.last_adsb_time = now
         ac.last_altitude_time = now
         ac.altitude = even_message.altitude
 
@@ -451,9 +467,9 @@ class ClockTracker(object):
 
         # valid message, set the message details for use by the SyncPoint
         if even_time < odd_time:
-            message_details = (even_message.address, even_ecef, odd_ecef, ac)
+            message_details = (even_message.address, even_ecef, odd_ecef, ac, do_mlat)
         else:
-            message_details = (even_message.address, odd_ecef, even_ecef, ac)
+            message_details = (even_message.address, odd_ecef, even_ecef, ac, do_mlat)
 
         # valid. Create a new Sync point, add to it and create the sync point list
 
@@ -760,6 +776,7 @@ cdef class ClockPairing(object):
                     self.jumped = 1
             else:
                 ac.sync_good += 1
+                ac.last_adsb_time = now
 
             if self.n >= 2:
                 # wiedehopf: add hacky sync averaging

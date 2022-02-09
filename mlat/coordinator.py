@@ -245,7 +245,7 @@ class Coordinator(object):
     @profile.trackcpu
     def _write_state(self):
         aircraft_state = {}
-        ac_count_mlat = 0
+        ac_count_mlat = len(self.tracker.mlat_wanted)
         ac_count_sync = 0
         now = time.time()
         for ac in self.tracker.aircraft.values():
@@ -273,6 +273,7 @@ class Coordinator(object):
 
             sync_bad_percent = round(100 * ac.sync_bad / (sync_count + 0.01), 1)
             s['sync_bad_percent'] = sync_bad_percent
+            ac.sync_bad_percent = sync_bad_percent
 
             if ac.sync_bad > 3 and sync_bad_percent > 10:
                 ac.sync_dont_use = 1
@@ -300,8 +301,6 @@ class Coordinator(object):
 
             if ac.sync_interest:
                 ac_count_sync += 1
-            if ac.mlat_interest:
-                ac_count_mlat += 1
 
         sync = {}
         clients = {}

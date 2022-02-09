@@ -101,6 +101,9 @@ class TrackedAircraft(object):
         self.sync_good = 0
         self.sync_bad = 0
         self.sync_dont_use = 0
+        self.sync_bad_percent = 0
+
+        self.do_mlat = False
 
     @property
     def interesting(self):
@@ -121,6 +124,8 @@ class Tracker(object):
         self.partition_count = partition[1]
         self.coordinator = coordinator
         self.loop = loop
+        self.mlat_wanted = []
+        self.mlat_wanted_ts = time.time()
 
     def in_local_partition(self, icao):
         if self.partition_count == 1:
@@ -177,8 +182,19 @@ class Tracker(object):
         new_adsb = set()
         now = time.time()
 
+        if now - self.mlat_wanted_ts > 1:
+            self.mlat_wanted = set()
+            for ac in self.aircraft.values():
+                if len(ac.tracking) >= 2 and ac.allow_mlat and (now - ac.last_adsb_time > 45 or ac.sync_bad_percent > 10):
+                    self.mlat_wanted.add(ac)
+                    ac.do_mlat = True
+                else:
+                    ac.do_mlat = False
 
-        new_mlat = {ac for ac in receiver.tracking if len(ac.tracking) >= 2 and ac.allow_mlat and now - ac.last_adsb_time > 30}
+            self.mlat_wanted_ts = now
+
+        new_mlat = receiver.tracking.intersection(self.mlat_wanted)
+
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
             new_sync = {ac for ac in receiver.tracking if not ac.sync_dont_use}
