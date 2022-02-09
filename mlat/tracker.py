@@ -197,7 +197,7 @@ class Tracker(object):
 
         if receiver.last_rate_report is None:
             # Legacy client, no rate report, we cannot be very selective.
-            new_sync = {ac for ac in receiver.tracking if not ac.sync_dont_use}
+            new_sync = {ac for ac in receiver.tracking}
             if len(new_sync) > config.MAX_SYNC_AC:
                 new_sync = set(random.sample(new_sync, k=config.MAX_SYNC_AC))
 
@@ -302,6 +302,11 @@ class Tracker(object):
         if addSome > 0:
             acAvailable = set(ac_to_ratepair_map.keys()).difference(new_sync)
             new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), addSome)))
+
+            addSome = int(config.MAX_SYNC_AC / 4) - len(new_sync)
+            if addSome > 0:
+                acAvailable = receiver.tracking.difference(new_sync)
+                new_sync |= set(random.sample(acAvailable, k=min(len(acAvailable), addSome)))
 
         #if receiver.focus:
         #    glogger.warn('new_sync:' + str([format(a.icao, '06x') for a in new_sync]))
