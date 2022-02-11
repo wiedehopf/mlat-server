@@ -66,6 +66,8 @@ class Receiver(object):
         self.num_outliers = 0
         self.num_syncs = 0
 
+        self.outlier_percent_rolling = 0
+
         self.sync_peers = array.array('i', [0, 0, 0, 0, 0]) # number of peers per distance category
         self.peer_count = 0 # only updated when dumping state
         self.last_rate_report = None
@@ -341,9 +343,14 @@ class Coordinator(object):
             outlier_sum += r.num_outliers
             sync_sum += r.num_syncs
             outlier_percent = 100 * r.num_outliers / (r.num_syncs + 0.1)
-            # running average for the outliers and sync
-            r.num_outliers *= 0.85
-            r.num_syncs *= 0.85
+
+            # running average for the outlier percent
+            r.outlier_percent_rolling -= 0.1 * (r.outlier_percent_rolling - outlier_percent)
+
+            # almost reset num_outlier / num_syns for each receiver, keep a bit of the last iteration
+            r.num_outliers *= 0.25
+            r.num_syncs *= 0.25
+
 
             # If your sync with more than 10 percent of peers is bad,
             # it's likely you are the reason.
@@ -370,10 +377,9 @@ class Coordinator(object):
             if r.bad_syncs > 0:
                 bad_receivers += 1
 
-            #if r.focus or outlier_percent_limit > outlier_percent_limit:
             if r.focus:
                 glogger.warning("{u}: bad_syncs: {bs:0.1f} outlier percent: {pe:0.1f} bad peers: {bp} ratio: {r} list: {l}".format(
-                    u=r.user, bs=r.bad_syncs, pe=outlier_percent,
+                    u=r.user, bs=r.bad_syncs, pe=r.outlier_percent_rolling,
                     bp=bad_peers, r=round(bad_peers/num_peers, 2), l=str(bad_peer_list)))
 
 
@@ -414,7 +420,7 @@ class Coordinator(object):
                 'message_rate': round(r.connection.message_counter / 15.0),
                 'peer_count': sum(r.sync_peers),
                 'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
-                'outlier_percent': round(outlier_percent, 1),
+                'outlier_percent': round(r.outlier_percent_rolling, 1),
                 'bad_peer_list': str(bad_peer_list),
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]

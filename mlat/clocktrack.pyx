@@ -749,9 +749,9 @@ cdef class ClockPairing(object):
                 if ac.sync_dont_use:
                     return False
 
-                if self.peer.bad_syncs < 0.01:
+                if self.peer.bad_syncs < 0.01 or 15 * self.peer.num_outliers < self.peer.num_syncs:
                     self.base.num_outliers += 1
-                if self.base.bad_syncs < 0.01:
+                if self.base.bad_syncs < 0.01 or 15 * self.base.num_outliers < self.base.num_syncs:
                     self.peer.num_outliers += 1
 
                 outlier = True
