@@ -275,7 +275,7 @@ class Coordinator(object):
             s['sync_bad_percent'] = sync_bad_percent
             ac.sync_bad_percent = sync_bad_percent
 
-            if ac.sync_bad > 3 and sync_bad_percent > 10:
+            if ac.sync_bad > 3 and sync_bad_percent > 15:
                 ac.sync_dont_use = 1
             else:
                 ac.sync_dont_use = 0
