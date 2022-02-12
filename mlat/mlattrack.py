@@ -48,6 +48,14 @@ class MessageGroup:
         self.receivers = set()
         self.handle = None
 
+class Cohort:
+    def __init__(self, now, loop):
+        self.creationTime = now
+        self.len = 0
+        self.groups = []
+        self.handle = loop.call_later(config.MLAT_DELAY, self._process)
+    def _process(self):
+        [ group.handle(group) for group in self.groups ]
 
 class MlatTracker(object):
     def __init__(self, coordinator, blacklist_filename=None, pseudorange_filename=None):
@@ -59,6 +67,8 @@ class MlatTracker(object):
         self.blacklist_filename = blacklist_filename
         self.read_blacklist()
         self.coordinator.add_sighup_handler(self.read_blacklist)
+
+        self.cohort = Cohort(time.time(), self.loop)
 
         self.pseudorange_file = None
         self.pseudorange_filename = pseudorange_filename
@@ -89,16 +99,19 @@ class MlatTracker(object):
         self.pseudorange_file = open(self.pseudorange_filename, 'a')
 
     @profile.trackcpu
-    def receiver_mlat(self, receiver, timestamp, message, utc):
+    def receiver_mlat(self, receiver, timestamp, message, now):
         self.coordinator.stats_mlat_msgs += 1
         # use message as key
         group = self.pending.get(message)
         if not group:
-            group = self.pending[message] = MessageGroup(message=message, first_seen=utc)
-            group.handle = self.loop.call_later(
-                config.MLAT_DELAY,
-                self._resolve,
-                group)
+            group = self.pending[message] = MessageGroup(message=message, first_seen=now)
+            group.handle = self._resolve
+            if now - self.cohort.creationTime > 0.05 or self.cohort.len > 25:
+                # create new cohort
+                self.cohort = Cohort(now, self.loop)
+
+            self.cohort.groups.append(group)
+            self.cohort.len += 1
 
         # remember ALL the receivers which received this message (used in forward_results)
         group.receivers.add(receiver)
@@ -108,11 +121,12 @@ class MlatTracker(object):
         if len(group.copies) > config.MAX_GROUP:
             return
 
-        group.copies.append((receiver, timestamp, utc))
+        group.copies.append((receiver, timestamp, now))
 
     @profile.trackcpu
     def _resolve(self, group):
         del self.pending[group.message]
+
 
         # less than 3 messages -> no go
         if len(group.copies) < 3:
