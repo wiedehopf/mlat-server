@@ -465,8 +465,6 @@ class ClockTracker(object):
         if even_message.nuc < 6 or odd_message.nuc < 6:
             return
 
-        ac.last_adsb_time = now
-
         # valid message, set the message details for use by the SyncPoint
         if even_time < odd_time:
             message_details = (even_message.address, even_ecef, odd_ecef, ac, do_mlat)
@@ -778,6 +776,7 @@ cdef class ClockPairing(object):
                     self.jumped = 1
             else:
                 ac.sync_good += 1
+                ac.last_adsb_time = now
 
             if self.n >= 2:
                 # wiedehopf: add hacky sync averaging
