@@ -30,7 +30,7 @@ from mlat import kalman, config
 import logging
 glogger = logging.getLogger("tracker")
 
-FORCE_MLAT_INTERVAL = 300
+FORCE_MLAT_INTERVAL = 600
 NO_ADSB_MLAT_SECONDS = 60
 
 class TrackedAircraft(object):
@@ -56,10 +56,10 @@ class TrackedAircraft(object):
         self.adsb_seen = set()
 
         # timestamp of when the we last received a somewhat valid ADS-B position from that aircraft
-        self.last_adsb_time = time.time() + random.random() * NO_ADSB_MLAT_SECONDS
+        self.last_adsb_time = time.time() - random.random() * NO_ADSB_MLAT_SECONDS
 
         # timestamp when we last forced MLAT for that aircraft
-        self.last_force_mlat = time.time() + FORCE_MLAT_INTERVAL * random.random()
+        self.last_force_mlat = time.time() - FORCE_MLAT_INTERVAL * random.random()
         self.force_mlat = False
 
         # set of receivers who want to use this aircraft for multilateration.
@@ -192,11 +192,14 @@ class Tracker(object):
             self.mlat_wanted = set()
             for ac in self.aircraft.values():
                 since_force = now - ac.last_force_mlat
-                if since_force > FORCE_MLAT_INTERVAL - 10:
+                #glogger.warn(f'since_force {ac.icao:06x} {since_force}')
+                if not ac.force_mlat and since_force > FORCE_MLAT_INTERVAL - 10:
                     ac.force_mlat = True
+                    #glogger.warn("force_mlat on {0:06x}".format(ac.icao))
                 if since_force > FORCE_MLAT_INTERVAL + 5:
                     ac.last_force_mlat = now + random.random()
                     ac.force_mlat = False
+                    #glogger.warn("reset last_force_mlat {0:06x}".format(ac.icao))
                 if len(ac.tracking) >= 2 and ac.allow_mlat and (
                         now - ac.last_adsb_time > NO_ADSB_MLAT_SECONDS or ac.sync_bad_percent > 10 or (since_force > FORCE_MLAT_INTERVAL - 10 and since_force < FORCE_MLAT_INTERVAL)
                         ):
