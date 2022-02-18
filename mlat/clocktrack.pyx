@@ -389,7 +389,7 @@ class ClockTracker(object):
 
         ac.seen = now
 
-        if ac and ac.do_mlat and len(ac.tracking) >= 3:
+        if ac and (ac.do_mlat or ac.force_mlat) and len(ac.tracking) >= 3:
             do_mlat = True
             self.coordinator.receiver_mlat(receiver, even_time, even_message, now)
         else:
@@ -464,6 +464,8 @@ class ClockTracker(object):
         # more quality checking
         if even_message.nuc < 6 or odd_message.nuc < 6:
             return
+
+        ac.last_adsb_time = now
 
         # valid message, set the message details for use by the SyncPoint
         if even_time < odd_time:
@@ -776,7 +778,6 @@ cdef class ClockPairing(object):
                     self.jumped = 1
             else:
                 ac.sync_good += 1
-                ac.last_adsb_time = now
 
             if self.n >= 2:
                 # wiedehopf: add hacky sync averaging

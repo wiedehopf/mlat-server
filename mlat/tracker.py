@@ -1,7 +1,7 @@
 # -*- mode: python; indent-tabs-mode: nil -*-
 
 # Part of mlat-server: a Mode S multilateration server
-# Copyright (C) 2015  Oliver Jowett <oliver@mutability.co.uk>
+# Copyright (C) 203  Oliver Jowett <oliver@mutability.co.uk>
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU Affero General Public License as
@@ -30,6 +30,8 @@ from mlat import kalman, config
 import logging
 glogger = logging.getLogger("tracker")
 
+FORCE_MLAT_INTERVAL = 300
+NO_ADSB_MLAT_SECONDS = 60
 
 class TrackedAircraft(object):
     """A single tracked aircraft."""
@@ -54,7 +56,11 @@ class TrackedAircraft(object):
         self.adsb_seen = set()
 
         # timestamp of when the we last received a somewhat valid ADS-B position from that aircraft
-        self.last_adsb_time = 0
+        self.last_adsb_time = time.time() + random.random() * NO_ADSB_MLAT_SECONDS
+
+        # timestamp when we last forced MLAT for that aircraft
+        self.last_force_mlat = time.time() + FORCE_MLAT_INTERVAL * random.random()
+        self.force_mlat = False
 
         # set of receivers who want to use this aircraft for multilateration.
         # this aircraft is interesting if this set is non-empty.
@@ -185,7 +191,15 @@ class Tracker(object):
         if now - self.mlat_wanted_ts > 1:
             self.mlat_wanted = set()
             for ac in self.aircraft.values():
-                if len(ac.tracking) >= 2 and ac.allow_mlat and (now - ac.last_adsb_time > 45 or ac.sync_bad_percent > 10):
+                since_force = now - ac.last_force_mlat
+                if since_force > FORCE_MLAT_INTERVAL - 10:
+                    ac.force_mlat = True
+                if since_force > FORCE_MLAT_INTERVAL + 5:
+                    ac.last_force_mlat = now + random.random()
+                    ac.force_mlat = False
+                if len(ac.tracking) >= 2 and ac.allow_mlat and (
+                        now - ac.last_adsb_time > NO_ADSB_MLAT_SECONDS or ac.sync_bad_percent > 10 or (since_force > FORCE_MLAT_INTERVAL - 10 and since_force < FORCE_MLAT_INTERVAL)
+                        ):
                     self.mlat_wanted.add(ac)
                     ac.do_mlat = True
                 else:
