@@ -188,7 +188,7 @@ class Tracker(object):
         new_adsb = set()
         now = time.time()
 
-        if now - self.mlat_wanted_ts > 1:
+        if now - self.mlat_wanted_ts > 0.1:
             self.mlat_wanted = set()
             for ac in self.aircraft.values():
                 since_force = now - ac.last_force_mlat
