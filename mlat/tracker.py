@@ -31,7 +31,7 @@ import logging
 glogger = logging.getLogger("tracker")
 
 FORCE_MLAT_INTERVAL = 600
-NO_ADSB_MLAT_SECONDS = 60
+NO_ADSB_MLAT_SECONDS = 120
 
 class TrackedAircraft(object):
     """A single tracked aircraft."""
@@ -56,7 +56,7 @@ class TrackedAircraft(object):
         self.adsb_seen = set()
 
         # timestamp of when the we last received a somewhat valid ADS-B position from that aircraft
-        self.last_adsb_time = time.time() - random.random() * NO_ADSB_MLAT_SECONDS
+        self.last_adsb_time = 0
 
         # timestamp when we last forced MLAT for that aircraft
         self.last_force_mlat = time.time() - FORCE_MLAT_INTERVAL * random.random()
