@@ -347,11 +347,6 @@ class Coordinator(object):
             # running average for the outlier percent
             r.outlier_percent_rolling -= 0.1 * (r.outlier_percent_rolling - outlier_percent)
 
-            # almost reset num_outlier / num_syns for each receiver, keep a bit of the last iteration
-            r.num_outliers *= 0.25
-            r.num_syncs *= 0.25
-
-
             # If your sync with more than 10 percent of peers is bad,
             # it's likely you are the reason.
             # You get 0.5 to 2 to your bad_sync score and timed out.
@@ -361,7 +356,7 @@ class Coordinator(object):
 
             outlier_percent_limit = 12
 
-            if outlier_percent > outlier_percent_limit:
+            if r.num_syncs > 100 and outlier_percent > outlier_percent_limit:
                 r.bad_syncs += 0.15
 
             r.bad_syncs -= 0.1
@@ -384,6 +379,10 @@ class Coordinator(object):
 
 
             r.recent_pair_jumps = 0
+
+            # almost reset num_outlier / num_syns for each receiver, keep a bit of the last iteration
+            r.num_outliers *= 0.25
+            r.num_syncs *= 0.25
 
             # fudge positions, set retained precision as a fraction of a degree:
             precision = 20

@@ -801,12 +801,7 @@ cdef class ClockPairing(object):
         if outlier and do_reset:
             if (self.peer.focus and self.base.bad_syncs < 0.01) or (self.base.focus and self.peer.bad_syncs < 0.01):
                 outlier_percent = 100.0 * self.outlier_total / self.update_total
-                glogger.warning("ac {a:06X} step_us {e:.1f} drift_ppm {d:.1f} outlier_percent {o:.3f} pair: {r}".format(
-                    r=self,
-                    a=address,
-                    e=prediction_error*1e6,
-                    o=outlier_percent,
-                    d=self.drift*1e6))
+                glogger.warning(f'ac {address:06X} step_us {(prediction_error*1e6):.1f} drift_ppm {(self.drift*1e6):.1f} outlier_percent {outlier_percent:.3f} {round(self.outlier_total)}/{round(self.update_total)} pair: {self}')
             #if self.peer.bad_syncs < 0.1 and self.base.bad_syncs < 0.1:
             #   glogger.warning("{r}: {a:06X}: step by {e:.1f}us".format(r=self, a=address, e=prediction_error*1e6))
 
