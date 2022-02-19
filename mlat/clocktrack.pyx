@@ -756,17 +756,16 @@ cdef class ClockPairing(object):
 
                 outlier = True
                 self.outlier_total += 1
-                if abs_error > 2 * outlier_threshold:
+                if abs_error > 3 * outlier_threshold:
                     self.outliers += 20
-                    do_reset = True
                 else:
-                    self.outliers += 8
+                    self.outliers += 6
 
-                if self.outliers <= 77:
+                if self.outliers <= 77 and abs_error < 5 * outlier_threshold:
                     return False
 
-
-                if abs_error > 2 * outlier_threshold:
+                if abs_error > 3 * outlier_threshold:
+                    do_reset = True
                     if not self.jumped:
                         if self.peer.bad_syncs < 0.01:
                             self.base.incrementJumps()
