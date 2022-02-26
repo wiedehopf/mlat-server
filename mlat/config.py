@@ -35,12 +35,12 @@ AGPL_SERVER_CODE_URL = "https://github.com/adsbexchange/mlat-server"
 MIN_NUC = 6
 
 # maximum number of planes we use for sync per receiver (randomly chosen every 15 seconds):
-MAX_SYNC_AC = 18
+MAX_SYNC_AC = 15
 # max sync rate
-MAX_SYNC_RATE = 14
+MAX_SYNC_RATE = 12
 
 # minimum interval between trying to get an MLAT position
-RESOLVE_INTERVAL = 0.08
+RESOLVE_INTERVAL = 0.15
 
 # minimum time after successful position before trying to calculate the next one
 RESOLVE_BACKOFF = 0.7
@@ -53,14 +53,14 @@ MAX_ALT = 75000 * constants.FTOM
 MIN_ALT = -1500 * constants.FTOM
 
 # how long to wait to accumulate messages before doing multilateration, seconds
-MLAT_DELAY = 0.8
+MLAT_DELAY = 0.9
 
 # maxfev (maximum function evaluations) for the solver
 SOLVER_MAXFEV = 165
 
 # limit group size, discard the rest of message copies
 # first pruning step before clock normalization
-MAX_GROUP = 18
+MAX_GROUP = 15
 
 DEBUG_FOCUS='euerdorf'
 
