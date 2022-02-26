@@ -93,13 +93,13 @@ cdef double ecef_distance(p0, p1):
 
 cdef get_limit(int cat):
     if cat == 0:
-        return 40
+        return 32
     if cat == 1:
-        return 40
+        return 32
     if cat == 2:
-        return 20
+        return 16
     if cat == 3:
-        return 20
+        return 16
 
 cdef _add_to_existing_syncpoint(dict clock_pairs, SyncPoint syncpoint, r0, double t0A, double t0B):
     # add a new receiver and timestamps to an existing syncpoint
