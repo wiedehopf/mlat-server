@@ -162,7 +162,7 @@ class Coordinator(object):
     """Master coordinator. Receives all messages from receivers and dispatches
     them to clock sync / multilateration / tracking as needed."""
 
-    def __init__(self, work_dir, loop, partition=(1, 1), tag="mlat", authenticator=None, pseudorange_filename=None):
+    def __init__(self, work_dir, loop, status_interval, partition=(1, 1), tag="mlat", authenticator=None, pseudorange_filename=None):
         """If authenticator is not None, it should be a callable that takes two arguments:
         the newly created Receiver, plus the 'auth' argument provided by the connection.
         The authenticator may modify the receiver if needed. The authenticator should either
@@ -213,6 +213,16 @@ class Coordinator(object):
         self.stats_solve_attempt = 0
         self.stats_solve_success = 0
         self.stats_solve_used = 0
+
+        if status_interval is None:
+            status_interval = 15
+        status_interval = float(status_interval)
+        if status_interval < 0:
+            self.status_interval = 1e15 # a really long time
+        else:
+            self.status_interval = status_interval * 0.95
+
+        self.next_status = time.time() + self.status_interval
 
     def start(self):
         self._every_15_task = asyncio.ensure_future(self.every_15())
@@ -511,8 +521,10 @@ class Coordinator(object):
                 s=ac_count_sync,
                 t=len(self.tracker.aircraft))
         util.setproctitle(title_string)
-        glogger.warning(title_string)
 
+        if now > self.next_status:
+            self.next_status = now + self.status_interval
+            glogger.warning(title_string)
 
 
     async def every_15(self):

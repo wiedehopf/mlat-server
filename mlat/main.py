@@ -130,8 +130,8 @@ class MlatServer(object):
                             action='append',
                             type=hostport,
                             default=[])
-        parser.add_argument('--filtered-basestation-listen',
-                            help="listen on a [host:]port and send Basestation-format results to clients that connect.",
+
+        parser.add_argument('--filtered-basestation-listen', help="listen on a [host:]port and send Basestation-format results to clients that connect.",
                             action='append',
                             type=port_or_hostport,
                             default=[])
@@ -157,6 +157,10 @@ class MlatServer(object):
         parser.add_argument('--tag',
                             help="set process name prefix (requires setproctitle module)",
                             default='mlat-server')
+
+        parser.add_argument('--status-interval',
+                            help="Status logging interval in seconds, multiple of 15, -1 to disable, default 15",
+                            default=15)
 
     def make_arg_parser(self):
         parser = argparse.ArgumentParser(description="Multilateration server.")
@@ -235,7 +239,8 @@ class MlatServer(object):
                                                    loop=self.loop,
                                                    pseudorange_filename=args.dump_pseudorange,
                                                    partition=args.partition,
-                                                   tag=args.tag)
+                                                   tag=args.tag,
+                                                   status_interval=args.status_interval)
 
         subtasks = ([self.coordinator] +
                 self.make_util_subtasks(args) +
