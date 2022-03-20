@@ -193,15 +193,15 @@ class Tracker(object):
             for ac in self.aircraft.values():
                 since_force = now - ac.last_force_mlat
                 #glogger.warn(f'since_force {ac.icao:06x} {since_force}')
-                if not ac.force_mlat and since_force > FORCE_MLAT_INTERVAL - 10:
+                if not ac.force_mlat and since_force > FORCE_MLAT_INTERVAL - 15:
                     ac.force_mlat = True
                     #glogger.warn("force_mlat on {0:06x}".format(ac.icao))
-                if since_force > FORCE_MLAT_INTERVAL + 5:
+                if since_force > FORCE_MLAT_INTERVAL + 15:
                     ac.last_force_mlat = now + random.random()
                     ac.force_mlat = False
                     #glogger.warn("reset last_force_mlat {0:06x}".format(ac.icao))
                 if len(ac.tracking) >= 2 and ac.allow_mlat and (
-                        now - ac.last_adsb_time > NO_ADSB_MLAT_SECONDS or ac.sync_bad_percent > 10 or (since_force > FORCE_MLAT_INTERVAL - 10 and since_force < FORCE_MLAT_INTERVAL)
+                        now - ac.last_adsb_time > NO_ADSB_MLAT_SECONDS or ac.sync_bad_percent > 10 or (since_force > FORCE_MLAT_INTERVAL - 15 and since_force < FORCE_MLAT_INTERVAL)
                         ):
                     self.mlat_wanted.add(ac)
                     ac.do_mlat = True
