@@ -614,6 +614,7 @@ cdef class ClockPairing(object):
     cdef double drift_max
     cdef double drift_max_delta
     cdef double outlier_threshold
+    cdef double update_last_sync
 
 
     def __init__(self, base, peer, cat):
@@ -656,6 +657,8 @@ cdef class ClockPairing(object):
         self.outlier_total = 0
         self.update_total = 1e-3
 
+        self.update_last_sync = 0
+
     cdef bint check_valid(self, double now):
         if self.n < 2 or self.drift_n < 2:
             self.variance = -1e-6
@@ -674,6 +677,12 @@ cdef class ClockPairing(object):
                 and self.drift_n > 4
                 and self.variance < 16e-12
                 and now - self.updated < 35.0)
+
+        if self.valid and now > self.update_last_sync:
+            self.update_last_sync = now + 5
+            self.base.last_sync = now
+            self.peer.last_sync = now
+
         return self.valid
 
     cdef update(self, address, double base_ts, double peer_ts, double base_interval, double peer_interval, double now, ac):

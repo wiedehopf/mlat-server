@@ -81,6 +81,9 @@ class Receiver(object):
 
         self.distance = {}
 
+        # timestamp this receiver last synced with the result being a valid clock pair
+        self.last_sync = 0
+
         # Receivers with bad_syncs>0 are not used to calculate positions
         self.bad_syncs = 0
         self.sync_range_exceeded = 0

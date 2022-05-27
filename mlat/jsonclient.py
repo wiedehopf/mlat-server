@@ -581,11 +581,12 @@ class JsonClient(connection.Connection):
                     bytes.fromhex(sync['om']))
 
         elif 'mlat' in msg:
-            if self.receiver.bad_syncs > 0 or sum(self.receiver.sync_peers) < 1:
+            now = time.time()
+            if self.receiver.bad_syncs > 0 or now - self.receiver.last_sync > 20:
                 return
             mlat = msg['mlat']
-            #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
-            self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), time.time())
+            #self.process_mlat(float(mlat['t']), bytes.fromhex(mlat['m']), now)
+            self.coordinator.receiver_mlat(self.receiver, float(mlat['t']), bytes.fromhex(mlat['m']), now)
         elif 'seen' in msg:
             self.process_seen_message(msg['seen'])
         elif 'lost' in msg:
