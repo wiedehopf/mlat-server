@@ -215,6 +215,7 @@ class JsonClient(connection.Connection):
         self._wanted_traffic = set()
 
         self.message_counter = 0
+        self.return_stats = False
 
         # start
         self._read_task = asyncio.ensure_future(self.handle_connection())
@@ -399,6 +400,8 @@ class JsonClient(connection.Connection):
                 else:
                     self.report_mlat_position = self.report_mlat_position_discard
 
+                self.return_stats = hs.get('return_stats', False)
+
                 self.use_udp = (self.udp_protocol is not None and hs.get('udp_transport', 0) == 2)
 
                 conn_info = '{user} v{v} {clock_type} {cversion} {udp} {compress}'.format(
@@ -450,6 +453,7 @@ class JsonClient(connection.Connection):
                     "selective_traffic": True,
                     "heartbeat": True,
                     "return_results": self.use_return_results,
+                    "return_stats": self.return_stats,
                     "rate_reports": True,
                     "motd": expanded_motd}
 
@@ -718,6 +722,10 @@ class JsonClient(connection.Connection):
                                      dof, kalman_state, result_new_old):
         # client is not interested
         pass
+
+    def send_stats(self, statistics):
+        if self.return_stats:
+            self.send(stats=statistics)
 
     def report_mlat_position_old(self, receiver,
                                  receive_timestamp, address, ecef, ecef_cov, receivers, distinct,

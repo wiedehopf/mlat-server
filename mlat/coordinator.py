@@ -437,6 +437,15 @@ class Coordinator(object):
                 'sync_interest': [format(a.icao, '06x') for a in r.sync_interest],
                 'mlat_interest': [format(a.icao, '06x') for a in r.mlat_interest]
             }
+
+            statistics = {
+                'peer_count': sum(r.sync_peers),
+                'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
+                'outlier_percent': round(r.outlier_percent_rolling, 1)
+            }
+
+            r.connection.send_stats(statistics)
+
             # reset message counter
             r.connection.message_counter = 0
 
