@@ -50,7 +50,7 @@ users, and they may redistribute it further if they wish.
 
  * Python 3.4 or later. You need the asyncio module which was introduced in 3.4.
  * Numpy and Scipy
- * pygraph (https://github.com/pmatiello/python-graph)
+ * python-graph-core (https://github.com/pmatiello/python-graph)
  * pykalman (https://github.com/pykalman/pykalman)
  * optionally, objgraph (https://mg.pov.lt/objgraph/) for leak checking
  * gcc
