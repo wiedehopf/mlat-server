@@ -960,31 +960,10 @@ cdef class ClockPairing(object):
         if n == 0:
             raise ValueError("predict_peer called on n == 0 clock pair")
 
-        if base_ts < self.ts_base[0] or n == 1:
-            # extrapolate before first point or if we only have one point
-            elapsed = base_ts - self.ts_base[0]
-            return self.ts_peer[0] + elapsed * self.relative_freq * (1 + self.drift)
-
-        if base_ts > self.ts_base[n-1] - 10 * self.base_freq:
-            # extrapolate using last point when after 10 seconds before last point (avoid bisect due to cost)
-            elapsed = base_ts - self.ts_base[n-1]
-            result = self.ts_peer[n-1] + elapsed * self.relative_freq * (1 + self.drift)
-
-            if self.ts_base[n-1] - self.ts_base[n-2] > 10 * self.base_freq:
-                return result
-
-            # if the last 2 points are less than 10 seconds apart, average between extrapolations from those 2 points
-
-            elapsed = base_ts - self.ts_base[n-2]
-            result += self.ts_peer[n-2] + elapsed * self.relative_freq * (1 + self.drift)
-            return result * 0.5
-
-        i = bisect.bisect_left(self.ts_base, base_ts)
-        # interpolate between two points
-        return (self.ts_peer[i-1] +
-                (self.ts_peer[i] - self.ts_peer[i-1]) *
-                (base_ts - self.ts_base[i-1]) /
-                (self.ts_base[i] - self.ts_base[i-1]))
+        cdef double base_ref = self.ts_base[n-1]
+        cdef double peer_ref = self.ts_peer[n-1]
+        cdef double factor = self.relative_freq * (1 + self.drift)
+        return peer_ref + (base_ts - base_ref) * factor
 
     cpdef double predict_base(self, double peer_ts):
         """
@@ -996,31 +975,10 @@ cdef class ClockPairing(object):
         if n == 0:
             raise ValueError("predict_base called on n == 0 clock pair")
 
-        if peer_ts < self.ts_peer[0] or n == 1:
-            # extrapolate before first point or if we only have one point
-            elapsed = peer_ts - self.ts_peer[0]
-            return self.ts_base[0] + elapsed * self.i_relative_freq * (1 + self.i_drift)
-
-        if peer_ts > self.ts_peer[n-1] - 10 * self.peer_freq:
-            # extrapolate using last point when after 10 seconds before last point (avoid bisect due to cost)
-            elapsed = peer_ts - self.ts_peer[n-1]
-            result = self.ts_base[n-1] + elapsed * self.i_relative_freq * (1 + self.i_drift)
-
-            if self.ts_peer[n-1] - self.ts_peer[n-2] > 10 * self.peer_freq:
-                return result
-
-            # if the last 2 points are less than 10 seconds apart, average between extrapolations from those 2 points
-
-            elapsed = peer_ts - self.ts_peer[n-2]
-            result += self.ts_base[n-2] + elapsed * self.i_relative_freq * (1 + self.i_drift)
-            return result * 0.5
-
-        i = bisect.bisect_left(self.ts_peer, peer_ts)
-        # interpolate between two points
-        return (self.ts_base[i-1] +
-                (self.ts_base[i] - self.ts_base[i-1]) *
-                (peer_ts - self.ts_peer[i-1]) /
-                (self.ts_peer[i] - self.ts_peer[i-1]))
+        cdef double base_ref = self.ts_base[n-1]
+        cdef double peer_ref = self.ts_peer[n-1]
+        cdef double factor = self.i_relative_freq * (1 + self.i_drift)
+        return base_ref + (peer_ts - peer_ref) * factor
 
     def __str__(self):
         return self.base.user + ':' + self.peer.user
