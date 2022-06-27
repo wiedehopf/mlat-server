@@ -956,13 +956,13 @@ cdef class ClockPairing(object):
         cdef double max_elapsed = 20
         cdef double keep
 
-        if self.n <= 2:
+        if self.n == 0:
             self.base_avg = base_ts
             self.peer_avg = peer_ts
         else:
             elapsed = base_ts - self.ts_base[self.n]
             if elapsed < max_elapsed:
-                keep = ((1 - elapsed / max_elapsed) ** 2) * 0.7
+                keep = ((1 - elapsed / max_elapsed) ** 2) * 0.8
                 self.base_avg = self.base_avg * keep + base_ts * (1 - keep)
                 self.peer_avg = self.peer_avg * keep + peer_ts * (1 - keep)
             else:
