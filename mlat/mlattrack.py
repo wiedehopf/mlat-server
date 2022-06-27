@@ -35,7 +35,7 @@ import traceback
 
 import modes_cython.message
 from mlat import geodesy, constants, profile
-from mlat import clocknorm, solver, config
+from mlat import clocktrack, solver, config
 
 glogger = logging.getLogger("mlattrack")
 
@@ -250,7 +250,7 @@ class MlatTracker(object):
         # normalize timestamps. This returns a list of timestamp maps;
         # within each map, the timestamp values are comparable to each other.
         try:
-            components = clocknorm.normalize2(clocktracker=self.clock_tracker,
+            components = clocktrack.normalize2(clocktracker=self.clock_tracker,
                                              timestamp_map=timestamp_map)
         except Exception as e:
             traceback.print_exc()
