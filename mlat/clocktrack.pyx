@@ -594,10 +594,10 @@ cdef class ClockPairing(object):
     cdef peer
     cdef int cat
 
-    cdef double factor
-    cdef double i_factor
-    cdef double base_avg
-    cdef double peer_avg
+    cdef public double factor
+    cdef public double i_factor
+    cdef public double base_avg
+    cdef public double peer_avg
 
     cdef base_clock
     cdef peer_clock
@@ -1013,15 +1013,21 @@ cdef class ClockPairing(object):
 Clock normalization routines.
 """
 
+#cdef double _predict(double target_ref, double source_ref, double factor, double source_ts):
+#    return target_ref + (source_ts - source_ref) * factor
 
 cdef class _Predictor(object):
     """Simple object for holding prediction state"""
 
-    cdef public predict
+    cdef public double target_ref
+    cdef public double source_ref
+    cdef public double factor
     cdef public double variance
 
-    def __init__(self, predict, double variance):
-        self.predict = predict
+    def __init__(self, double target_ref, double source_ref, double factor, double variance):
+        self.target_ref = target_ref
+        self.source_ref = source_ref
+        self.factor = factor
         self.variance = variance
 
 
@@ -1045,12 +1051,14 @@ cdef _make_predictors(clock_pairs, station0, station1, double now):
     #    return (predictor, predictor)
 
     if station0 < station1:
-        pairing = clock_pairs.get((station0, station1))
+        pair = clock_pairs.get((station0, station1))
     else:
-        pairing = clock_pairs.get((station1, station0))
+        pair = clock_pairs.get((station1, station0))
 
-    if pairing is None or not pairing.valid:
+    if pair is None or not pair.valid:
         return None
+
+    cdef ClockPairing pairing = pair
 
     cdef double variance = pairing.variance
     cdef double stale = now - pairing.updated
@@ -1062,13 +1070,13 @@ cdef _make_predictors(clock_pairs, station0, station1, double now):
     if pairing.n < 10:
         variance *= 1 + (10 - pairing.n) * 0.05
 
-    if station0 < station1:
-        return (_Predictor(pairing.predict_peer, variance),
-                _Predictor(pairing.predict_base, variance))
-    else:
-        return (_Predictor(pairing.predict_base, variance),
-                _Predictor(pairing.predict_peer, variance))
+    cdef _Predictor base_predictor = _Predictor(pairing.base_avg, pairing.peer_avg, pairing.i_factor, variance)
+    cdef _Predictor peer_predictor = _Predictor(pairing.peer_avg, pairing.base_avg, pairing.factor, variance)
 
+    if station0 < station1:
+        return (peer_predictor, base_predictor)
+    else:
+        return (base_predictor, peer_predictor)
 
 cdef _label_heights(g, node, heights):
     """Label each node in the tree with a root of 'node'
@@ -1118,7 +1126,7 @@ cdef _convert_timestamps(g, timestamp_map, predictor_map, node, results, convers
     results[node] = (variance, r)   # also used as a visited-map
     for ts, utc in timestamp_map[node]:
         for predictor in conversion_chain:
-            ts = predictor.predict(ts)
+            ts = predictor.target_ref + (ts - predictor.source_ref) * predictor.factor
         r.append((ts, utc))
 
     # convert all reachable unvisited nodes using a conversion to our timestamp
@@ -1230,7 +1238,13 @@ def normalize(clocktracker, timestamp_map):
         # by walking the spanning tree edges. Then finally convert to wallclock
         # times as the last step by dividing by the final clock's frequency
         results = {}
-        conversion_chain = [_Predictor(lambda x: x/central.clock.freq, central.clock.jitter**2)]
+
+        factor = 1 / central.clock.freq
+        variance = central.clock.jitter**2
+        source_ref = 0
+        target_ref = 0
+        conversion_chain = [_Predictor(target_ref, source_ref, factor, variance)]
+
         _convert_timestamps(g, timestamp_map, predictor_map, central, results,
                             conversion_chain, central.clock.jitter**2)
 
@@ -1405,7 +1419,13 @@ def normalize2(clocktracker, timestamp_map):
         # by walking the spanning tree edges. Then finally convert to wallclock
         # times as the last step by dividing by the final clock's frequency
         results = {}
-        conversion_chain = [_Predictor(lambda x: x/central.clock.freq, central.clock.jitter**2)]
+
+        factor = 1 / central.clock.freq
+        variance = central.clock.jitter**2
+        source_ref = 0
+        target_ref = 0
+        conversion_chain = [_Predictor(target_ref, source_ref, factor, variance)]
+
         _convert_timestamps(g, timestamp_map, predictor_map, central, results,
                             conversion_chain, central.clock.jitter**2)
 
