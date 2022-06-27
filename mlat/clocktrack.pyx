@@ -893,20 +893,13 @@ cdef class ClockPairing(object):
             #glogger.warn("{0}: drift_max".format(self))
             return False
 
-        if self.drift_n <= 0 or self.drift_outliers > 30:
+        if self.drift_n <= 0 or self.drift_outliers > 15:
             # First sample, just trust it outright
             self.raw_drift = self.drift = new_drift
             self.i_drift = -1 * self.drift / (1.0 + self.drift)
-            self.drift_n = 0
             self.cumulative_error = 0.0
             self.drift_outliers = 0
-
-        if self.drift_n <= 0:
-            # First sample, just trust it outright
-            self.raw_drift = self.drift = new_drift
-            self.i_drift = -1 * self.drift / (1.0 + self.drift)
-            # give this a bit of confidence
-            self.drift_n = 2
+            self.drift_n = 1
             return True
 
         cdef double drift_error = new_drift - self.raw_drift
