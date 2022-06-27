@@ -593,6 +593,12 @@ cdef class ClockPairing(object):
     cdef base
     cdef peer
     cdef int cat
+
+    cdef double factor
+    cdef double i_factor
+    cdef double base_avg
+    cdef double peer_avg
+
     cdef base_clock
     cdef peer_clock
     cdef double base_freq
@@ -600,6 +606,7 @@ cdef class ClockPairing(object):
     cdef double raw_drift
     cdef double drift
     cdef double i_drift
+
     cdef int drift_n
     cdef int drift_outliers
     cdef int outlier_reset_cooldown
@@ -839,6 +846,9 @@ cdef class ClockPairing(object):
             self.check_valid(now)
             return False
 
+        self.factor = self.relative_freq * (1 + self.drift)
+        self.i_factor = self.i_relative_freq * (1 + self.i_drift)
+
         # update clock offset based on the actual clock values
         self._update_offset(base_ts, peer_ts, prediction_error)
 
@@ -937,6 +947,9 @@ cdef class ClockPairing(object):
         self.outliers = 0
         self.cumulative_error = 0.0
 
+        self.base_avg = 0
+        self.peer_avg = 0
+
     cdef void _update_offset(self, double base_ts, double peer_ts, double prediction_error):
         # insert this into self.ts_base / self.ts_peer / self.var in the right place
 
@@ -945,6 +958,23 @@ cdef class ClockPairing(object):
         self.ts_base[self.n] = base_ts
         self.ts_peer[self.n] = peer_ts
         self.var[self.n] = p_var
+
+        cdef double elapsed
+        cdef double max_elapsed = 20
+        cdef double keep
+
+        if self.n <= 2:
+            self.base_avg = base_ts
+            self.peer_avg = peer_ts
+        else:
+            elapsed = base_ts - self.ts_base[self.n]
+            if elapsed < max_elapsed:
+                keep = ((1 - elapsed / max_elapsed) ** 2) * 0.7
+                self.base_avg = self.base_avg * keep + base_ts * (1 - keep)
+                self.peer_avg = self.peer_avg * keep + peer_ts * (1 - keep)
+            else:
+                self.base_avg = base_ts
+                self.peer_avg = peer_ts
 
         self.n += 1
 
@@ -960,10 +990,7 @@ cdef class ClockPairing(object):
         if n == 0:
             raise ValueError("predict_peer called on n == 0 clock pair")
 
-        cdef double base_ref = self.ts_base[n-1]
-        cdef double peer_ref = self.ts_peer[n-1]
-        cdef double factor = self.relative_freq * (1 + self.drift)
-        return peer_ref + (base_ts - base_ref) * factor
+        return self.peer_avg + (base_ts - self.base_avg) * self.factor
 
     cpdef double predict_base(self, double peer_ts):
         """
@@ -975,18 +1002,10 @@ cdef class ClockPairing(object):
         if n == 0:
             raise ValueError("predict_base called on n == 0 clock pair")
 
-        cdef double base_ref = self.ts_base[n-1]
-        cdef double peer_ref = self.ts_peer[n-1]
-        cdef double factor = self.i_relative_freq * (1 + self.i_drift)
-        return base_ref + (peer_ts - peer_ref) * factor
+        return self.base_avg + (peer_ts - self.peer_avg) * self.i_factor
 
     def __str__(self):
         return self.base.user + ':' + self.peer.user
-
-
-
-
-
 
 
 
