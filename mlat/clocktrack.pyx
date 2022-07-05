@@ -643,7 +643,7 @@ cdef class ClockPairing(object):
         self.relative_freq = peer.clock.freq / base.clock.freq
         self.i_relative_freq = base.clock.freq / peer.clock.freq
         self.drift_max = 0.75 * (base.clock.max_freq_error + peer.clock.max_freq_error)
-        self.drift_max_delta = self.drift_max / 10.0
+        self.drift_max_delta = self.drift_max / 20.0
         # self.outlier_threshold = 4 * sqrt(peer.clock.jitter ** 2 + base.clock.jitter ** 2) # 4 sigma
         # this was about 2.5 us for rtl-sdr receivers
         self.outlier_threshold = 1.5 * 1e-6 # 1e-6 -> 1 us
@@ -913,7 +913,7 @@ cdef class ClockPairing(object):
 
         self.drift_outliers = max(0, self.drift_outliers - 2)
 
-        cdef double KP = 0.04
+        cdef double KP = 0.06
         cdef double KI = 0.008
 
         # for relatively new pairs allow quicker adjustment of relative drift
