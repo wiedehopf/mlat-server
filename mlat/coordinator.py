@@ -333,29 +333,36 @@ class Coordinator(object):
             bad_peers = 0
             # count how many peers we have bad sync with
             # don't count peers who have been timed out (state[3] > 0)
-            # 1.5 microseconds error or more are considered a bad sync (state[1] > 3)
+
             num_peers = 8
-            # start with 8 peers extra, so low peer receivers
-            # aren't timed out by the percentage threshold
-            # of bad_peers as easily.
 
             # iterate over sync state with all peers
-            # state = [ 0: pairing sync count, 1: offset, 2: drift,
-            #           3: bad_syncs, 4: pairing.jumped]
+            # state
+            # 0: pairing sync count
+            # 1: offset
+            # 2: drift
+            # 3: bad_syncs
+            # 4: pairing.jumped
+            # 5: pairing.outlier_percent
+
             peers = receiver_states.get(r.user, {})
             bad_peer_list = []
+            sum_outlier_percent = 0
             for username, state in peers.items():
                 if state[3] > 0:
                     # skip peers which have bad sync
                     continue
+                sum_outlier_percent += state[5]
                 num_peers += 1
-                if state[4] or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
+                if state[4] or state[5] > 50 or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
                     bad_peer_list.append(username)
 
-            outlier_sum += r.num_outliers
-            sync_sum += r.num_syncs
-            outlier_percent = 100 * r.num_outliers / (r.num_syncs + 0.1)
+
+            outlier_sum += sum_outlier_percent / 100
+            sync_sum += num_peers
+            #outlier_percent = 100 * r.num_outliers / (r.num_syncs + 0.1)
+            outlier_percent = sum_outlier_percent / num_peers
 
             # running average for the outlier percent
             r.outlier_percent_rolling -= 0.1 * (r.outlier_percent_rolling - outlier_percent)
@@ -364,12 +371,12 @@ class Coordinator(object):
             # it's likely you are the reason.
             # You get 0.5 to 2 to your bad_sync score and timed out.
 
-            if bad_peers/num_peers > 0.15:
+            if bad_peers / (num_peers + 7) > 0.15:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
 
-            outlier_percent_limit = 12
+            outlier_percent_limit = 15
 
-            if r.num_syncs > 100 and outlier_percent > outlier_percent_limit:
+            if num_peers > 5 and outlier_percent > outlier_percent_limit:
                 r.bad_syncs += 0.15
 
             r.bad_syncs -= 0.1

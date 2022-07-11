@@ -523,20 +523,26 @@ class ClockTracker(object):
             if pairing.n < 2:
                 continue
 
-            outlier_percent = 100.0 * pairing.outlier_total / pairing.update_total
+            if pairing.update_total < 8:
+                outlier_percent = 0
+            else:
+                outlier_percent = 100.0 * pairing.outlier_total / pairing.update_total
+
             state.setdefault(r0.user, {})[r1.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.drift * 1e6),
                               round(r1.bad_syncs, 2),
                               pairing.jumped,
-                              round(outlier_percent, 1)]
+                              round(outlier_percent, 1),
+                              pairing.updated]
                     #removed: #pairing.ts_peer[-1] - pairing.ts_base[-1]]
             state.setdefault(r1.user, {})[r0.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.i_drift * 1e6),
                               round(r0.bad_syncs, 2),
                               pairing.jumped,
-                              round(outlier_percent, 1)]
+                              round(outlier_percent, 1),
+                              pairing.updated]
                     #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
             # reset jumped indicator
             pairing.jumped = 0
@@ -674,7 +680,7 @@ cdef class ClockPairing(object):
         self.update_last_sync = 0
 
     cdef bint check_valid(self, double now):
-        if self.n < 2 or self.drift_n < 2:
+        if self.n < 2 or self.drift_n < 2 or self.outlier_total / self.update_total > 0.5:
             self.variance = -1e-6
             self.error = -1e-6
             self.valid = False
@@ -772,10 +778,12 @@ cdef class ClockPairing(object):
                 if ac.sync_dont_use:
                     return False
 
-                if self.peer.bad_syncs < 0.01 or 15 * self.peer.num_outliers < self.peer.num_syncs:
-                    self.base.num_outliers += 1
-                if self.base.bad_syncs < 0.01 or 15 * self.base.num_outliers < self.base.num_syncs:
-                    self.peer.num_outliers += 1
+                # disable this for the moment
+                if 0:
+                    if self.peer.bad_syncs < 0.01:
+                        self.base.num_outliers += 1
+                    if self.base.bad_syncs < 0.01:
+                        self.peer.num_outliers += 1
 
                 outlier = True
                 self.outlier_total += 1
@@ -859,7 +867,7 @@ cdef class ClockPairing(object):
     cdef void _prune_old_data(self, double now):
         cdef int i = 0
 
-        if self.outlier_total or self.update_total > 256:
+        if self.update_total > 32:
             self.outlier_total /= 2
             self.update_total /= 2
 
