@@ -523,14 +523,14 @@ class ClockTracker(object):
             if pairing.n < 2:
                 continue
 
-            if pairing.update_total < 8:
-                outlier_percent = 0
+            if pairing.update_total < 4:
+                outlier_percent = 50.0 * pairing.outlier_total / pairing.update_total
             else:
                 outlier_percent = 100.0 * pairing.outlier_total / pairing.update_total
 
 
-            pairing.outlier_total /= 4
-            pairing.update_total /= 4
+            pairing.outlier_total /= 2
+            pairing.update_total /= 2
 
 
             state.setdefault(r0.user, {})[r1.user] = [pairing.n,
@@ -731,7 +731,8 @@ cdef class ClockPairing(object):
         if self.n > cp_size - 1 or base_ts - self.ts_base[0] > 50.0 * self.base_freq:
             self._prune_old_data(now)
 
-        self.update_total += 1
+        if not ac.sync_dont_use:
+            self.update_total += 1
         self.update_attempted = now
 
         if self.n > 0 and not outlier:
