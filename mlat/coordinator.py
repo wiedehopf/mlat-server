@@ -344,13 +344,15 @@ class Coordinator(object):
             # 3: bad_syncs
             # 4: pairing.jumped
             # 5: pairing.outlier_percent
+            # 6: pairing.updated
 
             peers = receiver_states.get(r.user, {})
             bad_peer_list = []
             sum_outlier_percent = 0
             for username, state in peers.items():
-                if state[3] > 0:
+                if state[3] > 0 or now - state[6] > 15:
                     # skip peers which have bad sync
+                    # skip peers which haven't updated in a bit
                     continue
                 sum_outlier_percent += state[5]
                 num_peers += 1
@@ -371,8 +373,11 @@ class Coordinator(object):
             # it's likely you are the reason.
             # You get 0.5 to 2 to your bad_sync score and timed out.
 
-            if bad_peers / (num_peers + 7) > 0.15:
+            if bad_peers / (num_peers + 6) > 0.15:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
+
+            if num_peers > 10 and outlier_percent > 15:
+                r.bad_syncs += 0.15
 
             r.bad_syncs -= 0.1
 
