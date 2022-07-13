@@ -528,6 +528,11 @@ class ClockTracker(object):
             else:
                 outlier_percent = 100.0 * pairing.outlier_total / pairing.update_total
 
+
+            pairing.outlier_total /= 4
+            pairing.update_total /= 4
+
+
             state.setdefault(r0.user, {})[r1.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.drift * 1e6),
@@ -866,10 +871,6 @@ cdef class ClockPairing(object):
 
     cdef void _prune_old_data(self, double now):
         cdef int i = 0
-
-        if self.update_total > 32:
-            self.outlier_total /= 2
-            self.update_total /= 2
 
         cdef int new_max = cp_size - 12
         if self.n > new_max:

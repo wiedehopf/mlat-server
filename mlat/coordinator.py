@@ -354,7 +354,7 @@ class Coordinator(object):
                     continue
                 sum_outlier_percent += state[5]
                 num_peers += 1
-                if state[4] or state[5] > 50 or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
+                if state[4] or state[5] > 40 or (state[0] > 10 and state[1] > 1.2) or (state[0] > 3 and state[1] > 1.8) or state[1] > 2.4:
                     bad_peers += 1
                     bad_peer_list.append(username)
 
@@ -373,11 +373,6 @@ class Coordinator(object):
 
             if bad_peers / (num_peers + 7) > 0.15:
                 r.bad_syncs += min(0.5, 2*bad_peers/num_peers) + 0.1
-
-            outlier_percent_limit = 15
-
-            if num_peers > 5 and outlier_percent > outlier_percent_limit:
-                r.bad_syncs += 0.15
 
             r.bad_syncs -= 0.1
 
