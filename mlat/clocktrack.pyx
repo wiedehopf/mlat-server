@@ -814,7 +814,8 @@ cdef class ClockPairing(object):
                 ac.sync_good += 1
                 ac.last_adsb_time = now
 
-            if self.n >= 2:
+            # disable this
+            if 0 and self.n >= 2:
                 # wiedehopf: add hacky sync averaging
                 # modify new base_ts and peer_ts towards the geometric mean between predition and actual value
                 # changing the prediction functions to take into account more past values would likely be the cleaner approach
@@ -823,9 +824,9 @@ cdef class ClockPairing(object):
                 # note that using weight 1/2 so the exact geometric mean seems to be unstable
                 # weights 1/4 and 1/3 seem to work well though
                 prediction_base = self.predict_base(peer_ts)
-                if self.n >= 4 and self.drift_n > drift_n_stable:
-                    peer_ts += (prediction - peer_ts) * 0.34
-                    base_ts += (prediction_base - base_ts) * 0.34
+                if self.n >= 6 and self.drift_n > drift_n_stable:
+                    peer_ts += (prediction - peer_ts) * 0.25
+                    base_ts += (prediction_base - base_ts) * 0.25
                 else:
                     peer_ts += (prediction - peer_ts) * 0.10
                     base_ts += (prediction_base - base_ts) * 0.10
@@ -972,7 +973,7 @@ cdef class ClockPairing(object):
         else:
             elapsed = base_ts - self.ts_base[self.n]
             if elapsed < max_elapsed:
-                keep = ((1 - elapsed / max_elapsed) ** 2) * 0.8
+                keep = ((1 - elapsed / max_elapsed) ** 2) * 0.75
                 self.base_avg = self.base_avg * keep + base_ts * (1 - keep)
                 self.peer_avg = self.peer_avg * keep + peer_ts * (1 - keep)
             else:
