@@ -539,16 +539,17 @@ class ClockTracker(object):
                               round(r1.bad_syncs, 2),
                               pairing.jumped,
                               round(outlier_percent, 1),
-                              pairing.updated]
-                    #removed: #pairing.ts_peer[-1] - pairing.ts_base[-1]]
+                              pairing.updated,
+                              sum(r1.sync_peers)]
             state.setdefault(r1.user, {})[r0.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
                               round(pairing.i_drift * 1e6),
                               round(r0.bad_syncs, 2),
                               pairing.jumped,
                               round(outlier_percent, 1),
-                              pairing.updated]
-                    #removed: #pairing.ts_base[-1] - pairing.ts_peer[-1]]
+                              pairing.updated,
+                              sum(r0.sync_peers)]
+
             # reset jumped indicator
             pairing.jumped = 0
         return state
