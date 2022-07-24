@@ -56,8 +56,10 @@ class Receiver(object):
             self.epoch = 'gps_midnight'
         self.last_clock_reset = time.time()
         self.clock_reset_counter = 0
+
         self.position_llh = position_llh
         self.position = geodesy.llh2ecef(position_llh)
+
         self.privacy = privacy
         self.connection_info = connection_info
         self.dead = False
@@ -76,8 +78,9 @@ class Receiver(object):
         self.sync_interest = set()
         self.mlat_interest = set()
         self.requested = set()
-        self.offX = 1/20 * random.random()
-        self.offY = 1/20 * random.random()
+        self.mapLat = 0
+        self.mapLon = 0
+        self.mapAlt = 0
 
         self.distance = {}
 
@@ -91,6 +94,8 @@ class Receiver(object):
         self.recent_pair_jumps = 0
 
         self.focus = False
+
+        self.coordinator.receiver_location_update(self, position_llh)
 
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
@@ -402,22 +407,12 @@ class Coordinator(object):
             r.num_outliers *= 0.25
             r.num_syncs *= 0.25
 
-            # fudge positions, set retained precision as a fraction of a degree:
-            precision = 20
-            if r.privacy:
-                rlat = None
-                rlon = None
-                ralt = None
-            else:
-                rlat = round(round(r.position_llh[0] * precision) / precision + r.offX, 2)
-                rlon = round(round(r.position_llh[1] * precision) / precision + r.offY, 2)
-                ralt = 50 * round(r.position_llh[2]/50)
-
+            # r.mapLat / r.mapLon is a fudged position for privacy
             sync[r.user] = {
                 'peers': receiver_states.get(r.user, {}),
                 'bad_syncs': r.bad_syncs,
-                'lat': rlat,
-                'lon': rlon
+                'lat': r.mapLat,
+                'lon': r.mapLon
             }
 
             r.peer_count = len(sync[r.user]['peers'])
@@ -625,6 +620,22 @@ class Coordinator(object):
         """Note that a given receiver has moved."""
         receiver.position_llh = position_llh
         receiver.position = geodesy.llh2ecef(position_llh)
+
+
+        # fudge map position, set retained precision as a fraction of a degree:
+        precision = 20
+        r = receiver
+        if r.privacy:
+            r.mapLat = None
+            r.mapLon = None
+            r.mapAlt = None
+        else:
+
+            offX = -1/precision + 1/precision * random.random()
+            offY = -1/precision + 1/precision * random.random()
+            r.mapLat = round(round(r.position_llh[0] * precision) / precision + offX, 2)
+            r.mapLon = round(round(r.position_llh[1] * precision) / precision + offY, 2)
+            r.mapAlt = 50 * round(r.position_llh[2]/50)
 
         self._compute_interstation_distances(receiver)
 
