@@ -345,8 +345,9 @@ class JsonClient(connection.Connection):
 
                 # replace bad characters with an underscore
                 user = re.sub("[^A-Za-z0-9_.-]", r'_', user)
-                if len(user) > 400:
-                    user = user[:400]
+                # limit to 40 chars
+                if len(user) > 40:
+                    user = user[:40]
                 if len(user) < 3:
                     user = user + '_' + str(random.randrange(10,99))
 
@@ -357,8 +358,10 @@ class JsonClient(connection.Connection):
                         # if we have another user with the same uuid, disconnect the existing user
                         existingReceiver.connection.close()
                     else:
-                        while user in self.coordinator.usernames:
-                            user = user + '_' + str(random.randrange(10,99))
+                        tries = 1000
+                        while tries > 0 and user in self.coordinator.usernames:
+                            tries -= 1
+                            user = user + '_' + str(random.randrange(100,999))
 
 
                 peer_compression_methods = set(hs['compress'])
