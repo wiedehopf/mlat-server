@@ -580,7 +580,7 @@ cdef class Clock(object):
 def make_clock(clock_type):
     """Return a new Clock instance for the given clock type."""
 
-    if clock_type == 'radarcape_gps':
+    if clock_type == 'radarcape_gps' or clock_type == 'radarcape':
         return Clock(freq=1e9, max_freq_error=1e-6, jitter=15e-9)
     if clock_type == 'beast' or clock_type == 'radarcape_12mhz':
         return Clock(freq=12e6, max_freq_error=5e-6, jitter=83e-9)
