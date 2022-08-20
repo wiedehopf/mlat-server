@@ -519,6 +519,7 @@ class ClockTracker(object):
         state = {}
         cdef double outlier_percent
         cdef ClockPairing pairing
+        now = time.time()
         for (r0, r1), pairing in self.clock_pairs.items():
             if pairing.n < 2:
                 continue
@@ -539,7 +540,7 @@ class ClockTracker(object):
                               round(r1.bad_syncs, 2),
                               pairing.jumped,
                               round(outlier_percent, 1),
-                              pairing.updated,
+                              int(round(now - pairing.updated)),
                               sum(r1.sync_peers)]
             state.setdefault(r1.user, {})[r0.user] = [pairing.n,
                               round(pairing.error * 1e6, 1),
@@ -547,7 +548,7 @@ class ClockTracker(object):
                               round(r0.bad_syncs, 2),
                               pairing.jumped,
                               round(outlier_percent, 1),
-                              pairing.updated,
+                              int(round(now - pairing.updated)),
                               sum(r0.sync_peers)]
 
             # reset jumped indicator

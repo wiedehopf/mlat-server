@@ -349,14 +349,14 @@ class Coordinator(object):
             # 3: bad_syncs
             # 4: pairing.jumped
             # 5: pairing.outlier_percent
-            # 6: pairing.updated
+            # 6: time since last pairing update
             # 7: how many synced peers does the peer have
 
             peers = receiver_states.get(r.user, {})
             bad_peer_list = []
             sum_outlier_percent = 0
             for username, state in peers.items():
-                if state[3] > 0 or now - state[6] > 20 or state[7] < 8:
+                if state[3] > 0 or state[6] > 20 or state[7] < 8:
                     # skip peers which have bad sync
                     # skip peers which haven't updated in a bit
                     continue
