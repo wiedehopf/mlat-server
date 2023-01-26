@@ -77,6 +77,9 @@ python3 setup.py build_ext --inplace
 
 Starting mlat server:
 ```
+export MKL_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 $VENV/bin/python3 /opt/mlat-server/mlat-server
 ```
 (example has git directory cloned into /opt/mlat-server)
