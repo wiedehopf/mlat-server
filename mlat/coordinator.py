@@ -100,7 +100,7 @@ class Receiver(object):
     def update_interest_sets(self, new_sync, new_mlat, new_adsb):
 
         if self.bad_syncs > 3 and len(new_sync) > 3:
-            new_sync = set(random.sample(new_sync, k=3))
+            new_sync = set(random.sample(list(new_sync), k=3))
 
         if self.bad_syncs > 0:
             new_mlat = set()
