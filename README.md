@@ -1,4 +1,4 @@
-# mlat-server, adsbexchange fork
+# mlat-server, wiedehopf fork
 
 This is a Mode S multilateration server that is designed to operate with
 clients that do _not_ have synchronized clocks.
@@ -100,8 +100,8 @@ to hack on the code.
 ## Clients
 
 You need a bunch of receivers running mlat-client:
-https://github.com/adsbxchange/mlat-client
-The original version by mutability will also work but the adsbexchange client has some changes that are useful.
+https://github.com/wiedehopf/mlat-client
+The original version by mutability will also work but the wiedehopf client has some changes that are useful.
 (https://github.com/mutability/mlat-client)
 
 ## Output
