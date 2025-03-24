@@ -65,7 +65,7 @@ rm -rf $VENV
 python3 -m venv $VENV
 source $VENV/bin/activate
 pip3 install -U pip
-pip3 install numpy scipy pykalman python-graph-core uvloop ujson Cython
+pip3 install numpy scipy pykalman python-graph-core uvloop ujson Cython setuptools
 ```
 
 After every code update, recompile the Cython stuff:
