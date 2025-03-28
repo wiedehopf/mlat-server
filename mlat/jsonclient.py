@@ -575,6 +575,7 @@ class JsonClient(connection.Connection):
             msg = ujson.loads(line)
         except ValueError:
             logging.warn("process_message json ValueError: %s >> %s", self.receiver.user, line)
+            return
 
 
         self.message_counter += 1
