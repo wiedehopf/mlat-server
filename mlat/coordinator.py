@@ -409,7 +409,7 @@ class Coordinator(object):
 
             # r.mapLat / r.mapLon is a fudged position for privacy
             sync[r.user] = {
-                'peers': receiver_states.get(r.user, {}),
+                'peers': peers,
                 'bad_syncs': r.bad_syncs,
                 'lat': r.mapLat,
                 'lon': r.mapLon
@@ -430,7 +430,7 @@ class Coordinator(object):
                 'source_ip': r.connection.source_ip,
                 'source_port': r.connection.source_port,
                 'message_rate': round(r.connection.message_counter / 15.0),
-                'peer_count': sum(r.sync_peers),
+                'peer_count': len(peers),
                 'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
                 'outlier_percent': round(r.outlier_percent_rolling, 1),
                 'bad_peer_list': str(bad_peer_list),
@@ -439,7 +439,7 @@ class Coordinator(object):
             }
 
             statistics = {
-                'peer_count': sum(r.sync_peers),
+                'peer_count': len(peers),
                 'bad_sync_timeout': round(r.bad_syncs * 15 / 0.1),
                 'outlier_percent': round(r.outlier_percent_rolling, 1)
             }
