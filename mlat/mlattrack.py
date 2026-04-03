@@ -357,6 +357,11 @@ class MlatTracker(object):
         ac.last_result_time = cluster_utc
         ac.mlat_result_count += 1
 
+        # terminate mlat forcing when we get a reasonably accurate result (error < 1km)
+        if error < 1e3:
+            ac.last_force_mlat = now
+            ac.force_mlat = False
+
         if altitude is not None:
             lat, lon, _ = geodesy.ecef2llh(ecef)
             # replace ecef altitude with reported altitude
