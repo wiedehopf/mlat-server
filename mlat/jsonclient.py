@@ -383,7 +383,7 @@ class JsonClient(connection.Connection):
                 if lon < -180 or lon > 360:
                     raise ValueError('invalid longitude, should be -180 .. 360')
                 if lon > 180:
-                    lon = lon - 180
+                    lon = lon - 360
 
                 alt = float(hs['alt'])
                 if alt < -1000 or alt > 10000:
